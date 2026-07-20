@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -13,7 +14,25 @@ import (
 const (
 	settingAIBaseURL = "ai.base_url"
 	settingAIModel   = "ai.model"
+	settingWeekStart = "region.week_start"
+	settingTimezone  = "region.timezone"
 )
+
+// commonTimezones is a curated list of IANA zones offered in Settings.
+var commonTimezones = []string{
+	"UTC",
+	"Europe/London", "Europe/Dublin", "Europe/Lisbon", "Europe/Madrid", "Europe/Paris",
+	"Europe/Berlin", "Europe/Amsterdam", "Europe/Brussels", "Europe/Zurich", "Europe/Rome",
+	"Europe/Vienna", "Europe/Prague", "Europe/Warsaw", "Europe/Athens", "Europe/Helsinki",
+	"Europe/Istanbul", "Europe/Moscow",
+	"America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+	"America/Toronto", "America/Mexico_City", "America/Sao_Paulo",
+	"America/Argentina/Buenos_Aires",
+	"Africa/Cairo", "Africa/Johannesburg", "Africa/Lagos", "Africa/Nairobi",
+	"Asia/Dubai", "Asia/Jerusalem", "Asia/Kolkata", "Asia/Bangkok", "Asia/Singapore",
+	"Asia/Shanghai", "Asia/Hong_Kong", "Asia/Tokyo", "Asia/Seoul",
+	"Australia/Perth", "Australia/Sydney", "Pacific/Auckland", "Pacific/Honolulu",
+}
 
 // aiSettings returns the effective AI endpoint URL and model, falling back to
 // the package defaults when nothing is configured.
@@ -33,12 +52,40 @@ func (s *Server) aiSettings(ctx context.Context) (baseURL, model string) {
 	return baseURL, model
 }
 
+// regionSettings returns the configured week start and timezone, defaulting to
+// Monday and UTC when unset or invalid.
+func (s *Server) regionSettings(ctx context.Context) (weekStart string, loc *time.Location) {
+	weekStart, loc = "monday", time.UTC
+	settings, err := s.store.GetSettings(ctx)
+	if err != nil {
+		s.log.Warn("loading settings", "err", err)
+		return weekStart, loc
+	}
+	if v := strings.TrimSpace(settings[settingWeekStart]); v == "sunday" || v == "monday" {
+		weekStart = v
+	}
+	if v := strings.TrimSpace(settings[settingTimezone]); v != "" {
+		if l, err := time.LoadLocation(v); err == nil {
+			loc = l
+		}
+	}
+	return weekStart, loc
+}
+
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
 	settings, err := s.store.GetSettings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+	weekStart := "monday"
+	if v := strings.TrimSpace(settings[settingWeekStart]); v == "sunday" || v == "monday" {
+		weekStart = v
+	}
+	timezone := "UTC"
+	if v := strings.TrimSpace(settings[settingTimezone]); v != "" {
+		timezone = v
 	}
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
 		"Languages":        i18n.Supported(),
@@ -48,6 +95,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"AIDefaultBaseURL": ai.DefaultBaseURL,
 		"AIDefaultModel":   ai.DefaultModel,
 		"AIKeyConfigured":  s.ai.Enabled(),
+		"WeekStart":        weekStart,
+		"Timezone":         timezone,
+		"Timezones":        commonTimezones,
 	})
 }
 
@@ -82,6 +132,27 @@ func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := s.store.PutSetting(r.Context(), settingAIModel, model); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.redirectSettings(w, r)
+}
+
+// handleUpdateRegionSettings persists the week start and timezone preferences.
+func (s *Server) handleUpdateRegionSettings(w http.ResponseWriter, r *http.Request) {
+	weekStart := formStr(r, "week_start")
+	if weekStart != "sunday" && weekStart != "monday" {
+		weekStart = "monday"
+	}
+	timezone := formStr(r, "timezone")
+	if _, err := time.LoadLocation(timezone); err != nil {
+		timezone = "UTC"
+	}
+	if err := s.store.PutSetting(r.Context(), settingWeekStart, weekStart); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.store.PutSetting(r.Context(), settingTimezone, timezone); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

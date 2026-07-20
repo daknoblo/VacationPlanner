@@ -30,6 +30,7 @@ type viewData struct {
 	Env          string
 	Lang         string
 	Page         string
+	WeekStart    string
 	CurrentID    string
 	NavVacations []navVacation
 	Data         any
@@ -91,7 +92,7 @@ func newRenderer() (*renderer, error) {
 	return &renderer{pages: pages, fragments: fragments}, nil
 }
 
-func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData) error {
+func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location) error {
 	tmpl, ok := r.pages[name]
 	if !ok {
 		return fmt.Errorf("server: unknown page %q", name)
@@ -100,7 +101,11 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 	if err != nil {
 		return fmt.Errorf("server: cloning page %q: %w", name, err)
 	}
-	clone.Funcs(template.FuncMap{"t": loc.T})
+	clone.Funcs(template.FuncMap{
+		"t":           loc.T,
+		"fmtDateTime": fmtDateTimeIn(tz),
+		"dtInput":     dateTimeInputIn(tz),
+	})
 
 	var buf bytes.Buffer
 	if err := clone.ExecuteTemplate(&buf, "base", data); err != nil {
@@ -111,12 +116,16 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 	return err
 }
 
-func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Localizer, data any) error {
+func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Localizer, data any, tz *time.Location) error {
 	clone, err := r.fragments.Clone()
 	if err != nil {
 		return fmt.Errorf("server: cloning fragments: %w", err)
 	}
-	clone.Funcs(template.FuncMap{"t": loc.T})
+	clone.Funcs(template.FuncMap{
+		"t":           loc.T,
+		"fmtDateTime": fmtDateTimeIn(tz),
+		"dtInput":     dateTimeInputIn(tz),
+	})
 
 	var buf bytes.Buffer
 	if err := clone.ExecuteTemplate(&buf, name, data); err != nil {
@@ -131,17 +140,19 @@ func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Locali
 
 func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string, data any) {
 	loc := i18n.FromContext(r.Context())
+	weekStart, tz := s.regionSettings(r.Context())
 	vd := viewData{
 		Title:        title,
 		CSRFToken:    csrfToken(r.Context()),
 		Env:          s.cfg.Env,
 		Lang:         loc.Code(),
 		Page:         name,
+		WeekStart:    weekStart,
 		CurrentID:    chi.URLParam(r, "vacationID"),
 		NavVacations: s.navVacations(r),
 		Data:         data,
 	}
-	if err := s.render.page(w, name, loc, vd); err != nil {
+	if err := s.render.page(w, name, loc, vd, tz); err != nil {
 		s.serverError(w, r, err)
 	}
 }
@@ -161,7 +172,8 @@ func (s *Server) navVacations(r *http.Request) []navVacation {
 
 func (s *Server) fragment(w http.ResponseWriter, r *http.Request, name string, data any) {
 	loc := i18n.FromContext(r.Context())
-	if err := s.render.fragment(w, name, loc, data); err != nil {
+	_, tz := s.regionSettings(r.Context())
+	if err := s.render.fragment(w, name, loc, data, tz); err != nil {
 		s.serverError(w, r, err)
 	}
 }
@@ -208,6 +220,26 @@ func fmtDateTime(t *time.Time) string {
 		return ""
 	}
 	return t.Local().Format("02.01.2006 15:04")
+}
+
+// fmtDateTimeIn formats a timestamp for display in the given timezone.
+func fmtDateTimeIn(loc *time.Location) func(*time.Time) string {
+	return func(t *time.Time) string {
+		if t == nil {
+			return ""
+		}
+		return t.In(loc).Format("02.01.2006 15:04")
+	}
+}
+
+// dateTimeInputIn formats a timestamp for a datetime-local input in the given timezone.
+func dateTimeInputIn(loc *time.Location) func(*time.Time) string {
+	return func(t *time.Time) string {
+		if t == nil {
+			return ""
+		}
+		return t.In(loc).Format("2006-01-02T15:04")
+	}
 }
 
 func coordValue(f *float64) string {

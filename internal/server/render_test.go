@@ -71,7 +71,7 @@ func TestRenderPages(t *testing.T) {
 	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
-		if err := r.page(rec, c.name, loc, c.data); err != nil {
+		if err := r.page(rec, c.name, loc, c.data, time.UTC); err != nil {
 			t.Fatalf("render page %q: %v", c.name, err)
 		}
 		if rec.Body.Len() == 0 {
@@ -104,7 +104,7 @@ func TestRenderFragments(t *testing.T) {
 	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, f := range fragments {
 		rec := httptest.NewRecorder()
-		if err := r.fragment(rec, f.name, loc, f.data); err != nil {
+		if err := r.fragment(rec, f.name, loc, f.data, time.UTC); err != nil {
 			t.Fatalf("render fragment %q: %v", f.name, err)
 		}
 		if rec.Body.Len() == 0 {

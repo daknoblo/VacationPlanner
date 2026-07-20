@@ -25,6 +25,32 @@
 </section>
 
 <section class="panel">
+  <h2>{{t "settings.region.heading"}}</h2>
+  <p class="muted small">{{t "settings.region.hint"}}</p>
+  <form class="form grid" method="post" action="/settings/region">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="week_start">{{t "field.week_start"}}</label>
+      <select id="week_start" name="week_start">
+        <option value="monday" {{if eq .Data.WeekStart "monday"}}selected{{end}}>{{t "weekday.monday"}}</option>
+        <option value="sunday" {{if eq .Data.WeekStart "sunday"}}selected{{end}}>{{t "weekday.sunday"}}</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="timezone">{{t "field.timezone"}}</label>
+      <select id="timezone" name="timezone">
+        {{range .Data.Timezones}}
+        <option value="{{.}}" {{if eq . $.Data.Timezone}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </div>
+    <div class="field field--wide">
+      <button class="btn btn--primary" type="submit">{{t "settings.save"}}</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
   <h2>{{t "settings.ai.heading"}}</h2>
   <p class="muted small">{{t "settings.ai.hint"}}</p>
   <form class="form"

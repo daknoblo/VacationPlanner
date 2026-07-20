@@ -14,6 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	// Embed the IANA timezone database so time.LoadLocation works in the
+	// distroless image, which ships no system zoneinfo.
+	_ "time/tzdata"
+
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/server"

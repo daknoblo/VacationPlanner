@@ -40,6 +40,7 @@ func (s *Server) routes() {
 	r.Get("/settings", s.handleSettings)
 	r.Post("/settings", s.handleUpdateSettings)
 	r.Post("/settings/ai", s.handleUpdateAISettings)
+	r.Post("/settings/region", s.handleUpdateRegionSettings)
 
 	r.Route("/vacations", func(r chi.Router) {
 		r.Get("/", s.handleIndex)
