@@ -1,9 +1,18 @@
 {{define "content"}}
 {{$v := .Data.Vacation}}
+{{$day := .Data.Day}}
 <section class="export">
   <div class="export__toolbar no-print">
     <a class="back" href="/vacations/{{$v.ID}}">{{t "vacation.back"}}</a>
-    <button class="btn btn--primary" type="button" data-print>{{t "export.print"}}</button>
+    <div class="export__actions">
+      {{if $day}}
+      <a class="btn" href="/vacations/{{$v.ID}}/export">{{t "export.all"}}</a>
+      <a class="btn" href="/vacations/{{$v.ID}}/export.pdf?day={{dateInput $day}}">{{t "export.pdf"}}</a>
+      {{else}}
+      <a class="btn" href="/vacations/{{$v.ID}}/export.pdf">{{t "export.pdf"}}</a>
+      {{end}}
+      <button class="btn btn--primary" type="button" data-print>{{t "export.print"}}</button>
+    </div>
   </div>
 
   <article class="export__doc">
@@ -18,27 +27,37 @@
       {{if $v.Budget}}<div><dt>{{t "field.budget"}}</dt><dd>{{coord $v.Budget}}</dd></div>{{end}}
     </dl>
 
-    {{if $v.Notes}}
-    <h2>{{t "field.notes"}}</h2>
-    <p class="export__notes">{{$v.Notes}}</p>
+    {{if not $day}}
+      {{if $v.Notes}}
+      <h2>{{t "field.notes"}}</h2>
+      <p class="export__notes">{{$v.Notes}}</p>
+      {{end}}
+
+      {{if $v.TravelSegments}}
+      <h2>{{t "section.travel"}}</h2>
+      <ul class="export__list">
+        {{range $v.TravelSegments}}
+        <li><strong>{{t (printf "travel.kind.%s" .Kind)}}</strong>{{if .Mode}} · {{t (printf "travel.mode.%s" .Mode)}}{{end}}{{if .FromLocation}} — {{.FromLocation}}{{end}}{{if .ToLocation}} → {{.ToLocation}}{{end}}{{if .Notes}}<br><span class="muted">{{.Notes}}</span>{{end}}</li>
+        {{end}}
+      </ul>
+      {{end}}
     {{end}}
 
-    {{if $v.TravelSegments}}
-    <h2>{{t "section.travel"}}</h2>
-    <ul class="export__list">
-      {{range $v.TravelSegments}}
-      <li><strong>{{t (printf "travel.kind.%s" .Kind)}}</strong> · {{t (printf "travel.mode.%s" .Mode)}}{{if .FromLocation}} — {{.FromLocation}}{{end}}{{if .ToLocation}} → {{.ToLocation}}{{end}}{{if .Notes}}<br><span class="muted">{{.Notes}}</span>{{end}}</li>
-      {{end}}
-    </ul>
+    {{range $i, $d := $v.Days}}
+    {{if or (not $day) (sameDay $day $d)}}
+    <section class="export__day">
+      <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}
+        <span class="no-print export__day-actions">
+          <a href="/vacations/{{$v.ID}}/export?day={{dateInput $d}}">{{t "export.day"}}</a> ·
+          <a href="/vacations/{{$v.ID}}/export.pdf?day={{dateInput $d}}">PDF</a>
+        </span>
+      </h2>
+      <ul class="export__list">
+        {{range $v.Activities}}{{if .OnDay $d}}<li><strong>{{.StartLabel}}–{{.EndLabel}}</strong> {{.Title}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}{{if .Description}}<br><span class="muted">{{.Description}}</span>{{end}}</li>{{end}}{{end}}
+        {{range $v.Sights}}{{if sameDay .PlannedDate $d}}<li>📍 {{.Name}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}</li>{{end}}{{end}}
+      </ul>
+    </section>
     {{end}}
-
-    {{if $v.Sights}}
-    <h2>{{t "section.sights"}}</h2>
-    <ul class="export__list">
-      {{range $v.Sights}}
-      <li>{{if .Visited}}✅ {{end}}<strong>{{.Name}}</strong>{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}{{if .PlannedDate}} — {{fmtDatePtr .PlannedDate}}{{end}}{{if .Description}}<br>{{.Description}}{{end}}</li>
-      {{end}}
-    </ul>
     {{end}}
   </article>
 </section>

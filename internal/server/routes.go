@@ -54,6 +54,7 @@ func (s *Server) routes() {
 			r.Post("/", s.handleUpdateVacation)
 			r.Delete("/", s.handleDeleteVacation)
 			r.Get("/export", s.handleExport)
+			r.Get("/export.pdf", s.handleExportPDF)
 			r.Get("/api/sights", s.handleSightsJSON)
 			r.Post("/sights", s.handleCreateSight)
 			r.Post("/travel", s.handleCreateTravel)
