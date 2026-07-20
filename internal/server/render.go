@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/web"
 )
@@ -23,12 +25,20 @@ type renderer struct {
 
 // viewData is the envelope passed to every full page render.
 type viewData struct {
-	Title     string
-	CSRFToken string
-	Env       string
-	Lang      string
-	Page      string
-	Data      any
+	Title        string
+	CSRFToken    string
+	Env          string
+	Lang         string
+	Page         string
+	CurrentID    string
+	NavVacations []navVacation
+	Data         any
+}
+
+// navVacation is a lightweight reference used by the header switcher.
+type navVacation struct {
+	ID    string
+	Title string
 }
 
 var funcMap = template.FuncMap{
@@ -122,16 +132,31 @@ func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Locali
 func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string, data any) {
 	loc := i18n.FromContext(r.Context())
 	vd := viewData{
-		Title:     title,
-		CSRFToken: csrfToken(r.Context()),
-		Env:       s.cfg.Env,
-		Lang:      loc.Code(),
-		Page:      name,
-		Data:      data,
+		Title:        title,
+		CSRFToken:    csrfToken(r.Context()),
+		Env:          s.cfg.Env,
+		Lang:         loc.Code(),
+		Page:         name,
+		CurrentID:    chi.URLParam(r, "vacationID"),
+		NavVacations: s.navVacations(r),
+		Data:         data,
 	}
 	if err := s.render.page(w, name, loc, vd); err != nil {
 		s.serverError(w, r, err)
 	}
+}
+
+// navVacations returns lightweight references for the header switcher.
+func (s *Server) navVacations(r *http.Request) []navVacation {
+	list, err := s.store.ListVacations(r.Context())
+	if err != nil {
+		return nil
+	}
+	refs := make([]navVacation, 0, len(list))
+	for _, v := range list {
+		refs = append(refs, navVacation{ID: v.ID.String(), Title: v.Title})
+	}
+	return refs
 }
 
 func (s *Server) fragment(w http.ResponseWriter, r *http.Request, name string, data any) {

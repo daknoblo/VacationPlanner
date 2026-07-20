@@ -6,7 +6,13 @@ var messages = map[Lang]map[string]string{
 	LangEN: {
 		// Navigation & actions
 		"nav.vacations":  "My vacations",
+		"nav.dashboard":  "Dashboard",
+		"nav.planning":   "Planning",
+		"nav.export":     "Export",
+		"nav.switch":     "Switch vacation",
 		"nav.settings":   "Settings",
+		"export.title":   "Export",
+		"export.print":   "Print / Save as PDF",
 		"action.save":    "Save",
 		"action.delete":  "Delete",
 		"label.optional": "(optional)",
@@ -143,7 +149,13 @@ var messages = map[Lang]map[string]string{
 	LangDE: {
 		// Navigation & actions
 		"nav.vacations":  "Meine Urlaube",
+		"nav.dashboard":  "Dashboard",
+		"nav.planning":   "Planung",
+		"nav.export":     "Export",
+		"nav.switch":     "Urlaub wechseln",
 		"nav.settings":   "Einstellungen",
+		"export.title":   "Export",
+		"export.print":   "Drucken / als PDF speichern",
 		"action.save":    "Speichern",
 		"action.delete":  "Löschen",
 		"label.optional": "(optional)",

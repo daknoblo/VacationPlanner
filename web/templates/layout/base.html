@@ -13,9 +13,19 @@
     <div class="topbar__inner">
       <a class="brand" href="/">🌴 <span>VacationPlanner</span></a>
       <nav class="topbar__nav">
-        <a href="/">{{t "nav.vacations"}}</a>
-        <a href="/settings">{{t "nav.settings"}}</a>
+        <a href="/"{{if eq .Page "index"}} class="is-active"{{end}}>{{t "nav.dashboard"}}</a>
+        {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}"{{if eq .Page "vacation"}} class="is-active"{{end}}>{{t "nav.planning"}}</a>{{else}}<span class="is-disabled">{{t "nav.planning"}}</span>{{end}}
+        {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}/export"{{if eq .Page "export"}} class="is-active"{{end}}>{{t "nav.export"}}</a>{{else}}<span class="is-disabled">{{t "nav.export"}}</span>{{end}}
+        <a href="/settings"{{if eq .Page "settings"}} class="is-active"{{end}}>{{t "nav.settings"}}</a>
       </nav>
+      {{if .NavVacations}}
+      <div class="topbar__switcher">
+        <select data-nav-switch aria-label="{{t "nav.switch"}}">
+          <option value="">{{t "nav.switch"}}</option>
+          {{range .NavVacations}}<option value="/vacations/{{.ID}}"{{if eq .ID $.CurrentID}} selected{{end}}>{{.Title}}</option>{{end}}
+        </select>
+      </div>
+      {{end}}
     </div>
   </header>
 
