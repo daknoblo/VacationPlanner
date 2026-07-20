@@ -128,6 +128,15 @@
       .catch(function () { /* transient errors are non-fatal */ });
   }
 
+  // Open the native date/time picker as soon as the field is clicked.
+  document.addEventListener("click", function (e) {
+    var el = e.target;
+    if (el && el.matches && el.matches('input[type="date"], input[type="datetime-local"]') &&
+        typeof el.showPicker === "function") {
+      try { el.showPicker(); } catch (err) { /* already open or not user-activated */ }
+    }
+  });
+
   if (document.readyState !== "loading") {
     initMap();
   } else {

@@ -27,6 +27,7 @@ type viewData struct {
 	CSRFToken string
 	Env       string
 	Lang      string
+	Page      string
 	Data      any
 }
 
@@ -125,6 +126,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string
 		CSRFToken: csrfToken(r.Context()),
 		Env:       s.cfg.Env,
 		Lang:      loc.Code(),
+		Page:      name,
 		Data:      data,
 	}
 	if err := s.render.page(w, name, loc, vd); err != nil {

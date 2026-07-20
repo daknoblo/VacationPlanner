@@ -26,9 +26,12 @@ var messages = map[Lang]map[string]string{
 		"field.latitude":          "Latitude",
 		"field.longitude":         "Longitude",
 		"field.notes":             "Notes",
+		"field.budget":            "Budget",
+		"field.people":            "People",
 		"placeholder.title":       "Summer in Lisbon",
 		"placeholder.destination": "Lisbon, Portugal",
 		"placeholder.notes":       "Ideas, budget, to-dos …",
+		"placeholder.budget":      "e.g. 1500",
 
 		// Vacation
 		"vacation.save":                "Save vacation",
@@ -134,6 +137,7 @@ var messages = map[Lang]map[string]string{
 		"error.arrive_invalid":             "The arrival time is invalid.",
 		"error.interests_toolong":          "Interests may be at most 500 characters.",
 		"error.ai_base_url_invalid":        "The endpoint URL must be a valid http(s) URL.",
+		"error.budget_invalid":             "The budget must be a positive number.",
 	},
 
 	LangDE: {
@@ -159,9 +163,12 @@ var messages = map[Lang]map[string]string{
 		"field.latitude":          "Breitengrad",
 		"field.longitude":         "Längengrad",
 		"field.notes":             "Notizen",
+		"field.budget":            "Budget",
+		"field.people":            "Personen",
 		"placeholder.title":       "Sommer in Lissabon",
 		"placeholder.destination": "Lissabon, Portugal",
 		"placeholder.notes":       "Ideen, Budget, To-dos …",
+		"placeholder.budget":      "z. B. 1500",
 
 		// Vacation
 		"vacation.save":                "Urlaub speichern",
@@ -267,5 +274,6 @@ var messages = map[Lang]map[string]string{
 		"error.arrive_invalid":             "Ankunftszeit ist ungültig.",
 		"error.interests_toolong":          "Interessen dürfen höchstens 500 Zeichen haben.",
 		"error.ai_base_url_invalid":        "Die Endpunkt-URL muss eine gültige http(s)-URL sein.",
+		"error.budget_invalid":             "Das Budget muss eine positive Zahl sein.",
 	},
 }

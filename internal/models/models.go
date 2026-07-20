@@ -17,6 +17,8 @@ type Vacation struct {
 	Latitude    *float64
 	Longitude   *float64
 	Notes       string
+	Budget      *float64
+	People      int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 

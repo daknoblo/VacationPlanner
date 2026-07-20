@@ -30,6 +30,7 @@ func TestVacationCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	lat, lng := 38.7223, -9.1393
+	budget := 1500.0
 	v := &models.Vacation{
 		Title:       "Lisbon",
 		Destination: "Portugal",
@@ -38,6 +39,8 @@ func TestVacationCRUD(t *testing.T) {
 		Latitude:    &lat,
 		Longitude:   &lng,
 		Notes:       "budget 1500",
+		Budget:      &budget,
+		People:      3,
 	}
 	if err := st.CreateVacation(ctx, v); err != nil {
 		t.Fatalf("CreateVacation: %v", err)
@@ -52,6 +55,9 @@ func TestVacationCRUD(t *testing.T) {
 	}
 	if got.Title != "Lisbon" || !got.HasCoords() || got.Nights() != 9 {
 		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+	if got.Budget == nil || *got.Budget != 1500 || got.People != 3 {
+		t.Fatalf("budget/people round-trip mismatch: budget=%v people=%d", got.Budget, got.People)
 	}
 	if !got.StartDate.Equal(v.StartDate) {
 		t.Fatalf("start date mismatch: %v != %v", got.StartDate, v.StartDate)

@@ -69,10 +69,10 @@ func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO vacations
-			(id, title, destination, start_date, end_date, latitude, longitude, notes, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		v.ID, v.Title, v.Destination, dbDate(v.StartDate), dbDate(v.EndDate),
-		v.Latitude, v.Longitude, v.Notes, dbTime(v.CreatedAt), dbTime(v.UpdatedAt))
+		v.Latitude, v.Longitude, v.Notes, v.Budget, v.People, dbTime(v.CreatedAt), dbTime(v.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating vacation: %w", err)
 	}
@@ -81,7 +81,7 @@ func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
 
 func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacation, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at
 		FROM vacations WHERE id = ?`, id)
 
 	var v models.Vacation
@@ -96,7 +96,7 @@ func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacatio
 
 func (s *SQLite) ListVacations(ctx context.Context) ([]models.Vacation, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at
 		FROM vacations ORDER BY start_date ASC, created_at ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing vacations: %w", err)
@@ -122,10 +122,10 @@ func (s *SQLite) UpdateVacation(ctx context.Context, v *models.Vacation) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE vacations
 		SET title = ?, destination = ?, start_date = ?, end_date = ?,
-		    latitude = ?, longitude = ?, notes = ?, updated_at = ?
+		    latitude = ?, longitude = ?, notes = ?, budget = ?, people = ?, updated_at = ?
 		WHERE id = ?`,
 		v.Title, v.Destination, dbDate(v.StartDate), dbDate(v.EndDate),
-		v.Latitude, v.Longitude, v.Notes, dbTime(v.UpdatedAt), v.ID)
+		v.Latitude, v.Longitude, v.Notes, v.Budget, v.People, dbTime(v.UpdatedAt), v.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating vacation: %w", err)
 	}
@@ -343,7 +343,7 @@ func dbTimePtr(t *time.Time) any {
 func scanVacation(sc rowScanner, v *models.Vacation) error {
 	var start, end, created, updated string
 	if err := sc.Scan(&v.ID, &v.Title, &v.Destination, &start, &end,
-		&v.Latitude, &v.Longitude, &v.Notes, &created, &updated); err != nil {
+		&v.Latitude, &v.Longitude, &v.Notes, &v.Budget, &v.People, &created, &updated); err != nil {
 		return err
 	}
 	var err error

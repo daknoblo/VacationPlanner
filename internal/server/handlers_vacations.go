@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
@@ -157,6 +158,24 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		return nil, err
 	}
 
+	var budget *float64
+	if raw := formStr(r, "budget"); raw != "" {
+		bv, err := strconv.ParseFloat(raw, 64)
+		if err != nil || bv < 0 {
+			return nil, errValidation(loc.T("error.budget_invalid"))
+		}
+		budget = &bv
+	}
+	people := 1
+	if raw := formStr(r, "people"); raw != "" {
+		if pv, err := strconv.Atoi(raw); err == nil && pv >= 1 {
+			people = pv
+		}
+	}
+	if people > 999 {
+		people = 999
+	}
+
 	return &models.Vacation{
 		Title:       title,
 		Destination: destination,
@@ -165,5 +184,7 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		Latitude:    lat,
 		Longitude:   lng,
 		Notes:       notes,
+		Budget:      budget,
+		People:      people,
 	}, nil
 }

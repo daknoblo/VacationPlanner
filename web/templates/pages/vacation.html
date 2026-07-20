@@ -49,9 +49,17 @@
           <label for="m-lng">{{t "field.longitude"}}</label>
           <input id="m-lng" name="longitude" inputmode="decimal" value="{{coord $v.Longitude}}">
         </div>
+        <div class="field">
+          <label for="m-budget">{{t "field.budget"}}</label>
+          <input id="m-budget" name="budget" type="number" min="0" step="0.01" inputmode="decimal" value="{{coord $v.Budget}}" placeholder="{{t "placeholder.budget"}}">
+        </div>
+        <div class="field">
+          <label for="m-people">{{t "field.people"}}</label>
+          <input id="m-people" name="people" type="number" min="1" step="1" value="{{$v.People}}">
+        </div>
         <div class="field field--wide">
           <label for="m-notes">{{t "field.notes"}}</label>
-          <textarea id="m-notes" name="notes" rows="4" maxlength="5000">{{$v.Notes}}</textarea>
+          <textarea id="m-notes" name="notes" rows="9" maxlength="5000">{{$v.Notes}}</textarea>
         </div>
         <div class="field field--wide">
           <div id="meta-error" class="form-error"></div>
