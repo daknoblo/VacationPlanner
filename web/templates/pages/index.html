@@ -1,0 +1,61 @@
+{{define "content"}}
+<section class="hero">
+  <h1>Deine Urlaube</h1>
+  <p class="muted">Plane Zeiträume, An- &amp; Abreise, Sehenswürdigkeiten und lass dir von der KI Empfehlungen geben.</p>
+</section>
+
+<section class="panel">
+  <details class="new-vacation" {{if not .Data.Vacations}}open{{end}}>
+    <summary class="btn btn--primary">+ Neuen Urlaub anlegen</summary>
+    <form class="form grid"
+          hx-post="/vacations"
+          hx-target="#form-error"
+          hx-swap="innerHTML"
+          data-reset>
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="field">
+        <label for="title">Titel</label>
+        <input id="title" name="title" required maxlength="200" placeholder="Sommer in Lissabon">
+      </div>
+      <div class="field">
+        <label for="destination">Reiseziel</label>
+        <input id="destination" name="destination" required maxlength="200" placeholder="Lissabon, Portugal">
+      </div>
+      <div class="field">
+        <label for="start_date">Von</label>
+        <input id="start_date" name="start_date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="end_date">Bis</label>
+        <input id="end_date" name="end_date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="latitude">Breitengrad <span class="muted">(optional)</span></label>
+        <input id="latitude" name="latitude" inputmode="decimal" placeholder="38.7223">
+      </div>
+      <div class="field">
+        <label for="longitude">Längengrad <span class="muted">(optional)</span></label>
+        <input id="longitude" name="longitude" inputmode="decimal" placeholder="-9.1393">
+      </div>
+      <div class="field field--wide">
+        <label for="notes">Notizen</label>
+        <textarea id="notes" name="notes" rows="2" maxlength="5000" placeholder="Ideen, Budget, To-dos …"></textarea>
+      </div>
+      <div class="field field--wide">
+        <div id="form-error" class="form-error"></div>
+        <button class="btn btn--primary" type="submit">Urlaub speichern</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+{{if .Data.Vacations}}
+<section class="cards">
+  {{range .Data.Vacations}}{{template "vacation_card" .}}{{end}}
+</section>
+{{else}}
+<section class="empty">
+  <p>Noch keine Urlaube geplant. Lege oben deinen ersten Urlaub an. ✈️</p>
+</section>
+{{end}}
+{{end}}

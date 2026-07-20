@@ -1,0 +1,38 @@
+# golangci-lint v2 configuration
+# Docs: https://golangci-lint.run/
+version: "2"
+
+linters:
+  # The default set (errcheck, govet, ineffassign, staticcheck, unused) stays on.
+  enable:
+    - bodyclose # HTTP response bodies must be closed
+    - contextcheck # check that context is propagated
+    - errorlint # correct error wrapping/comparison
+    - gocritic # opinionated correctness/style checks
+    - gosec # security-focused checks (OWASP-style issues)
+    - misspell
+    - nilerr # returning nil after a non-nil error
+    - noctx # HTTP requests should carry a context
+    - prealloc
+    - revive # golint replacement
+    - unconvert
+    - unparam
+  settings:
+    gosec:
+      excludes:
+        - G104 # duplicate of errcheck
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+
+formatters:
+  enable:
+    - gofmt

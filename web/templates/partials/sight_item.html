@@ -1,0 +1,30 @@
+{{define "sight_item"}}
+<li class="sight-item{{if .Visited}} is-visited{{end}}" data-id="{{.ID}}">
+  <div class="sight-item__head">
+    <div class="sight-item__title">
+      <strong>{{.Name}}</strong>
+      {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+      {{if .Visited}}<span class="badge badge--ok">Besucht</span>{{end}}
+    </div>
+    <div class="sight-item__actions">
+      <button class="btn btn--sm" title="Als besucht markieren"
+              hx-post="/sights/{{.ID}}/visited"
+              hx-target="closest .sight-item"
+              hx-swap="outerHTML">{{if .Visited}}↩︎{{else}}✓{{end}}</button>
+      <button class="btn btn--sm btn--danger btn--ghost" title="Löschen"
+              hx-delete="/sights/{{.ID}}"
+              hx-target="closest .sight-item"
+              hx-swap="outerHTML"
+              hx-confirm="Sehenswürdigkeit löschen?">✕</button>
+    </div>
+  </div>
+  {{if .Description}}<p class="sight-item__desc">{{.Description}}</p>{{end}}
+  {{if or .PlannedDate .HasCoords}}
+  <p class="muted small">
+    {{if .PlannedDate}}🗓️ {{fmtDatePtr .PlannedDate}}{{end}}
+    {{if .HasCoords}} · 📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
+  </p>
+  {{end}}
+  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
+</li>
+{{end}}

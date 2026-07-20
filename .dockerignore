@@ -1,0 +1,18 @@
+# Keep the build context tiny for fast, reproducible builds
+.git
+.github
+.vscode
+.idea
+bin
+dist
+*.md
+!README.md
+.env
+.env.*
+docker-compose.yml
+Makefile
+*.test
+coverage.*
+gosec-report.*
+trivy-report.*
+.buildx-cache

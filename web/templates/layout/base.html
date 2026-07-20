@@ -1,0 +1,31 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · VacationPlanner</title>
+  <meta name="csrf-token" content="{{.CSRFToken}}">
+  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="/">🌴 <span>VacationPlanner</span></a>
+      <nav class="topbar__nav">
+        <a href="/">Meine Urlaube</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {{block "content" .}}{{end}}
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/vendor/htmx/htmx.min.js"></script>
+  <script src="/static/vendor/leaflet/leaflet.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>{{end}}

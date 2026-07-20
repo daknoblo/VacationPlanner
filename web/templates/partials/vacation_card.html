@@ -1,0 +1,13 @@
+{{define "vacation_card"}}
+<article class="card">
+  <a class="card__body" href="/vacations/{{.ID}}">
+    <h3>{{.Title}}</h3>
+    <p class="muted">📍 {{.Destination}}</p>
+    <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</p>
+    <span class="badge">{{.Nights}} Nächte</span>
+  </a>
+  <button class="btn btn--danger btn--ghost card__delete"
+          hx-delete="/vacations/{{.ID}}"
+          hx-confirm="Diesen Urlaub wirklich löschen?">Löschen</button>
+</article>
+{{end}}

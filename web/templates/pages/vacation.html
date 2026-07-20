@@ -1,0 +1,197 @@
+{{define "content"}}
+{{$v := .Data.Vacation}}
+{{$csrf := .CSRFToken}}
+<a class="back" href="/">← Alle Urlaube</a>
+
+<header class="detail-head">
+  <div>
+    <h1>{{$v.Title}}</h1>
+    <p class="muted">📍 {{$v.Destination}} · 🗓️ {{fmtDate $v.StartDate}} – {{fmtDate $v.EndDate}} · {{$v.Nights}} Nächte</p>
+  </div>
+  <button class="btn btn--danger btn--ghost"
+          hx-delete="/vacations/{{$v.ID}}"
+          hx-confirm="Diesen Urlaub inklusive aller Sehenswürdigkeiten wirklich löschen?">
+    Urlaub löschen
+  </button>
+</header>
+
+<div class="detail">
+  <div class="detail__main">
+
+    <section class="panel">
+      <h2>Reisedaten &amp; Notizen</h2>
+      <form class="form grid"
+            hx-post="/vacations/{{$v.ID}}"
+            hx-target="#meta-error"
+            hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <div class="field field--wide">
+          <label for="m-title">Titel</label>
+          <input id="m-title" name="title" required maxlength="200" value="{{$v.Title}}">
+        </div>
+        <div class="field field--wide">
+          <label for="m-destination">Reiseziel</label>
+          <input id="m-destination" name="destination" required maxlength="200" value="{{$v.Destination}}">
+        </div>
+        <div class="field">
+          <label for="m-start">Von</label>
+          <input id="m-start" name="start_date" type="date" required value="{{dateInput $v.StartDate}}">
+        </div>
+        <div class="field">
+          <label for="m-end">Bis</label>
+          <input id="m-end" name="end_date" type="date" required value="{{dateInput $v.EndDate}}">
+        </div>
+        <div class="field">
+          <label for="m-lat">Breitengrad</label>
+          <input id="m-lat" name="latitude" inputmode="decimal" value="{{coord $v.Latitude}}">
+        </div>
+        <div class="field">
+          <label for="m-lng">Längengrad</label>
+          <input id="m-lng" name="longitude" inputmode="decimal" value="{{coord $v.Longitude}}">
+        </div>
+        <div class="field field--wide">
+          <label for="m-notes">Notizen</label>
+          <textarea id="m-notes" name="notes" rows="4" maxlength="5000">{{$v.Notes}}</textarea>
+        </div>
+        <div class="field field--wide">
+          <div id="meta-error" class="form-error"></div>
+          <button class="btn btn--primary" type="submit">Speichern</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>An- &amp; Abreise</h2>
+      <ul id="travel-list" class="list">
+        {{range $v.TravelSegments}}{{template "travel_item" .}}{{end}}
+      </ul>
+      <form class="form grid"
+            hx-post="/vacations/{{$v.ID}}/travel"
+            hx-target="#travel-list"
+            hx-swap="beforeend"
+            data-reset>
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <div class="field">
+          <label for="t-kind">Art</label>
+          <select id="t-kind" name="kind" required>
+            <option value="arrival">Anreise</option>
+            <option value="departure">Abreise</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="t-mode">Verkehrsmittel</label>
+          <select id="t-mode" name="mode">
+            <option value="">–</option>
+            <option value="flight">✈️ Flug</option>
+            <option value="train">🚆 Zug</option>
+            <option value="car">🚗 Auto</option>
+            <option value="bus">🚌 Bus</option>
+            <option value="ferry">⛴️ Fähre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="t-from">Von</label>
+          <input id="t-from" name="from_location" maxlength="200" placeholder="Berlin BER">
+        </div>
+        <div class="field">
+          <label for="t-to">Nach</label>
+          <input id="t-to" name="to_location" maxlength="200" placeholder="Lissabon LIS">
+        </div>
+        <div class="field">
+          <label for="t-depart">Abfahrt</label>
+          <input id="t-depart" name="depart_at" type="datetime-local">
+        </div>
+        <div class="field">
+          <label for="t-arrive">Ankunft</label>
+          <input id="t-arrive" name="arrive_at" type="datetime-local">
+        </div>
+        <div class="field field--wide">
+          <label for="t-notes">Notiz</label>
+          <input id="t-notes" name="notes" maxlength="2000" placeholder="Sitzplatz 14A, Buchungsnr. …">
+        </div>
+        <div class="field field--wide">
+          <div id="travel-error" class="form-error"></div>
+          <button class="btn" type="submit">Reiseabschnitt hinzufügen</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Sehenswürdigkeiten</h2>
+      <ul id="sights-list" class="list sights">
+        {{range $v.Sights}}{{template "sight_item" .}}{{end}}
+      </ul>
+      <form class="form grid"
+            hx-post="/vacations/{{$v.ID}}/sights"
+            hx-target="#sights-list"
+            hx-swap="beforeend"
+            data-reset>
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <div class="field field--wide">
+          <label for="s-name">Name</label>
+          <input id="s-name" name="name" required maxlength="200" placeholder="Torre de Belém">
+        </div>
+        <div class="field">
+          <label for="s-category">Kategorie</label>
+          <input id="s-category" name="category" maxlength="100" placeholder="Wahrzeichen">
+        </div>
+        <div class="field">
+          <label for="s-planned">Geplant am</label>
+          <input id="s-planned" name="planned_date" type="date">
+        </div>
+        <div class="field">
+          <label for="sight-latitude">Breitengrad</label>
+          <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="Karte anklicken">
+        </div>
+        <div class="field">
+          <label for="sight-longitude">Längengrad</label>
+          <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="Karte anklicken">
+        </div>
+        <div class="field field--wide">
+          <label for="s-description">Beschreibung</label>
+          <textarea id="s-description" name="description" rows="2" maxlength="2000"></textarea>
+        </div>
+        <div class="field field--wide">
+          <div id="sight-error" class="form-error"></div>
+          <button class="btn" type="submit">Sehenswürdigkeit hinzufügen</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel panel--ai">
+      <h2>✨ KI-Empfehlungen</h2>
+      {{if .Data.AIEnabled}}
+      <form class="form"
+            hx-post="/vacations/{{$v.ID}}/ai/recommendations"
+            hx-target="#ai-results"
+            hx-swap="innerHTML"
+            hx-indicator="#ai-spinner"
+            hx-disabled-elt="find button">
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <div class="field field--wide">
+          <label for="ai-interests">Worauf hast du Lust? <span class="muted">(optional)</span></label>
+          <input id="ai-interests" name="interests" maxlength="500" placeholder="Aussichtspunkte, lokale Küche, Museen …">
+        </div>
+        <div class="field field--wide row">
+          <button class="btn btn--primary" type="submit">Empfehlungen generieren</button>
+          <span id="ai-spinner" class="spinner htmx-indicator" aria-hidden="true"></span>
+        </div>
+      </form>
+      <div id="ai-error" class="form-error"></div>
+      {{else}}
+      <p class="muted">KI-Empfehlungen sind deaktiviert. Setze <code>OPENAI_API_KEY</code>, um sie zu aktivieren.</p>
+      {{end}}
+      <div id="ai-results" class="ai-results"></div>
+    </section>
+
+  </div>
+
+  <aside class="detail__map">
+    <div id="map"
+         data-vacation-id="{{$v.ID}}"
+         data-lat="{{coord $v.Latitude}}"
+         data-lng="{{coord $v.Longitude}}"></div>
+    <p class="muted small">Auf die Karte klicken, um Koordinaten für eine neue Sehenswürdigkeit zu übernehmen.</p>
+  </aside>
+</div>
+{{end}}

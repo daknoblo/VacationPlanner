@@ -1,0 +1,23 @@
+{{define "travel_item"}}
+<li class="travel-item" data-id="{{.ID}}">
+  <div class="travel-item__head">
+    <strong>{{kindLabel .Kind}}</strong>
+    {{if .Mode}}<span class="badge">{{modeLabel .Mode}}</span>{{end}}
+    <button class="btn btn--sm btn--danger btn--ghost" title="Löschen"
+            hx-delete="/travel/{{.ID}}"
+            hx-target="closest .travel-item"
+            hx-swap="outerHTML"
+            hx-confirm="Reiseabschnitt löschen?">✕</button>
+  </div>
+  {{if or .FromLocation .ToLocation}}
+  <p class="small">{{.FromLocation}}{{if .ToLocation}} → {{.ToLocation}}{{end}}</p>
+  {{end}}
+  {{if or .DepartAt .ArriveAt}}
+  <p class="muted small">
+    {{if .DepartAt}}Ab: {{fmtDateTime .DepartAt}}{{end}}
+    {{if .ArriveAt}} · An: {{fmtDateTime .ArriveAt}}{{end}}
+  </p>
+  {{end}}
+  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
+</li>
+{{end}}

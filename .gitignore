@@ -1,0 +1,26 @@
+# Binaries
+/bin/
+/dist/
+vacationplanner
+*.exe
+
+# Go
+*.test
+*.out
+coverage.*
+gosec-report.*
+trivy-report.*
+
+# Env / secrets
+.env
+.env.local
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Docker build cache
+.buildx-cache/
