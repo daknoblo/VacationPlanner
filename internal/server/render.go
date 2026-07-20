@@ -2,6 +2,8 @@ package server
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -21,6 +23,7 @@ import (
 type renderer struct {
 	pages     map[string]*template.Template
 	fragments *template.Template
+	assetVer  string
 }
 
 // viewData is the envelope passed to every full page render.
@@ -29,6 +32,7 @@ type viewData struct {
 	CSRFToken    string
 	Env          string
 	Lang         string
+	AssetVer     string
 	Page         string
 	WeekStart    string
 	CurrentID    string
@@ -89,7 +93,20 @@ func newRenderer() (*renderer, error) {
 		return nil, fmt.Errorf("server: parsing fragment templates: %w", err)
 	}
 
-	return &renderer{pages: pages, fragments: fragments}, nil
+	return &renderer{pages: pages, fragments: fragments, assetVer: assetVersion()}, nil
+}
+
+// assetVersion returns a short content hash of the app's CSS and JS so their
+// URLs can be cache-busted whenever the files change (vendored libraries keep
+// their stable long-cached paths).
+func assetVersion() string {
+	h := sha256.New()
+	for _, name := range []string{"static/css/app.css", "static/js/app.js"} {
+		if b, err := fs.ReadFile(web.Static, name); err == nil {
+			_, _ = h.Write(b)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))[:10]
 }
 
 func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location) error {
@@ -146,6 +163,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string
 		CSRFToken:    csrfToken(r.Context()),
 		Env:          s.cfg.Env,
 		Lang:         loc.Code(),
+		AssetVer:     s.render.assetVer,
 		Page:         name,
 		WeekStart:    weekStart,
 		CurrentID:    chi.URLParam(r, "vacationID"),

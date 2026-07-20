@@ -118,6 +118,44 @@ code {
 .export__list { padding-left: 1.1rem; }
 .export__list li { margin: 0.35rem 0; }
 
+/* Location picker (destination autocomplete + map) */
+.location-picker__field { position: relative; }
+.location-map {
+  height: 240px;
+  margin-top: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  z-index: 0;
+}
+.suggest {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: var(--shadow);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.suggest__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.suggest__item:last-child { border-bottom: none; }
+.suggest__item:hover { background: #f1f5f9; }
+
 @media print {
   .topbar, .toast, .no-print { display: none !important; }
   .container { max-width: none; padding: 0; }

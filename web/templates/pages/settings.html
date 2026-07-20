@@ -81,4 +81,32 @@
     </div>
   </form>
 </section>
+
+<section class="panel">
+  <h2>{{t "settings.geo.heading"}}</h2>
+  <p class="muted small">{{t "settings.geo.hint"}}</p>
+  <form class="form"
+        method="post" action="/settings/geo"
+        hx-post="/settings/geo"
+        hx-target="#geo-settings-error"
+        hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field field--wide">
+      <label for="geo-base-url">{{t "settings.geo.base_url"}}</label>
+      <input id="geo-base-url" name="base_url" maxlength="500" value="{{.Data.GeoBaseURL}}" placeholder="{{.Data.GeoDefaultBaseURL}}">
+    </div>
+    <div class="field field--wide">
+      <p class="muted small">
+        {{t "settings.ai.key_label"}}:
+        {{if .Data.GeoKeyConfigured}}<span class="badge badge--ok">{{t "settings.ai.key_set"}}</span>
+        {{else}}<span class="badge">{{t "settings.ai.key_unset"}}</span>{{end}}
+      </p>
+      <p class="muted small">{{t "settings.geo.key_hint"}}</p>
+    </div>
+    <div class="field field--wide">
+      <div id="geo-settings-error" class="form-error"></div>
+      <button class="btn btn--primary" type="submit">{{t "settings.save"}}</button>
+    </div>
+  </form>
+</section>
 {{end}}

@@ -29,9 +29,17 @@
           <label for="m-title">{{t "field.title"}}</label>
           <input id="m-title" name="title" required maxlength="200" value="{{$v.Title}}">
         </div>
-        <div class="field field--wide">
+        <div class="field field--wide location-picker">
           <label for="m-destination">{{t "field.destination"}}</label>
-          <input id="m-destination" name="destination" required maxlength="200" value="{{$v.Destination}}">
+          <div class="location-picker__field">
+            <input id="m-destination" name="destination" required maxlength="200"
+                   autocomplete="off" data-geocode-input value="{{$v.Destination}}">
+            <div class="suggest" data-geocode-list hidden></div>
+          </div>
+          <input type="hidden" name="latitude" id="m-lat" data-geocode-lat value="{{coord $v.Latitude}}">
+          <input type="hidden" name="longitude" id="m-lng" data-geocode-lng value="{{coord $v.Longitude}}">
+          <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
+          <p class="muted small">{{t "field.location.hint"}}</p>
         </div>
         <div class="field">
           <label for="m-start">{{t "field.from"}}</label>
@@ -40,14 +48,6 @@
         <div class="field">
           <label for="m-end">{{t "field.to"}}</label>
           <input id="m-end" name="end_date" type="date" required value="{{dateInput $v.EndDate}}">
-        </div>
-        <div class="field">
-          <label for="m-lat">{{t "field.latitude"}}</label>
-          <input id="m-lat" name="latitude" inputmode="decimal" value="{{coord $v.Latitude}}">
-        </div>
-        <div class="field">
-          <label for="m-lng">{{t "field.longitude"}}</label>
-          <input id="m-lng" name="longitude" inputmode="decimal" value="{{coord $v.Longitude}}">
         </div>
         <div class="field">
           <label for="m-budget">{{t "field.budget"}}</label>

@@ -128,6 +128,107 @@
       .catch(function () { /* transient errors are non-fatal */ });
   }
 
+  // ---- Location picker (destination autocomplete + map) ----
+  var locationMaps = [];
+
+  function initLocationPickers() {
+    if (typeof L === "undefined") return;
+    var pickers = document.querySelectorAll(".location-picker");
+    for (var i = 0; i < pickers.length; i++) {
+      initLocationPicker(pickers[i]);
+    }
+  }
+
+  function zoomForResult(it) {
+    var type = (it.type || "").toLowerCase();
+    var cls = (it.class || "").toLowerCase();
+    if (type === "country" || cls === "boundary") return 5;
+    if (type === "state" || type === "region" || type === "province") return 7;
+    if (type === "city" || type === "town" || type === "village") return 11;
+    return 9;
+  }
+
+  function initLocationPicker(pk) {
+    var input = pk.querySelector("[data-geocode-input]");
+    var list = pk.querySelector("[data-geocode-list]");
+    var latIn = pk.querySelector("[data-geocode-lat]");
+    var lngIn = pk.querySelector("[data-geocode-lng]");
+    var mapEl = pk.querySelector("[data-geocode-map]");
+    if (!mapEl) return;
+
+    var lat = parseFloat(latIn && latIn.value);
+    var lng = parseFloat(lngIn && lngIn.value);
+    var hasPoint = !isNaN(lat) && !isNaN(lng);
+
+    var lmap = L.map(mapEl).setView(hasPoint ? [lat, lng] : [25, 5], hasPoint ? 6 : 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "\u00A9 OpenStreetMap contributors"
+    }).addTo(lmap);
+    locationMaps.push(lmap);
+
+    var marker = null;
+    function setPoint(la, ln, zoom) {
+      if (latIn) latIn.value = la.toFixed(6);
+      if (lngIn) lngIn.value = ln.toFixed(6);
+      if (marker) { marker.setLatLng([la, ln]); }
+      else { marker = L.marker([la, ln]).addTo(lmap); }
+      lmap.setView([la, ln], zoom || lmap.getZoom());
+    }
+    if (hasPoint) setPoint(lat, lng, 6);
+
+    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng); });
+    window.setTimeout(function () { lmap.invalidateSize(); }, 200);
+
+    function hideList() { if (list) { list.hidden = true; list.innerHTML = ""; } }
+
+    function renderSuggestions(items) {
+      if (!list) return;
+      list.innerHTML = "";
+      if (!items.length) { hideList(); return; }
+      items.forEach(function (it) {
+        var opt = document.createElement("button");
+        opt.type = "button";
+        opt.className = "suggest__item";
+        opt.textContent = it.display_name;
+        opt.addEventListener("click", function () {
+          if (input) input.value = it.display_name;
+          setPoint(it.lat, it.lng, zoomForResult(it));
+          hideList();
+        });
+        list.appendChild(opt);
+      });
+      list.hidden = false;
+    }
+
+    function search(q) {
+      fetch("/api/geocode?q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (data) { renderSuggestions((data && data.results) || []); })
+        .catch(function () { hideList(); });
+    }
+
+    if (input) {
+      var timer = null;
+      input.addEventListener("input", function () {
+        var q = input.value.trim();
+        if (timer) window.clearTimeout(timer);
+        if (q.length < 2) { hideList(); return; }
+        timer = window.setTimeout(function () { search(q); }, 350);
+      });
+      input.addEventListener("blur", function () { window.setTimeout(hideList, 200); });
+    }
+  }
+
+  // Resize picker maps when a <details> that contains one is opened.
+  document.addEventListener("toggle", function (e) {
+    if (e.target && e.target.tagName === "DETAILS") {
+      window.setTimeout(function () {
+        for (var i = 0; i < locationMaps.length; i++) { locationMaps[i].invalidateSize(); }
+      }, 60);
+    }
+  }, true);
+
   // Open the native date/time picker as soon as the field is clicked.
   document.addEventListener("click", function (e) {
     var el = e.target;
@@ -153,9 +254,14 @@
     }
   });
 
-  if (document.readyState !== "loading") {
+  function init() {
     initMap();
+    initLocationPickers();
+  }
+
+  if (document.readyState !== "loading") {
+    init();
   } else {
-    document.addEventListener("DOMContentLoaded", initMap);
+    document.addEventListener("DOMContentLoaded", init);
   }
 })();

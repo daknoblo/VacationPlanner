@@ -17,9 +17,17 @@
         <label for="title">{{t "field.title"}}</label>
         <input id="title" name="title" required maxlength="200" placeholder="{{t "placeholder.title"}}">
       </div>
-      <div class="field">
+      <div class="field field--wide location-picker">
         <label for="destination">{{t "field.destination"}}</label>
-        <input id="destination" name="destination" required maxlength="200" placeholder="{{t "placeholder.destination"}}">
+        <div class="location-picker__field">
+          <input id="destination" name="destination" required maxlength="200"
+                 autocomplete="off" data-geocode-input placeholder="{{t "placeholder.destination"}}">
+          <div class="suggest" data-geocode-list hidden></div>
+        </div>
+        <input type="hidden" name="latitude" id="latitude" data-geocode-lat value="">
+        <input type="hidden" name="longitude" id="longitude" data-geocode-lng value="">
+        <div class="location-map" data-geocode-map data-lat="" data-lng=""></div>
+        <p class="muted small">{{t "field.location.hint"}}</p>
       </div>
       <div class="field">
         <label for="start_date">{{t "field.from"}}</label>
@@ -28,14 +36,6 @@
       <div class="field">
         <label for="end_date">{{t "field.to"}}</label>
         <input id="end_date" name="end_date" type="date" required>
-      </div>
-      <div class="field">
-        <label for="latitude">{{t "field.latitude"}} <span class="muted">{{t "label.optional"}}</span></label>
-        <input id="latitude" name="latitude" inputmode="decimal" placeholder="38.7223">
-      </div>
-      <div class="field">
-        <label for="longitude">{{t "field.longitude"}} <span class="muted">{{t "label.optional"}}</span></label>
-        <input id="longitude" name="longitude" inputmode="decimal" placeholder="-9.1393">
       </div>
       <div class="field">
         <label for="budget">{{t "field.budget"}} <span class="muted">{{t "label.optional"}}</span></label>

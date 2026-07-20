@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 )
 
@@ -88,16 +89,19 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		timezone = v
 	}
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
-		"Languages":        i18n.Supported(),
-		"Current":          loc.Lang(),
-		"AIBaseURL":        settings[settingAIBaseURL],
-		"AIModel":          settings[settingAIModel],
-		"AIDefaultBaseURL": ai.DefaultBaseURL,
-		"AIDefaultModel":   ai.DefaultModel,
-		"AIKeyConfigured":  s.ai.Enabled(),
-		"WeekStart":        weekStart,
-		"Timezone":         timezone,
-		"Timezones":        commonTimezones,
+		"Languages":         i18n.Supported(),
+		"Current":           loc.Lang(),
+		"AIBaseURL":         settings[settingAIBaseURL],
+		"AIModel":           settings[settingAIModel],
+		"AIDefaultBaseURL":  ai.DefaultBaseURL,
+		"AIDefaultModel":    ai.DefaultModel,
+		"AIKeyConfigured":   s.ai.Enabled(),
+		"WeekStart":         weekStart,
+		"Timezone":          timezone,
+		"Timezones":         commonTimezones,
+		"GeoBaseURL":        settings[settingGeoBaseURL],
+		"GeoDefaultBaseURL": geo.DefaultBaseURL,
+		"GeoKeyConfigured":  s.cfg.GeocoderAPIKey != "",
 	})
 }
 
