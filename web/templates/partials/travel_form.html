@@ -1,0 +1,44 @@
+{{define "travel_form"}}
+<form class="form grid"
+      hx-post="/vacations/{{.V.ID}}/travel"
+      hx-target="{{.List}}"
+      hx-swap="beforeend"
+      data-reset>
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="kind" value="{{.Kind}}">
+  <div class="field">
+    <label>{{t "travel.mode"}}</label>
+    <select name="mode">
+      <option value="">–</option>
+      <option value="flight">{{t "travel.mode.flight"}}</option>
+      <option value="train">{{t "travel.mode.train"}}</option>
+      <option value="car">{{t "travel.mode.car"}}</option>
+      <option value="bus">{{t "travel.mode.bus"}}</option>
+      <option value="ferry">{{t "travel.mode.ferry"}}</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>{{t "travel.from"}}</label>
+    <input name="from_location" maxlength="200" placeholder="{{t "placeholder.travel.from"}}">
+  </div>
+  <div class="field">
+    <label>{{t "travel.to"}}</label>
+    <input name="to_location" maxlength="200" placeholder="{{t "placeholder.travel.to"}}">
+  </div>
+  <div class="field">
+    <label>{{t "travel.depart"}}</label>
+    <input name="depart_at" type="datetime-local">
+  </div>
+  <div class="field">
+    <label>{{t "travel.arrive"}}</label>
+    <input name="arrive_at" type="datetime-local">
+  </div>
+  <div class="field field--wide">
+    <label>{{t "travel.note"}}</label>
+    <input name="notes" maxlength="2000" placeholder="{{t "placeholder.travel.note"}}">
+  </div>
+  <div class="field field--wide">
+    <button class="btn" type="submit">{{t "travel.add"}}</button>
+  </div>
+</form>
+{{end}}

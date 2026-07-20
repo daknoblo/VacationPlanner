@@ -254,9 +254,52 @@
     }
   });
 
+  // ---- Tabs ----
+  function resizeMaps() {
+    window.setTimeout(function () {
+      for (var i = 0; i < locationMaps.length; i++) { locationMaps[i].invalidateSize(); }
+      if (map) { map.invalidateSize(); }
+    }, 30);
+  }
+
+  function activateTab(tabsEl, name) {
+    var tabs = tabsEl.querySelectorAll(".tabs__tab");
+    var panels = tabsEl.querySelectorAll(".tab-panel");
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle("is-active", tabs[i].getAttribute("data-tab") === name);
+    }
+    for (var j = 0; j < panels.length; j++) {
+      panels[j].classList.toggle("is-active", panels[j].getAttribute("data-tab-panel") === name);
+    }
+    resizeMaps();
+  }
+
+  document.addEventListener("click", function (e) {
+    var tab = e.target && e.target.closest ? e.target.closest(".tabs__tab") : null;
+    if (!tab) return;
+    var tabsEl = tab.closest("[data-tabs]");
+    if (!tabsEl) return;
+    var name = tab.getAttribute("data-tab");
+    activateTab(tabsEl, name);
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", "#" + name);
+    }
+  });
+
+  function initTabs() {
+    var tabsEl = document.querySelector("[data-tabs]");
+    if (!tabsEl) return;
+    var hash = (window.location.hash || "").replace(/^#/, "");
+    if (/^[a-z0-9-]+$/.test(hash)) {
+      var target = tabsEl.querySelector('.tabs__tab[data-tab="' + hash + '"]');
+      if (target) activateTab(tabsEl, hash);
+    }
+  }
+
   function init() {
     initMap();
     initLocationPickers();
+    initTabs();
   }
 
   if (document.readyState !== "loading") {

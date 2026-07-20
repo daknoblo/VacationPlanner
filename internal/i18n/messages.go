@@ -52,6 +52,11 @@ var messages = map[Lang]map[string]string{
 		"section.travel":     "Arrival & departure",
 		"section.sights":     "Sights",
 		"section.ai":         "✨ AI recommendations",
+		"tab.general":        "General",
+		"tab.arrival":        "Arrival",
+		"tab.departure":      "Departure",
+		"tab.day":            "Day",
+		"tab.overview":       "Overview",
 
 		// Travel
 		"travel.kind":             "Type",
@@ -204,6 +209,11 @@ var messages = map[Lang]map[string]string{
 		"section.travel":     "An- & Abreise",
 		"section.sights":     "Sehenswürdigkeiten",
 		"section.ai":         "✨ KI-Empfehlungen",
+		"tab.general":        "Allgemein",
+		"tab.arrival":        "Anreise",
+		"tab.departure":      "Abreise",
+		"tab.day":            "Tag",
+		"tab.overview":       "Übersicht",
 
 		// Travel
 		"travel.kind":             "Art",

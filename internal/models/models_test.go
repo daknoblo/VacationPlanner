@@ -31,6 +31,28 @@ func TestVacationNights(t *testing.T) {
 	}
 }
 
+func TestVacationDays(t *testing.T) {
+	v := Vacation{
+		StartDate: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:   time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC),
+	}
+	days := v.Days()
+	if len(days) != 3 {
+		t.Fatalf("Days() = %d, erwartet 3", len(days))
+	}
+	if days[0].Day() != 1 || days[2].Day() != 3 {
+		t.Fatalf("unerwartete Tage: %v", days)
+	}
+
+	neg := Vacation{
+		StartDate: time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC),
+		EndDate:   time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+	}
+	if neg.Days() != nil {
+		t.Fatalf("Days() bei ungültiger Range muss nil sein")
+	}
+}
+
 func TestVacationHasCoords(t *testing.T) {
 	lat, lng := 38.7, -9.1
 	if (Vacation{}).HasCoords() {

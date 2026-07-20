@@ -55,6 +55,8 @@ var funcMap = template.FuncMap{
 	"fmtDateTime": fmtDateTime,
 	"coord":       coordValue,
 	"dict":        dict,
+	"add":         addInt,
+	"sameDay":     sameDay,
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
 }
@@ -265,6 +267,19 @@ func coordValue(f *float64) string {
 		return ""
 	}
 	return strconv.FormatFloat(*f, 'f', -1, 64)
+}
+
+// addInt adds two integers (used for 1-based day numbering in templates).
+func addInt(a, b int) int { return a + b }
+
+// sameDay reports whether an optional timestamp falls on the given calendar day.
+func sameDay(a *time.Time, b time.Time) bool {
+	if a == nil {
+		return false
+	}
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
 }
 
 // dict builds a map from alternating key/value pairs for template composition.

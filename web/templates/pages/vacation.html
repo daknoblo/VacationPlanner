@@ -15,10 +15,19 @@
   </button>
 </header>
 
-<div class="detail">
-  <div class="detail__main">
+<div class="tabs" data-tabs>
+  <div class="tabs__bar" role="tablist">
+    <button type="button" class="tabs__tab is-active" data-tab="general">{{t "tab.general"}}</button>
+    <button type="button" class="tabs__tab" data-tab="arrival">{{t "tab.arrival"}}</button>
+    <button type="button" class="tabs__tab" data-tab="departure">{{t "tab.departure"}}</button>
+    {{range $i, $d := $v.Days}}
+    <button type="button" class="tabs__tab" data-tab="day-{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
+    {{end}}
+    <button type="button" class="tabs__tab" data-tab="overview">{{t "tab.overview"}}</button>
+  </div>
 
-    <section class="panel">
+  <section class="tab-panel is-active" data-tab-panel="general">
+    <div class="panel">
       <h2>{{t "section.traveldata"}}</h2>
       <form class="form grid"
             hx-post="/vacations/{{$v.ID}}"
@@ -66,105 +75,7 @@
           <button class="btn btn--primary" type="submit">{{t "action.save"}}</button>
         </div>
       </form>
-    </section>
-
-    <section class="panel">
-      <h2>{{t "section.travel"}}</h2>
-      <ul id="travel-list" class="list">
-        {{range $v.TravelSegments}}{{template "travel_item" .}}{{end}}
-      </ul>
-      <form class="form grid"
-            hx-post="/vacations/{{$v.ID}}/travel"
-            hx-target="#travel-list"
-            hx-swap="beforeend"
-            data-reset>
-        <input type="hidden" name="csrf_token" value="{{$csrf}}">
-        <div class="field">
-          <label for="t-kind">{{t "travel.kind"}}</label>
-          <select id="t-kind" name="kind" required>
-            <option value="arrival">{{t "travel.kind.arrival"}}</option>
-            <option value="departure">{{t "travel.kind.departure"}}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="t-mode">{{t "travel.mode"}}</label>
-          <select id="t-mode" name="mode">
-            <option value="">–</option>
-            <option value="flight">{{t "travel.mode.flight"}}</option>
-            <option value="train">{{t "travel.mode.train"}}</option>
-            <option value="car">{{t "travel.mode.car"}}</option>
-            <option value="bus">{{t "travel.mode.bus"}}</option>
-            <option value="ferry">{{t "travel.mode.ferry"}}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="t-from">{{t "travel.from"}}</label>
-          <input id="t-from" name="from_location" maxlength="200" placeholder="{{t "placeholder.travel.from"}}">
-        </div>
-        <div class="field">
-          <label for="t-to">{{t "travel.to"}}</label>
-          <input id="t-to" name="to_location" maxlength="200" placeholder="{{t "placeholder.travel.to"}}">
-        </div>
-        <div class="field">
-          <label for="t-depart">{{t "travel.depart"}}</label>
-          <input id="t-depart" name="depart_at" type="datetime-local">
-        </div>
-        <div class="field">
-          <label for="t-arrive">{{t "travel.arrive"}}</label>
-          <input id="t-arrive" name="arrive_at" type="datetime-local">
-        </div>
-        <div class="field field--wide">
-          <label for="t-notes">{{t "travel.note"}}</label>
-          <input id="t-notes" name="notes" maxlength="2000" placeholder="{{t "placeholder.travel.note"}}">
-        </div>
-        <div class="field field--wide">
-          <div id="travel-error" class="form-error"></div>
-          <button class="btn" type="submit">{{t "travel.add"}}</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="panel">
-      <h2>{{t "section.sights"}}</h2>
-      <ul id="sights-list" class="list sights">
-        {{range $v.Sights}}{{template "sight_item" .}}{{end}}
-      </ul>
-      <form class="form grid"
-            hx-post="/vacations/{{$v.ID}}/sights"
-            hx-target="#sights-list"
-            hx-swap="beforeend"
-            data-reset>
-        <input type="hidden" name="csrf_token" value="{{$csrf}}">
-        <div class="field field--wide">
-          <label for="s-name">{{t "sight.name"}}</label>
-          <input id="s-name" name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
-        </div>
-        <div class="field">
-          <label for="s-category">{{t "sight.category"}}</label>
-          <input id="s-category" name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
-        </div>
-        <div class="field">
-          <label for="s-planned">{{t "sight.planned"}}</label>
-          <input id="s-planned" name="planned_date" type="date">
-        </div>
-        <div class="field">
-          <label for="sight-latitude">{{t "field.latitude"}}</label>
-          <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
-        </div>
-        <div class="field">
-          <label for="sight-longitude">{{t "field.longitude"}}</label>
-          <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
-        </div>
-        <div class="field field--wide">
-          <label for="s-description">{{t "sight.description"}}</label>
-          <textarea id="s-description" name="description" rows="2" maxlength="2000"></textarea>
-        </div>
-        <div class="field field--wide">
-          <div id="sight-error" class="form-error"></div>
-          <button class="btn" type="submit">{{t "sight.add"}}</button>
-        </div>
-      </form>
-    </section>
+    </div>
 
     <section class="panel panel--ai">
       <h2>{{t "section.ai"}}</h2>
@@ -191,16 +102,117 @@
       {{end}}
       <div id="ai-results" class="ai-results"></div>
     </section>
+  </section>
 
-  </div>
+  <section class="tab-panel" data-tab-panel="arrival">
+    <div class="panel">
+      <h2>{{t "tab.arrival"}}</h2>
+      <ul id="arrival-list" class="list">
+        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "arrival"}}{{template "travel_item" .}}{{end}}{{end}}
+      </ul>
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list")}}
+    </div>
+  </section>
 
-  <aside class="detail__map">
-    <div id="map"
-         data-vacation-id="{{$v.ID}}"
-         data-lat="{{coord $v.Latitude}}"
-         data-lng="{{coord $v.Longitude}}"
-         data-attribution="{{t "map.attribution"}}"></div>
-    <p class="muted small">{{t "map.tip"}}</p>
-  </aside>
+  <section class="tab-panel" data-tab-panel="departure">
+    <div class="panel">
+      <h2>{{t "tab.departure"}}</h2>
+      <ul id="departure-list" class="list">
+        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "departure"}}{{template "travel_item" .}}{{end}}{{end}}
+      </ul>
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list")}}
+    </div>
+  </section>
+
+  {{range $i, $d := $v.Days}}
+  <section class="tab-panel" data-tab-panel="day-{{$i}}">
+    <div class="panel">
+      <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+      <ul id="day-sights-{{$i}}" class="list sights">
+        {{range $v.Sights}}{{if sameDay .PlannedDate $d}}{{template "sight_item" .}}{{end}}{{end}}
+      </ul>
+      <form class="form grid"
+            hx-post="/vacations/{{$v.ID}}/sights"
+            hx-target="#day-sights-{{$i}}"
+            hx-swap="beforeend"
+            data-reset>
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <input type="hidden" name="planned_date" value="{{dateInput $d}}">
+        <div class="field field--wide">
+          <label>{{t "sight.name"}}</label>
+          <input name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
+        </div>
+        <div class="field">
+          <label>{{t "sight.category"}}</label>
+          <input name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
+        </div>
+        <div class="field field--wide">
+          <label>{{t "sight.description"}}</label>
+          <textarea name="description" rows="2" maxlength="2000"></textarea>
+        </div>
+        <div class="field field--wide">
+          <button class="btn" type="submit">{{t "sight.add"}}</button>
+        </div>
+      </form>
+    </div>
+  </section>
+  {{end}}
+
+  <section class="tab-panel" data-tab-panel="overview">
+    <div class="detail">
+      <div class="detail__main">
+        <section class="panel">
+          <h2>{{t "section.sights"}}</h2>
+          <ul id="sights-list" class="list sights">
+            {{range $v.Sights}}{{template "sight_item" .}}{{end}}
+          </ul>
+          <form class="form grid"
+                hx-post="/vacations/{{$v.ID}}/sights"
+                hx-target="#sights-list"
+                hx-swap="beforeend"
+                data-reset>
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+            <div class="field field--wide">
+              <label for="s-name">{{t "sight.name"}}</label>
+              <input id="s-name" name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
+            </div>
+            <div class="field">
+              <label for="s-category">{{t "sight.category"}}</label>
+              <input id="s-category" name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
+            </div>
+            <div class="field">
+              <label for="s-planned">{{t "sight.planned"}}</label>
+              <input id="s-planned" name="planned_date" type="date">
+            </div>
+            <div class="field">
+              <label for="sight-latitude">{{t "field.latitude"}}</label>
+              <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
+            </div>
+            <div class="field">
+              <label for="sight-longitude">{{t "field.longitude"}}</label>
+              <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
+            </div>
+            <div class="field field--wide">
+              <label for="s-description">{{t "sight.description"}}</label>
+              <textarea id="s-description" name="description" rows="2" maxlength="2000"></textarea>
+            </div>
+            <div class="field field--wide">
+              <div id="sight-error" class="form-error"></div>
+              <button class="btn" type="submit">{{t "sight.add"}}</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <aside class="detail__map">
+        <div id="map"
+             data-vacation-id="{{$v.ID}}"
+             data-lat="{{coord $v.Latitude}}"
+             data-lng="{{coord $v.Longitude}}"
+             data-attribution="{{t "map.attribution"}}"></div>
+        <p class="muted small">{{t "map.tip"}}</p>
+      </aside>
+    </div>
+  </section>
 </div>
 {{end}}

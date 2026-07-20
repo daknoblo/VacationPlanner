@@ -41,6 +41,24 @@ func (v Vacation) HasCoords() bool {
 	return v.Latitude != nil && v.Longitude != nil
 }
 
+// Days returns each calendar day of the trip from StartDate to EndDate
+// inclusive, normalized to UTC midnight. It returns nil for an invalid range
+// and is capped to keep the per-day UI bounded for accidental huge ranges.
+func (v Vacation) Days() []time.Time {
+	if v.EndDate.Before(v.StartDate) {
+		return nil
+	}
+	const maxDays = 366
+	d := time.Date(v.StartDate.Year(), v.StartDate.Month(), v.StartDate.Day(), 0, 0, 0, 0, time.UTC)
+	end := time.Date(v.EndDate.Year(), v.EndDate.Month(), v.EndDate.Day(), 0, 0, 0, 0, time.UTC)
+	var days []time.Time
+	for !d.After(end) && len(days) < maxDays {
+		days = append(days, d)
+		d = d.AddDate(0, 0, 1)
+	}
+	return days
+}
+
 // TravelKind distinguishes arrival from departure legs.
 type TravelKind string
 
