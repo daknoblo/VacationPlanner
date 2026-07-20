@@ -346,10 +346,93 @@
     input.addEventListener("blur", function () { window.setTimeout(hide, 200); });
   }
 
+  // ---- Day planner (drag + resize activity blocks) ----
+  var PLANNER_PPM = 0.8;   // px per minute (must match CSS --ppm)
+  var PLANNER_SNAP = 5;    // snap to 5-minute steps
+
+  function plLabel(m) {
+    m = m < 0 ? 0 : (m > 1440 ? 1440 : m | 0);
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm;
+  }
+  function plClamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function initPlanners() {
+    var grids = document.querySelectorAll("[data-planner-grid]");
+    for (var i = 0; i < grids.length; i++) { initPlanner(grids[i]); }
+  }
+
+  function initPlanner(grid) {
+    var drag = null;
+
+    function applyBlock(block, start, end) {
+      block.setAttribute("data-start", start);
+      block.setAttribute("data-end", end);
+      block.style.top = (start * PLANNER_PPM) + "px";
+      block.style.height = ((end - start) * PLANNER_PPM) + "px";
+      var t = block.querySelector(".planner-block__time");
+      if (t) t.textContent = plLabel(start) + "\u2013" + plLabel(end);
+    }
+
+    function persist(block) {
+      var id = block.getAttribute("data-id");
+      if (!id) return;
+      var body = new URLSearchParams();
+      body.set("start", plLabel(parseInt(block.getAttribute("data-start"), 10)));
+      body.set("end", plLabel(parseInt(block.getAttribute("data-end"), 10)));
+      fetch("/activities/" + encodeURIComponent(id), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF-Token": getCookie("csrf_token")
+        },
+        body: body.toString()
+      }).catch(function () { /* non-fatal */ });
+    }
+
+    grid.addEventListener("pointerdown", function (e) {
+      var block = e.target.closest ? e.target.closest(".planner-block") : null;
+      if (!block || !grid.contains(block)) return;
+      if (e.target.closest(".planner-block__del")) return;
+      e.preventDefault();
+      var resize = !!e.target.closest("[data-planner-resize]");
+      var start = parseInt(block.getAttribute("data-start"), 10) || 0;
+      var end = parseInt(block.getAttribute("data-end"), 10) || (start + 60);
+      drag = { block: block, mode: resize ? "resize" : "move", y: e.clientY, s: start, e: end };
+      block.classList.add("is-dragging");
+      if (block.setPointerCapture) { try { block.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+    });
+
+    grid.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var delta = Math.round(((e.clientY - drag.y) / PLANNER_PPM) / PLANNER_SNAP) * PLANNER_SNAP;
+      var start = drag.s, end = drag.e;
+      if (drag.mode === "move") {
+        var dur = end - start;
+        start = plClamp(drag.s + delta, 0, 1440 - dur);
+        end = start + dur;
+      } else {
+        end = plClamp(drag.e + delta, start + 15, 1440);
+      }
+      applyBlock(drag.block, start, end);
+    });
+
+    function finish() {
+      if (!drag) return;
+      var block = drag.block;
+      block.classList.remove("is-dragging");
+      drag = null;
+      persist(block);
+    }
+    grid.addEventListener("pointerup", finish);
+    grid.addEventListener("pointercancel", finish);
+  }
+
   function init() {
     initMap();
     initLocationPickers();
     initActivityInputs();
+    initPlanners();
     initTabs();
   }
 

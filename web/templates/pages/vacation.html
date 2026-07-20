@@ -132,9 +132,14 @@
       <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
 
       <h3>{{t "activity.section"}}</h3>
-      <ul id="day-activities-{{$i}}" class="list activities">
-        {{range $v.Activities}}{{if .OnDay $d}}{{template "activity_item" .}}{{end}}{{end}}
-      </ul>
+      <div class="planner" data-planner>
+        <div class="planner__hours">
+          {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
+        </div>
+        <div id="day-activities-{{$i}}" class="planner__grid" data-planner-grid>
+          {{range $v.Activities}}{{if .OnDay $d}}{{template "planner_block" .}}{{end}}{{end}}
+        </div>
+      </div>
       <form class="form grid activity-form"
             hx-post="/vacations/{{$v.ID}}/activities"
             hx-target="#day-activities-{{$i}}"

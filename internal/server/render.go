@@ -56,6 +56,8 @@ var funcMap = template.FuncMap{
 	"coord":       coordValue,
 	"dict":        dict,
 	"add":         addInt,
+	"sub":         subInt,
+	"seq":         seq,
 	"sameDay":     sameDay,
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
@@ -271,6 +273,24 @@ func coordValue(f *float64) string {
 
 // addInt adds two integers (used for 1-based day numbering in templates).
 func addInt(a, b int) int { return a + b }
+
+// subInt subtracts two integers (used for activity block heights).
+func subInt(a, b int) int { return a - b }
+
+// seq returns the integers 0..n-1 (used to render the planner's hour rows).
+func seq(n int) []int {
+	if n < 0 {
+		n = 0
+	}
+	if n > 1000 {
+		n = 1000
+	}
+	out := make([]int, n)
+	for i := range out {
+		out[i] = i
+	}
+	return out
+}
 
 // sameDay reports whether an optional timestamp falls on the given calendar day.
 func sameDay(a *time.Time, b time.Time) bool {

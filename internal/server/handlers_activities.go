@@ -94,7 +94,7 @@ func (s *Server) handleCreateActivity(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.fragment(w, r, "activity_item", a)
+	s.fragment(w, r, "planner_block", a)
 }
 
 // handleUpdateActivity updates an activity's time range (used by the planner's
