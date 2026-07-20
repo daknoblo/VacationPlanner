@@ -3,7 +3,7 @@
 ############################
 # Build stage (cross-compiles for the target arch without QEMU)
 ############################
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS build
 
 # Pin the toolchain to the image's Go so builds never fetch one at runtime.
 ENV GOTOOLCHAIN=local
