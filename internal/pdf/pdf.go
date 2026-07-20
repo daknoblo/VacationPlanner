@@ -1,6 +1,6 @@
 // Package pdf renders a vacation itinerary to a PDF document using a pure-Go
-// engine (no CGO). Text is encoded to CP1252, which covers Western European
-// scripts; characters outside that range are dropped.
+// engine (no CGO). Text is drawn with the embedded Go (UTF-8) font, which
+// covers Latin, Cyrillic and Greek; emoji and other pictographs are stripped.
 package pdf
 
 import (
@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
@@ -20,29 +22,30 @@ import (
 // is rendered; otherwise the full trip overview is produced.
 func Vacation(w io.Writer, v *models.Vacation, day *time.Time, loc *i18n.Localizer) error {
 	doc := fpdf.New("P", "mm", "A4", "")
-	tr := doc.UnicodeTranslatorFromDescriptor("")
+	doc.AddUTF8FontFromBytes("Go", "", goregular.TTF)
+	doc.AddUTF8FontFromBytes("Go", "B", gobold.TTF)
 	doc.SetMargins(15, 15, 15)
 	doc.SetAutoPageBreak(true, 15)
 	doc.AddPage()
 
 	title := func(s string) {
-		doc.SetFont("Helvetica", "B", 18)
-		doc.MultiCell(0, 9, tr(s), "", "L", false)
+		doc.SetFont("Go", "B", 18)
+		doc.MultiCell(0, 9, plainText(s), "", "L", false)
 	}
 	h2 := func(s string) {
 		doc.Ln(3)
-		doc.SetFont("Helvetica", "B", 13)
-		doc.MultiCell(0, 7, tr(s), "", "L", false)
+		doc.SetFont("Go", "B", 13)
+		doc.MultiCell(0, 7, plainText(s), "", "L", false)
 		doc.Ln(1)
 	}
 	body := func(s string) {
-		doc.SetFont("Helvetica", "", 11)
-		doc.MultiCell(0, 5.5, tr(s), "", "L", false)
+		doc.SetFont("Go", "", 11)
+		doc.MultiCell(0, 5.5, plainText(s), "", "L", false)
 	}
 	muted := func(s string) {
-		doc.SetFont("Helvetica", "", 10)
+		doc.SetFont("Go", "", 10)
 		doc.SetTextColor(100, 116, 139)
-		doc.MultiCell(0, 5, tr(s), "", "L", false)
+		doc.MultiCell(0, 5, plainText(s), "", "L", false)
 		doc.SetTextColor(0, 0, 0)
 	}
 
@@ -126,4 +129,31 @@ func sameDate(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
+}
+
+// plainText strips emoji and other pictographs the text font cannot render,
+// keeping letters, digits and punctuation.
+func plainText(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if isPictograph(r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func isPictograph(r rune) bool {
+	switch {
+	case r == 0xFE0F || r == 0x200D: // emoji variation selector, zero-width joiner
+		return true
+	case r >= 0x2600 && r <= 0x27BF: // misc symbols + dingbats (incl. plane, checkmark)
+		return true
+	case r >= 0x1F000 && r <= 0x1FAFF: // emoji / pictographs
+		return true
+	default:
+		return false
+	}
 }

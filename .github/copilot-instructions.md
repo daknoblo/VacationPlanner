@@ -38,6 +38,13 @@ a reverse proxy.
 - **AI:** **OpenAI-compatible** `/chat/completions` endpoint (OpenAI, Azure OpenAI, Ollama,
   LocalAI, vLLM …). Only `OPENAI_API_KEY` is an env var (empty = AI disabled); the endpoint
   URL and model are configured at runtime under **Settings** (persisted in the DB).
+- **Geocoding:** server-proxied in `internal/geo`; default **Photon** (Komoot) for as-you-type
+  autocomplete, with a tolerant Photon/Nominatim parser. Base URL is configured under **Settings**;
+  optional `GEOCODER_API_KEY` env stays server-side (strict CSP keeps all calls same-origin).
+- **PDF export:** pure-Go `github.com/go-pdf/fpdf` with embedded Go UTF-8 fonts
+  (`golang.org/x/image/font/gofont`), in `internal/pdf` (emoji stripped).
+- **Timezones:** the IANA database is embedded (`time/tzdata`) so the timezone setting works
+  in the distroless image.
 - **Auth:** none (private, internal, behind Traefik/reverse proxy, listens on `:8080`).
 
 ## 3. Functional requirements
@@ -45,27 +52,37 @@ a reverse proxy.
 ### Data model (`internal/models`)
 
 - **`Vacation`** (a planned trip): `ID` (UUID), `Title`, `Destination`,
-  `StartDate`/`EndDate`, optional `Latitude`/`Longitude`, `Notes`, timestamps.
-  Relations (`TravelSegments`, `Sights`) are loaded on demand, not stored on the row.
-  Helpers: `Nights()` (nights, never negative), `HasCoords()`.
+  `StartDate`/`EndDate`, optional `Latitude`/`Longitude`, `Notes`, optional `Budget`,
+  `People`, timestamps. Relations (`TravelSegments`, `Sights`, `Activities`) are loaded on
+  demand, not stored on the row. Helpers: `Nights()` (never negative), `HasCoords()`,
+  `Days()` (each calendar day of the trip).
 - **`TravelSegment`** (arrival/departure): `Kind` ∈ {`arrival`, `departure`} (`Valid()`
   check), `Mode` (flight/train/car/ferry …), `FromLocation`/`ToLocation`, optional
   `DepartAt`/`ArriveAt`, `Notes`.
 - **`Sight`**: `Name`, `Category`, `Description`, optional coordinates, optional
   `PlannedDate`, `Visited` flag, `Notes`. `HasCoords()` checks whether the point can be
   placed on the map.
+- **`Activity`** (planned on a specific day): `Day`, `Title`, `Category`, `StartMin`/`EndMin`
+  (minutes from midnight, drive the day planner's hour grid), `Description`, `Location`.
+  Helpers: `OnDay()`, `StartLabel()`/`EndLabel()` (`HH:MM`).
 
 ### Routes / actions (`internal/server/routes.go`)
 
 - `GET /` – overview of all vacations.
 - `GET /vacations`, `POST /vacations`; `GET/POST/DELETE /vacations/{id}` – CRUD.
 - `GET /vacations/{id}/api/sights` – sights as JSON (map markers).
-- `POST /vacations/{id}/sights` · `POST /vacations/{id}/travel` – create sights and
-  travel segments.
+- `GET /vacations/{id}/export` (`?day=` optional) – print-friendly itinerary (per day or full).
+- `GET /vacations/{id}/export.pdf` (`?day=` optional) – server-generated PDF itinerary.
+- `POST /vacations/{id}/sights` · `POST /vacations/{id}/travel` ·
+  `POST /vacations/{id}/activities` – create sights, travel segments and activities.
 - `POST /vacations/{id}/ai/recommendations` – AI recommendations for this destination.
 - `POST /sights/{id}/visited`, `DELETE /sights/{id}`, `DELETE /travel/{id}`.
+- `POST /activities/{id}` (planner drag/resize), `DELETE /activities/{id}`.
+- `GET /api/geocode?q=` – server-proxied destination autocomplete.
+- `GET /api/activities/suggest?q=&dest=` – AI activity suggestions (empty when AI disabled).
 - `GET /settings`, `POST /settings` – choose the UI language (stored in the `lang` cookie).
 - `POST /settings/ai` – configure the AI endpoint URL and model (persisted in the DB).
+- `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `GET /healthz`, `GET /readyz` – health/readiness.
 
 ### Behavior
@@ -99,6 +116,7 @@ a reverse proxy.
   - `APP_ENV` (`production` ⇒ JSON logs, HSTS, secure cookies), `HTTP_ADDR` (`:8080`).
   - `DB_PATH` (SQLite database file path; default `vacation.db`).
   - `OPENAI_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
+  - `GEOCODER_API_KEY` (optional; for keyed Photon/Nominatim-compatible geocoders; base URL in Settings).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).
 
 ## 6. Non-goals / deliberate simplifications
