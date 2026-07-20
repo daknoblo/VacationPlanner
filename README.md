@@ -1,7 +1,7 @@
 # 🌴 VacationPlanner
 
 A web-based vacation planner written in **Go** with a modern, lightweight server-rendering
-architecture (HTMX + Leaflet), PostgreSQL persistence, OpenAI-compatible AI recommendations,
+architecture (HTMX + Leaflet), SQLite persistence, OpenAI-compatible AI recommendations,
 a **multi-language UI (English / German)**, and a **multi-arch, distroless** Docker image.
 
 ## Features
@@ -25,7 +25,7 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 | --------- | -------------------------------------------------------------------- |
 | Language  | Go 1.25 (static binary, `CGO_ENABLED=0`)                             |
 | Routing   | `chi/v5` on top of the standard `net/http`                           |
-| Database  | PostgreSQL via `pgx/v5` (pure Go, no CGO), embedded migrations       |
+| Database  | SQLite via `modernc.org/sqlite` (pure Go, no CGO), embedded migrations |
 | Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |
 | i18n      | Tiny dependency-free catalog (`internal/i18n`), English fallback     |
 | AI        | OpenAI-compatible `/chat/completions` (configurable)                 |
@@ -37,8 +37,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 ```mermaid
 flowchart LR
     Browser["Browser<br/>(HTMX + Leaflet)"] -->|HTTP| Server["Go HTTP server<br/>chi + html/template"]
-    Server --> Store["Store<br/>pgx/v5"]
-    Store --> DB[("PostgreSQL")]
+    Server --> Store["Store<br/>database/sql"]
+    Store --> DB[("SQLite file")]
     Server -->|/chat/completions| AI["OpenAI-compatible<br/>endpoint"]
     Server -->|embed| Assets["Templates + static<br/>(in the binary)"]
 ```
@@ -64,16 +64,12 @@ Then open <http://localhost:8080>
 ## Local development (without containers)
 
 ```bash
-# 1) Provide PostgreSQL (example via Docker)
-docker run --rm -p 5432:5432 \
-  -e POSTGRES_USER=vacation -e POSTGRES_PASSWORD=vacation -e POSTGRES_DB=vacation \
-  postgres:16-alpine
-
-# 2) Configuration
-cp .env.example .env   # adjust values; DATABASE_URL points at localhost
+# 1) Configuration (optional — sensible defaults exist)
+cp .env.example .env
 set -a && source .env && set +a
 
-# 3) Run (migrations run automatically on startup)
+# 2) Run — the SQLite file (DB_PATH, default ./vacation.db) and the
+#    migrations are created automatically on startup.
 make run     # or: go run ./cmd/server
 ```
 
@@ -85,7 +81,7 @@ More targets: `make help` (build, test, lint, sec, vuln, docker-build, docker-bu
 | ----------------- | --------------------------- | ----------------------------------------------------- |
 | `APP_ENV`         | `development`               | `production` enables JSON logs, HSTS, secure cookies. |
 | `HTTP_ADDR`       | `:8080`                     | Listen address.                                       |
-| `DATABASE_URL`    | –                           | **Required.** `postgres://user:pass@host:5432/db`.    |
+| `DB_PATH`         | `vacation.db`               | SQLite database file path (created if missing).       |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Base URL of the AI endpoint.                          |
 | `OPENAI_API_KEY`  | –                           | Empty ⇒ AI features disabled.                         |
 | `OPENAI_MODEL`    | `gpt-4o-mini`               | Model name.                                           |
@@ -145,7 +141,7 @@ gofmt -l .              # formatting check
 ## CI/CD (GitHub Actions)
 
 - **CI** (`ci.yml`): formatting, `go vet`, build, tests (race + coverage), golangci-lint,
-  govulncheck, gosec (SARIF), Trivy filesystem scan.
+  govulncheck (gosec runs inside golangci-lint), Trivy filesystem scan.
 - **CodeQL** (`codeql.yml`): static security analysis.
 - **Docker** (`docker-publish.yml`): multi-arch (`amd64` + `arm64`) build & push to GHCR with SBOM +
   provenance, followed by a Trivy image scan.
@@ -163,13 +159,13 @@ internal/
   i18n/                translation catalog (en/de) + resolver
   models/              domain types
   server/              routing, middleware, CSRF, rendering, handlers
-  store/               PostgreSQL store + embedded migrations
+  store/               SQLite store + embedded migrations
 web/
   templates/           layout, pages, partials
   static/              CSS, JS, vendored Leaflet/HTMX
 .github/workflows/     CI, CodeQL, Docker
 Dockerfile             multi-stage, multi-arch, distroless
-docker-compose.yml     app + PostgreSQL
+docker-compose.yml     app + SQLite volume
 ```
 
 ## License

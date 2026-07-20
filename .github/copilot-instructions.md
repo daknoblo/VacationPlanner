@@ -26,8 +26,9 @@ a reverse proxy.
   Static binary, `CGO_ENABLED=0`.
 - **Module path:** `github.com/daknoblo/vacationplanner`.
 - **Routing:** `go-chi/chi/v5` on top of the standard `net/http`.
-- **Persistence:** **PostgreSQL** via `jackc/pgx/v5` (pure Go, no CGO; keep `>= v5.9.2`).
-  Connection via `DATABASE_URL`. Migrations are embedded via `//go:embed`
+- **Persistence:** **SQLite** via `modernc.org/sqlite` (pure Go, no CGO). The database
+  file path is set via `DB_PATH` (default `vacation.db`); WAL mode and foreign keys are
+  enabled per connection. Migrations are embedded via `//go:embed`
   (`internal/store/migrations/*.sql`) and run automatically on startup.
 - **UI:** Server-rendered `html/template` + **HTMX** + **Leaflet** (both vendored under
   `web/static/vendor/`). All templates and assets embedded in the binary via `embed`.
@@ -90,11 +91,11 @@ a reverse proxy.
 - Docker image: multi-stage, multi-arch (`amd64`+`arm64`), `distroless/static-debian12:nonroot`.
   Build/publish via GitHub Actions → GHCR (`docker-publish.yml`) with SBOM + provenance,
   followed by a Trivy image scan.
-- Operated via `docker compose` (app + PostgreSQL) behind a reverse proxy; port `:8080`
-  internally.
+- Operated via `docker compose` (single app container with a persistent SQLite volume)
+  behind a reverse proxy; port `:8080` internally.
 - Configuration exclusively via env (`internal/config`), never commit secrets:
   - `APP_ENV` (`production` ⇒ JSON logs, HSTS, secure cookies), `HTTP_ADDR` (`:8080`).
-  - `DATABASE_URL` (**required**).
+  - `DB_PATH` (SQLite database file path; default `vacation.db`).
   - `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` (AI; empty key = disabled).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).
 

@@ -31,8 +31,8 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Quality & ops
 
-- [ ] **Store integration tests** — spin up PostgreSQL via testcontainers to test the
-      `store` package end-to-end (currently unit tests + a container smoke test).
+- [ ] **More store test coverage** — extend the SQLite store tests (edge cases,
+      concurrent access) beyond the current CRUD/cascade/round-trip suite.
 - [ ] **Accessibility pass** — labels/roles/keyboard navigation review, color contrast.
 - [ ] **`LICENSE`** — decide on and add a license file.
 
@@ -45,6 +45,8 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Switched persistence from PostgreSQL to SQLite (`modernc.org/sqlite`, pure Go);
+      added SQLite store tests (CRUD, cascade, round-trip).
 - [x] Multi-language UI (English/German) switchable under Settings.
 - [x] Bump `pgx` to v5.9.2 (fixes govulncheck GO-2026-5004).
 - [x] `models` unit tests, `GET /vacations` route.

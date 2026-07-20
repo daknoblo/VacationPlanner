@@ -4,15 +4,27 @@ import (
 	"testing"
 )
 
-func TestLoadRequiresDatabaseURL(t *testing.T) {
-	t.Setenv("DATABASE_URL", "")
-	if _, err := Load(); err == nil {
-		t.Fatal("expected error when DATABASE_URL is missing")
+func TestLoadDBPath(t *testing.T) {
+	t.Setenv("DB_PATH", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.DBPath != "vacation.db" {
+		t.Fatalf("expected default DB_PATH, got %q", cfg.DBPath)
+	}
+
+	t.Setenv("DB_PATH", "/data/app.db")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.DBPath != "/data/app.db" {
+		t.Fatalf("DB_PATH not honored: %q", cfg.DBPath)
 	}
 }
 
 func TestLoadDefaults(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://u:p@localhost:5432/db")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("CSRF_KEY", "")
 
@@ -32,7 +44,6 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadProductionRequiresCSRFKey(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://u:p@localhost:5432/db")
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("CSRF_KEY", "")
 
@@ -42,7 +53,6 @@ func TestLoadProductionRequiresCSRFKey(t *testing.T) {
 }
 
 func TestLoadTrimsBaseURL(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://u:p@localhost:5432/db")
 	t.Setenv("OPENAI_BASE_URL", "https://example.com/v1/")
 
 	cfg, err := Load()

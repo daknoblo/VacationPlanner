@@ -52,7 +52,7 @@ docker-buildx: ## Build a multi-arch image (requires buildx + QEMU)
 	docker buildx build --platform $(PLATFORMS) -t $(IMAGE):$(TAG) .
 
 .PHONY: up
-up: ## Start the full stack (app + postgres) with docker compose
+up: ## Start the app with docker compose
 	docker compose up --build
 
 .PHONY: down

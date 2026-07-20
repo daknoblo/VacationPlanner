@@ -80,7 +80,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	st, err := store.NewPostgres(ctx, cfg.DatabaseURL)
+	st, err := store.NewSQLite(ctx, cfg.DBPath)
 	if err != nil {
 		return err
 	}

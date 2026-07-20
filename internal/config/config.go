@@ -15,7 +15,7 @@ import (
 type Config struct {
 	Env           string
 	HTTPAddr      string
-	DatabaseURL   string
+	DBPath        string
 	OpenAIBaseURL string
 	OpenAIAPIKey  string
 	OpenAIModel   string
@@ -34,7 +34,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Env:           getenv("APP_ENV", "development"),
 		HTTPAddr:      getenv("HTTP_ADDR", ":8080"),
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		DBPath:        getenv("DB_PATH", "vacation.db"),
 		OpenAIBaseURL: strings.TrimRight(getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"), "/"),
 		OpenAIAPIKey:  os.Getenv("OPENAI_API_KEY"),
 		OpenAIModel:   getenv("OPENAI_MODEL", "gpt-4o-mini"),
@@ -47,8 +47,8 @@ func Load() (*Config, error) {
 		MaxRequestBytes:   1 << 20, // 1 MiB
 	}
 
-	if strings.TrimSpace(cfg.DatabaseURL) == "" {
-		return nil, fmt.Errorf("config: DATABASE_URL is required")
+	if strings.TrimSpace(cfg.DBPath) == "" {
+		return nil, fmt.Errorf("config: DB_PATH must not be empty")
 	}
 
 	key, err := loadCSRFKey(cfg.Env)

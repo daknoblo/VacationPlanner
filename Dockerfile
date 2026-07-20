@@ -23,6 +23,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /out/vacationplanner ./cmd/server
 
+# Prepare a writable data directory owned by the distroless non-root user (65532).
+RUN mkdir -p /data
+
 ############################
 # Runtime stage (multi-arch, distroless, non-root)
 ############################
@@ -30,8 +33,11 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /
 COPY --from=build /out/vacationplanner /vacationplanner
+COPY --from=build --chown=65532:65532 /data /data
 
+ENV DB_PATH=/data/vacation.db
 EXPOSE 8080
+VOLUME ["/data"]
 USER nonroot:nonroot
 
 # Self-probe health check (no shell/curl in distroless).

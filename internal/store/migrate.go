@@ -17,11 +17,11 @@ var migrationsFS embed.FS
 // Migrate applies all pending SQL migrations in lexical order. Each migration
 // runs in its own transaction and is recorded in the schema_migrations table so
 // that re-running is a no-op.
-func (p *Postgres) Migrate(ctx context.Context) error {
-	if _, err := p.pool.Exec(ctx, `
+func (s *SQLite) Migrate(ctx context.Context) error {
+	if _, err := s.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
-			version    BIGINT PRIMARY KEY,
-			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+			version    INTEGER PRIMARY KEY,
+			applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`); err != nil {
 		return fmt.Errorf("store: creating schema_migrations: %w", err)
 	}
@@ -45,8 +45,8 @@ func (p *Postgres) Migrate(ctx context.Context) error {
 		}
 
 		var exists bool
-		if err := p.pool.QueryRow(ctx,
-			`SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, version,
+		if err := s.db.QueryRowContext(ctx,
+			`SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = ?)`, version,
 		).Scan(&exists); err != nil {
 			return fmt.Errorf("store: checking migration %d: %w", version, err)
 		}
@@ -59,21 +59,21 @@ func (p *Postgres) Migrate(ctx context.Context) error {
 			return fmt.Errorf("store: reading migration %s: %w", name, err)
 		}
 
-		tx, err := p.pool.Begin(ctx)
+		tx, err := s.db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("store: begin migration %s: %w", name, err)
 		}
-		if _, err := tx.Exec(ctx, string(sqlBytes)); err != nil {
-			_ = tx.Rollback(ctx)
+		if _, err := tx.ExecContext(ctx, string(sqlBytes)); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("store: applying migration %s: %w", name, err)
 		}
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO schema_migrations (version) VALUES ($1)`, version,
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO schema_migrations (version) VALUES (?)`, version,
 		); err != nil {
-			_ = tx.Rollback(ctx)
+			_ = tx.Rollback()
 			return fmt.Errorf("store: recording migration %s: %w", name, err)
 		}
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("store: commit migration %s: %w", name, err)
 		}
 	}
