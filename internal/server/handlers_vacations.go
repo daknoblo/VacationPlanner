@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
@@ -12,7 +13,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.page(w, r, "index", "Meine Urlaube", map[string]any{
+	s.page(w, r, "index", i18n.FromContext(r.Context()).T("page.vacations.title"), map[string]any{
 		"Vacations": vacations,
 	})
 }
@@ -124,35 +125,36 @@ func (s *Server) handleDeleteVacation(w http.ResponseWriter, r *http.Request) {
 
 // vacationFromForm parses and validates the shared create/update form.
 func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
+	loc := i18n.FromContext(r.Context())
 	title := formStr(r, "title")
 	destination := formStr(r, "destination")
 	notes := formStr(r, "notes")
 
 	if title == "" || destination == "" {
-		return nil, errValidation("Titel und Reiseziel sind erforderlich.")
+		return nil, errValidation(loc.T("error.title_destination_required"))
 	}
 	if !maxLen(title, 200) || !maxLen(destination, 200) {
-		return nil, errValidation("Titel und Reiseziel dürfen höchstens 200 Zeichen haben.")
+		return nil, errValidation(loc.T("error.title_destination_toolong"))
 	}
 	if !maxLen(notes, 5000) {
-		return nil, errValidation("Notizen dürfen höchstens 5000 Zeichen haben.")
+		return nil, errValidation(loc.T("error.notes_toolong"))
 	}
 
 	start, err := parseDate(r, "start_date")
 	if err != nil {
-		return nil, errValidation("Startdatum ist ungültig.")
+		return nil, errValidation(loc.T("error.start_invalid"))
 	}
 	end, err := parseDate(r, "end_date")
 	if err != nil {
-		return nil, errValidation("Enddatum ist ungültig.")
+		return nil, errValidation(loc.T("error.end_invalid"))
 	}
 	if end.Before(start) {
-		return nil, errValidation("Das Enddatum darf nicht vor dem Startdatum liegen.")
+		return nil, errValidation(loc.T("error.end_before_start"))
 	}
 
 	lat, lng, err := parseCoords(r, "latitude", "longitude")
 	if err != nil {
-		return nil, errValidation(err.Error())
+		return nil, err
 	}
 
 	return &models.Vacation{

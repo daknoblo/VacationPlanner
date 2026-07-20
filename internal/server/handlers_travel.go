@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
@@ -21,9 +22,10 @@ func (s *Server) handleCreateTravel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loc := i18n.FromContext(r.Context())
 	kind := models.TravelKind(formStr(r, "kind"))
 	if !kind.Valid() {
-		s.formError(w, r, "#travel-error", "Bitte Anreise oder Abreise wählen.")
+		s.formError(w, r, "#travel-error", loc.T("error.travel_kind_required"))
 		return
 	}
 	mode := formStr(r, "mode")
@@ -31,18 +33,18 @@ func (s *Server) handleCreateTravel(w http.ResponseWriter, r *http.Request) {
 	to := formStr(r, "to_location")
 	notes := formStr(r, "notes")
 	if !maxLen(mode, 50) || !maxLen(from, 200) || !maxLen(to, 200) || !maxLen(notes, 2000) {
-		s.formError(w, r, "#travel-error", "Eingaben sind zu lang.")
+		s.formError(w, r, "#travel-error", loc.T("error.input_toolong"))
 		return
 	}
 
 	departAt, err := parseDateTimePtr(r, "depart_at")
 	if err != nil {
-		s.formError(w, r, "#travel-error", "Abfahrtszeit ist ungültig.")
+		s.formError(w, r, "#travel-error", loc.T("error.depart_invalid"))
 		return
 	}
 	arriveAt, err := parseDateTimePtr(r, "arrive_at")
 	if err != nil {
-		s.formError(w, r, "#travel-error", "Ankunftszeit ist ungültig.")
+		s.formError(w, r, "#travel-error", loc.T("error.arrive_invalid"))
 		return
 	}
 

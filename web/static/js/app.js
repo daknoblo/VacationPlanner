@@ -28,7 +28,10 @@
     window.setTimeout(function () { el.classList.remove("is-visible"); }, 2500);
   }
 
-  document.body.addEventListener("saved", function () { toast("Gespeichert \u2713"); });
+  document.body.addEventListener("saved", function () {
+    var t = document.getElementById("toast");
+    toast(t && t.dataset.saved ? t.dataset.saved : "Saved \u2713");
+  });
 
   // Reset forms flagged with data-reset after a successful submit.
   document.body.addEventListener("htmx:afterRequest", function (evt) {
@@ -73,9 +76,10 @@
 
     map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? 12 : 4);
 
+    var attribution = el.dataset.attribution || "\u00A9 OpenStreetMap contributors";
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      attribution: "\u00A9 OpenStreetMap-Mitwirkende"
+      attribution: attribution
     }).addTo(map);
 
     markerLayer = L.layerGroup().addTo(map);

@@ -4,10 +4,10 @@
     <h3>{{.Title}}</h3>
     <p class="muted">📍 {{.Destination}}</p>
     <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</p>
-    <span class="badge">{{.Nights}} Nächte</span>
+    <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
   </a>
   <button class="btn btn--danger btn--ghost card__delete"
           hx-delete="/vacations/{{.ID}}"
-          hx-confirm="Diesen Urlaub wirklich löschen?">Löschen</button>
+          hx-confirm="{{t "vacation.card.confirm_delete"}}">{{t "action.delete"}}</button>
 </article>
 {{end}}

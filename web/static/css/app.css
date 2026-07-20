@@ -271,3 +271,8 @@ textarea { resize: vertical; }
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; }
 }
+
+/* Settings */
+.lang-options { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.lang-option { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+.lang-option input { width: auto; }

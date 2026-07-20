@@ -1,0 +1,251 @@
+package i18n
+
+// messages holds the translation catalogs. English is the fallback and must be
+// complete; other locales may omit keys and will fall back to English.
+var messages = map[Lang]map[string]string{
+	LangEN: {
+		// Navigation & actions
+		"nav.vacations":  "My vacations",
+		"nav.settings":   "Settings",
+		"action.save":    "Save",
+		"action.delete":  "Delete",
+		"label.optional": "(optional)",
+
+		// Index page
+		"page.vacations.title": "My vacations",
+		"index.hero.title":     "Your vacations",
+		"index.hero.subtitle":  "Plan date ranges, arrival & departure, sights — and get AI recommendations.",
+		"index.new":            "+ Create new vacation",
+		"index.empty":          "No vacations planned yet. Create your first vacation above. ✈️",
+
+		// Shared fields & placeholders
+		"field.title":             "Title",
+		"field.destination":       "Destination",
+		"field.from":              "From",
+		"field.to":                "To",
+		"field.latitude":          "Latitude",
+		"field.longitude":         "Longitude",
+		"field.notes":             "Notes",
+		"placeholder.title":       "Summer in Lisbon",
+		"placeholder.destination": "Lisbon, Portugal",
+		"placeholder.notes":       "Ideas, budget, to-dos …",
+
+		// Vacation
+		"vacation.save":                "Save vacation",
+		"vacation.back":                "← All vacations",
+		"vacation.nights":              "nights",
+		"vacation.delete":              "Delete vacation",
+		"vacation.confirm_delete":      "Really delete this vacation including all sights?",
+		"vacation.card.confirm_delete": "Really delete this vacation?",
+
+		// Sections
+		"section.traveldata": "Travel dates & notes",
+		"section.travel":     "Arrival & departure",
+		"section.sights":     "Sights",
+		"section.ai":         "✨ AI recommendations",
+
+		// Travel
+		"travel.kind":             "Type",
+		"travel.kind.arrival":     "Arrival",
+		"travel.kind.departure":   "Departure",
+		"travel.mode":             "Transport",
+		"travel.mode.flight":      "✈️ Flight",
+		"travel.mode.train":       "🚆 Train",
+		"travel.mode.car":         "🚗 Car",
+		"travel.mode.bus":         "🚌 Bus",
+		"travel.mode.ferry":       "⛴️ Ferry",
+		"travel.from":             "From",
+		"travel.to":               "To",
+		"travel.depart":           "Departure",
+		"travel.arrive":           "Arrival",
+		"travel.note":             "Note",
+		"travel.add":              "Add travel segment",
+		"travel.confirm_delete":   "Delete travel segment?",
+		"travel.depart_label":     "Dep.: ",
+		"travel.arrive_label":     "Arr.: ",
+		"placeholder.travel.from": "Berlin BER",
+		"placeholder.travel.to":   "Lisbon LIS",
+		"placeholder.travel.note": "Seat 14A, booking no. …",
+
+		// Sights
+		"sight.name":                 "Name",
+		"sight.category":             "Category",
+		"sight.planned":              "Planned for",
+		"sight.description":          "Description",
+		"sight.add":                  "Add sight",
+		"sight.visited":              "Visited",
+		"sight.mark_visited":         "Mark as visited",
+		"sight.confirm_delete":       "Delete sight?",
+		"placeholder.sight.name":     "Torre de Belém",
+		"placeholder.sight.category": "Landmark",
+		"placeholder.coords":         "Click on the map",
+
+		// Map
+		"map.tip":         "Click on the map to use coordinates for a new sight.",
+		"map.attribution": "© OpenStreetMap contributors",
+
+		// AI
+		"ai.interests_label":       "What are you in the mood for?",
+		"ai.interests_placeholder": "Viewpoints, local food, museums …",
+		"ai.generate":              "Generate recommendations",
+		"ai.disabled_pre":          "AI recommendations are disabled. Set",
+		"ai.disabled_post":         " to enable them.",
+		"ai.add_sight":             "+ Add to sights",
+		"ai.none":                  "No recommendations received. Try different interests.",
+		"ai.not_configured":        "AI recommendations are not configured. Set OPENAI_API_KEY to enable them.",
+		"ai.failed":                "The AI recommendations could not be loaded right now. Please try again later.",
+
+		// Settings
+		"page.settings.title":    "Settings",
+		"settings.heading":       "Settings",
+		"settings.language":      "Language",
+		"settings.language.hint": "Choose the interface language.",
+		"settings.save":          "Save",
+		"lang.en":                "English",
+		"lang.de":                "Deutsch",
+
+		// Toast (used by JavaScript)
+		"toast.saved": "Saved ✓",
+
+		// Validation / errors
+		"error.title_destination_required": "Title and destination are required.",
+		"error.title_destination_toolong":  "Title and destination may be at most 200 characters.",
+		"error.notes_toolong":              "Notes may be at most 5000 characters.",
+		"error.start_invalid":              "The start date is invalid.",
+		"error.end_invalid":                "The end date is invalid.",
+		"error.end_before_start":           "The end date must not be before the start date.",
+		"error.coords_together":            "Please provide latitude and longitude together.",
+		"error.lat_range":                  "Latitude must be between -90 and 90.",
+		"error.lng_range":                  "Longitude must be between -180 and 180.",
+		"error.sight_name_required":        "The sight name is required (max. 200 characters).",
+		"error.input_toolong":              "Input is too long.",
+		"error.planned_invalid":            "The planned date is invalid.",
+		"error.travel_kind_required":       "Please choose arrival or departure.",
+		"error.depart_invalid":             "The departure time is invalid.",
+		"error.arrive_invalid":             "The arrival time is invalid.",
+		"error.interests_toolong":          "Interests may be at most 500 characters.",
+	},
+
+	LangDE: {
+		// Navigation & actions
+		"nav.vacations":  "Meine Urlaube",
+		"nav.settings":   "Einstellungen",
+		"action.save":    "Speichern",
+		"action.delete":  "Löschen",
+		"label.optional": "(optional)",
+
+		// Index page
+		"page.vacations.title": "Meine Urlaube",
+		"index.hero.title":     "Deine Urlaube",
+		"index.hero.subtitle":  "Plane Zeiträume, An- & Abreise, Sehenswürdigkeiten und lass dir von der KI Empfehlungen geben.",
+		"index.new":            "+ Neuen Urlaub anlegen",
+		"index.empty":          "Noch keine Urlaube geplant. Lege oben deinen ersten Urlaub an. ✈️",
+
+		// Shared fields & placeholders
+		"field.title":             "Titel",
+		"field.destination":       "Reiseziel",
+		"field.from":              "Von",
+		"field.to":                "Bis",
+		"field.latitude":          "Breitengrad",
+		"field.longitude":         "Längengrad",
+		"field.notes":             "Notizen",
+		"placeholder.title":       "Sommer in Lissabon",
+		"placeholder.destination": "Lissabon, Portugal",
+		"placeholder.notes":       "Ideen, Budget, To-dos …",
+
+		// Vacation
+		"vacation.save":                "Urlaub speichern",
+		"vacation.back":                "← Alle Urlaube",
+		"vacation.nights":              "Nächte",
+		"vacation.delete":              "Urlaub löschen",
+		"vacation.confirm_delete":      "Diesen Urlaub inklusive aller Sehenswürdigkeiten wirklich löschen?",
+		"vacation.card.confirm_delete": "Diesen Urlaub wirklich löschen?",
+
+		// Sections
+		"section.traveldata": "Reisedaten & Notizen",
+		"section.travel":     "An- & Abreise",
+		"section.sights":     "Sehenswürdigkeiten",
+		"section.ai":         "✨ KI-Empfehlungen",
+
+		// Travel
+		"travel.kind":             "Art",
+		"travel.kind.arrival":     "Anreise",
+		"travel.kind.departure":   "Abreise",
+		"travel.mode":             "Verkehrsmittel",
+		"travel.mode.flight":      "✈️ Flug",
+		"travel.mode.train":       "🚆 Zug",
+		"travel.mode.car":         "🚗 Auto",
+		"travel.mode.bus":         "🚌 Bus",
+		"travel.mode.ferry":       "⛴️ Fähre",
+		"travel.from":             "Von",
+		"travel.to":               "Nach",
+		"travel.depart":           "Abfahrt",
+		"travel.arrive":           "Ankunft",
+		"travel.note":             "Notiz",
+		"travel.add":              "Reiseabschnitt hinzufügen",
+		"travel.confirm_delete":   "Reiseabschnitt löschen?",
+		"travel.depart_label":     "Ab: ",
+		"travel.arrive_label":     "An: ",
+		"placeholder.travel.from": "Berlin BER",
+		"placeholder.travel.to":   "Lissabon LIS",
+		"placeholder.travel.note": "Sitzplatz 14A, Buchungsnr. …",
+
+		// Sights
+		"sight.name":                 "Name",
+		"sight.category":             "Kategorie",
+		"sight.planned":              "Geplant am",
+		"sight.description":          "Beschreibung",
+		"sight.add":                  "Sehenswürdigkeit hinzufügen",
+		"sight.visited":              "Besucht",
+		"sight.mark_visited":         "Als besucht markieren",
+		"sight.confirm_delete":       "Sehenswürdigkeit löschen?",
+		"placeholder.sight.name":     "Torre de Belém",
+		"placeholder.sight.category": "Wahrzeichen",
+		"placeholder.coords":         "Karte anklicken",
+
+		// Map
+		"map.tip":         "Auf die Karte klicken, um Koordinaten für eine neue Sehenswürdigkeit zu übernehmen.",
+		"map.attribution": "© OpenStreetMap-Mitwirkende",
+
+		// AI
+		"ai.interests_label":       "Worauf hast du Lust?",
+		"ai.interests_placeholder": "Aussichtspunkte, lokale Küche, Museen …",
+		"ai.generate":              "Empfehlungen generieren",
+		"ai.disabled_pre":          "KI-Empfehlungen sind deaktiviert. Setze",
+		"ai.disabled_post":         ", um sie zu aktivieren.",
+		"ai.add_sight":             "+ Zu Sehenswürdigkeiten",
+		"ai.none":                  "Keine Empfehlungen erhalten. Versuche es mit anderen Interessen.",
+		"ai.not_configured":        "KI-Empfehlungen sind nicht konfiguriert. Setze OPENAI_API_KEY, um sie zu aktivieren.",
+		"ai.failed":                "Die KI-Empfehlungen konnten gerade nicht geladen werden. Bitte später erneut versuchen.",
+
+		// Settings
+		"page.settings.title":    "Einstellungen",
+		"settings.heading":       "Einstellungen",
+		"settings.language":      "Sprache",
+		"settings.language.hint": "Wähle die Sprache der Oberfläche.",
+		"settings.save":          "Speichern",
+		"lang.en":                "English",
+		"lang.de":                "Deutsch",
+
+		// Toast (used by JavaScript)
+		"toast.saved": "Gespeichert ✓",
+
+		// Validation / errors
+		"error.title_destination_required": "Titel und Reiseziel sind erforderlich.",
+		"error.title_destination_toolong":  "Titel und Reiseziel dürfen höchstens 200 Zeichen haben.",
+		"error.notes_toolong":              "Notizen dürfen höchstens 5000 Zeichen haben.",
+		"error.start_invalid":              "Startdatum ist ungültig.",
+		"error.end_invalid":                "Enddatum ist ungültig.",
+		"error.end_before_start":           "Das Enddatum darf nicht vor dem Startdatum liegen.",
+		"error.coords_together":            "Bitte Breiten- und Längengrad zusammen angeben.",
+		"error.lat_range":                  "Breitengrad muss zwischen -90 und 90 liegen.",
+		"error.lng_range":                  "Längengrad muss zwischen -180 und 180 liegen.",
+		"error.sight_name_required":        "Name der Sehenswürdigkeit ist erforderlich (max. 200 Zeichen).",
+		"error.input_toolong":              "Eingaben sind zu lang.",
+		"error.planned_invalid":            "Geplantes Datum ist ungültig.",
+		"error.travel_kind_required":       "Bitte Anreise oder Abreise wählen.",
+		"error.depart_invalid":             "Abfahrtszeit ist ungültig.",
+		"error.arrive_invalid":             "Ankunftszeit ist ungültig.",
+		"error.interests_toolong":          "Interessen dürfen höchstens 500 Zeichen haben.",
+	},
+}

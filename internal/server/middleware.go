@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 )
 
 // securityHeaders applies a strict, self-hosted-friendly set of HTTP security
@@ -82,4 +84,12 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// localize resolves the request language and stores a Localizer in the context.
+func (s *Server) localize(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		loc := i18n.FromRequest(r)
+		next.ServeHTTP(w, r.WithContext(i18n.NewContext(r.Context(), loc)))
+	})
 }

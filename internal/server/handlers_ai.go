@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 )
 
 type aiSuggestionsView struct {
@@ -29,9 +30,10 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loc := i18n.FromContext(r.Context())
 	interests := formStr(r, "interests")
 	if !maxLen(interests, 500) {
-		s.formError(w, r, "#ai-error", "Interessen dürfen höchstens 500 Zeichen haben.")
+		s.formError(w, r, "#ai-error", loc.T("error.interests_toolong"))
 		return
 	}
 
@@ -58,10 +60,10 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 	suggestions, err := s.ai.Recommend(r.Context(), input)
 	switch {
 	case errors.Is(err, ai.ErrDisabled):
-		view.Error = "KI-Empfehlungen sind nicht konfiguriert. Setze OPENAI_API_KEY, um sie zu aktivieren."
+		view.Error = loc.T("ai.not_configured")
 	case err != nil:
 		s.log.Warn("ai recommendation failed", "err", err, "vacation_id", vacationID)
-		view.Error = "Die KI-Empfehlungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
+		view.Error = loc.T("ai.failed")
 	default:
 		view.Suggestions = suggestions
 	}

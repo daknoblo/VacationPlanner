@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
@@ -22,16 +23,17 @@ func (s *Server) handleCreateSight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loc := i18n.FromContext(r.Context())
 	name := formStr(r, "name")
 	if name == "" || !maxLen(name, 200) {
-		s.formError(w, r, "#sight-error", "Name der Sehenswürdigkeit ist erforderlich (max. 200 Zeichen).")
+		s.formError(w, r, "#sight-error", loc.T("error.sight_name_required"))
 		return
 	}
 	category := formStr(r, "category")
 	description := formStr(r, "description")
 	notes := formStr(r, "notes")
 	if !maxLen(category, 100) || !maxLen(description, 2000) || !maxLen(notes, 2000) {
-		s.formError(w, r, "#sight-error", "Eingaben sind zu lang.")
+		s.formError(w, r, "#sight-error", loc.T("error.input_toolong"))
 		return
 	}
 
@@ -42,7 +44,7 @@ func (s *Server) handleCreateSight(w http.ResponseWriter, r *http.Request) {
 	}
 	plannedDate, err := parseDatePtr(r, "planned_date")
 	if err != nil {
-		s.formError(w, r, "#sight-error", "Geplantes Datum ist ungültig.")
+		s.formError(w, r, "#sight-error", loc.T("error.planned_invalid"))
 		return
 	}
 

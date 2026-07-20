@@ -22,6 +22,7 @@ func (s *Server) routes() {
 	r.Use(s.bodyLimit)
 	r.Use(s.rateLimit)
 	r.Use(s.csrf)
+	r.Use(s.localize)
 
 	// Static assets (embedded).
 	staticFS, err := fs.Sub(web.Static, "static")
@@ -36,7 +37,11 @@ func (s *Server) routes() {
 	// Pages & actions.
 	r.Get("/", s.handleIndex)
 
+	r.Get("/settings", s.handleSettings)
+	r.Post("/settings", s.handleUpdateSettings)
+
 	r.Route("/vacations", func(r chi.Router) {
+		r.Get("/", s.handleIndex)
 		r.Post("/", s.handleCreateVacation)
 		r.Route("/{vacationID}", func(r chi.Router) {
 			r.Get("/", s.handleVacationDetail)

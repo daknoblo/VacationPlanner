@@ -1,5 +1,5 @@
 {{define "base"}}<!DOCTYPE html>
-<html lang="de">
+<html lang="{{.Lang}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,8 @@
     <div class="topbar__inner">
       <a class="brand" href="/">🌴 <span>VacationPlanner</span></a>
       <nav class="topbar__nav">
-        <a href="/">Meine Urlaube</a>
+        <a href="/">{{t "nav.vacations"}}</a>
+        <a href="/settings">{{t "nav.settings"}}</a>
       </nav>
     </div>
   </header>
@@ -22,7 +23,7 @@
     {{block "content" .}}{{end}}
   </main>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" data-saved="{{t "toast.saved"}}"></div>
 
   <script src="/static/vendor/htmx/htmx.min.js"></script>
   <script src="/static/vendor/leaflet/leaflet.js"></script>

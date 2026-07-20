@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/store"
 )
 
@@ -74,21 +75,22 @@ func maxLen(s string, n int) bool {
 // parseCoords reads optional latitude/longitude fields. Both must be present
 // together and within valid ranges.
 func parseCoords(r *http.Request, latKey, lngKey string) (lat, lng *float64, err error) {
+	loc := i18n.FromContext(r.Context())
 	latRaw := formStr(r, latKey)
 	lngRaw := formStr(r, lngKey)
 	if latRaw == "" && lngRaw == "" {
 		return nil, nil, nil
 	}
 	if latRaw == "" || lngRaw == "" {
-		return nil, nil, errValidation("Bitte Breiten- und Längengrad zusammen angeben.")
+		return nil, nil, errValidation(loc.T("error.coords_together"))
 	}
 	latV, err := strconv.ParseFloat(latRaw, 64)
 	if err != nil || latV < -90 || latV > 90 {
-		return nil, nil, errValidation("Breitengrad muss zwischen -90 und 90 liegen.")
+		return nil, nil, errValidation(loc.T("error.lat_range"))
 	}
 	lngV, err := strconv.ParseFloat(lngRaw, 64)
 	if err != nil || lngV < -180 || lngV > 180 {
-		return nil, nil, errValidation("Längengrad muss zwischen -180 und 180 liegen.")
+		return nil, nil, errValidation(loc.T("error.lng_range"))
 	}
 	return &latV, &lngV, nil
 }

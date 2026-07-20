@@ -1,95 +1,97 @@
 # 🌴 VacationPlanner
 
-Ein webbasierter Urlaubsplaner in **Go** mit moderner, schlanker Server-Rendering-Architektur
-(HTMX + Leaflet), PostgreSQL-Persistenz, OpenAI-kompatiblen KI-Empfehlungen und einem
-**multi-arch, distroless** Docker-Image.
+A web-based vacation planner written in **Go** with a modern, lightweight server-rendering
+architecture (HTMX + Leaflet), PostgreSQL persistence, OpenAI-compatible AI recommendations,
+a **multi-language UI (English / German)**, and a **multi-arch, distroless** Docker image.
 
 ## Features
 
-- **Urlaube verwalten** – mehrere geplante Reisen mit Zeitraum (Von/Bis), Reiseziel und Notizen.
-- **An- & Abreise** – Reiseabschnitte mit Verkehrsmittel, Start/Ziel und Ab-/Ankunftszeiten.
-- **Sehenswürdigkeiten** – Punkte von Interesse mit Kategorie, Beschreibung, Datum, Notizen und
-  „besucht"-Status.
-- **Interaktive Karte** – Leaflet + OpenStreetMap. Marker für alle Sehenswürdigkeiten; Klick auf
-  die Karte übernimmt Koordinaten für neue Einträge.
-- **KI-Empfehlungen** – über jeden **OpenAI-kompatiblen** Endpunkt (OpenAI, Azure OpenAI, Ollama,
-  LocalAI, vLLM …). Vorschläge lassen sich per Klick als Sehenswürdigkeit übernehmen.
-- **Notizfelder** – frei nutzbare Notizen auf Urlaubs-, Reise- und Sehenswürdigkeiten-Ebene.
-- **Sicherheit by default** – CSRF-Schutz, strikte Security-Header inkl. CSP, Rate-Limiting,
-  Request-Limits, non-root distroless Container.
+- **Manage vacations** – multiple planned trips with a date range (from/to), destination and notes.
+- **Arrival & departure** – travel segments with transport mode, origin/destination and depart/arrive times.
+- **Sights** – points of interest with category, description, date, notes and a "visited" flag.
+- **Interactive map** – Leaflet + OpenStreetMap. Markers for every sight; clicking the map fills the
+  coordinates for a new entry.
+- **AI recommendations** – via any **OpenAI-compatible** endpoint (OpenAI, Azure OpenAI, Ollama,
+  LocalAI, vLLM …). Suggestions can be added as sights with a single click.
+- **Multi-language UI** – English and German, switchable under **Settings** (persisted in a cookie,
+  with an `Accept-Language` fallback). Adding a language is a single catalog entry.
+- **Notes** – free-form notes at the vacation, travel and sight level.
+- **Secure by default** – CSRF protection, strict security headers incl. CSP, rate limiting,
+  request limits, non-root distroless container.
 
-## Tech-Stack
+## Tech stack
 
-| Bereich        | Technologie                                                        |
-| -------------- | ------------------------------------------------------------------ |
-| Sprache        | Go 1.25 (statisches Binary, `CGO_ENABLED=0`)                       |
-| Routing        | `chi/v5` + Standard-`net/http`                                     |
-| Datenbank      | PostgreSQL via `pgx/v5` (pure Go, kein CGO), eingebettete Migrationen |
-| Frontend       | Server-gerendertes `html/template` + **HTMX** + **Leaflet** (vendored) |
-| KI             | OpenAI-kompatible `/chat/completions` (konfigurierbar)             |
-| Container      | Multi-Stage → `gcr.io/distroless/static-debian12:nonroot`, multi-arch |
-| Qualität       | golangci-lint (v2), gosec, govulncheck, CodeQL, Trivy              |
+| Area      | Technology                                                            |
+| --------- | -------------------------------------------------------------------- |
+| Language  | Go 1.25 (static binary, `CGO_ENABLED=0`)                             |
+| Routing   | `chi/v5` on top of the standard `net/http`                           |
+| Database  | PostgreSQL via `pgx/v5` (pure Go, no CGO), embedded migrations       |
+| Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |
+| i18n      | Tiny dependency-free catalog (`internal/i18n`), English fallback     |
+| AI        | OpenAI-compatible `/chat/completions` (configurable)                 |
+| Container | Multi-stage → `gcr.io/distroless/static-debian12:nonroot`, multi-arch |
+| Quality   | golangci-lint (v2), gosec, govulncheck, CodeQL, Trivy                |
 
-## Architektur
+## Architecture
 
 ```mermaid
 flowchart LR
-    Browser["Browser<br/>(HTMX + Leaflet)"] -->|HTTP| Server["Go HTTP Server<br/>chi + html/template"]
+    Browser["Browser<br/>(HTMX + Leaflet)"] -->|HTTP| Server["Go HTTP server<br/>chi + html/template"]
     Server --> Store["Store<br/>pgx/v5"]
     Store --> DB[("PostgreSQL")]
-    Server -->|/chat/completions| AI["OpenAI-kompatibler<br/>Endpunkt"]
-    Server -->|embed| Assets["Templates + Static<br/>(im Binary)"]
+    Server -->|/chat/completions| AI["OpenAI-compatible<br/>endpoint"]
+    Server -->|embed| Assets["Templates + static<br/>(in the binary)"]
 ```
 
-Alle Templates und statischen Assets (inkl. Leaflet & HTMX) werden per `//go:embed` in das
-Binary eingebettet – das Image bleibt vollständig eigenständig und offline-fähig.
+All templates and static assets (including Leaflet & HTMX) are embedded into the binary via
+`//go:embed` – the image stays fully self-contained and works offline.
 
-## Schnellstart (Docker Compose)
+## Quick start (Docker Compose)
 
-Voraussetzung: Docker mit laufendem Daemon.
+Requires a running Docker daemon.
 
 ```bash
-# optional: KI aktivieren
+# optional: enable AI
 export OPENAI_API_KEY=sk-...
-# empfohlen für Produktion:
+# recommended for production:
 export CSRF_KEY=$(openssl rand -hex 32)
 
 docker compose up --build
 ```
 
-Danach: <http://localhost:8080>
+Then open <http://localhost:8080>
 
-## Lokale Entwicklung (ohne Container)
+## Local development (without containers)
 
 ```bash
-# 1) PostgreSQL bereitstellen (Beispiel via Docker)
+# 1) Provide PostgreSQL (example via Docker)
 docker run --rm -p 5432:5432 \
   -e POSTGRES_USER=vacation -e POSTGRES_PASSWORD=vacation -e POSTGRES_DB=vacation \
   postgres:16-alpine
 
-# 2) Konfiguration
-cp .env.example .env   # Werte anpassen; DATABASE_URL zeigt auf localhost
+# 2) Configuration
+cp .env.example .env   # adjust values; DATABASE_URL points at localhost
 set -a && source .env && set +a
 
-# 3) Starten (Migrationen laufen automatisch beim Start)
-make run     # oder: go run ./cmd/server
+# 3) Run (migrations run automatically on startup)
+make run     # or: go run ./cmd/server
 ```
 
-Weitere Ziele: `make help` (build, test, lint, sec, vuln, docker-build, docker-buildx, up, down).
+More targets: `make help` (build, test, lint, sec, vuln, docker-build, docker-buildx, up, down).
 
-## Konfiguration
+## Configuration
 
-| Variable          | Default                     | Beschreibung                                             |
-| ----------------- | --------------------------- | ------------------------------------------------------- |
-| `APP_ENV`         | `development`               | `production` aktiviert JSON-Logs, HSTS, Secure-Cookies. |
-| `HTTP_ADDR`       | `:8080`                     | Listen-Adresse.                                         |
-| `DATABASE_URL`    | –                           | **Erforderlich.** `postgres://user:pass@host:5432/db`.  |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Basis-URL des KI-Endpunkts.                             |
-| `OPENAI_API_KEY`  | –                           | Leer ⇒ KI-Funktionen deaktiviert.                       |
-| `OPENAI_MODEL`    | `gpt-4o-mini`               | Modellname.                                             |
-| `CSRF_KEY`        | ephemer (dev)               | Hex-32-Byte-Key. **In Produktion erforderlich.**        |
+| Variable          | Default                     | Description                                           |
+| ----------------- | --------------------------- | ----------------------------------------------------- |
+| `APP_ENV`         | `development`               | `production` enables JSON logs, HSTS, secure cookies. |
+| `HTTP_ADDR`       | `:8080`                     | Listen address.                                       |
+| `DATABASE_URL`    | –                           | **Required.** `postgres://user:pass@host:5432/db`.    |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Base URL of the AI endpoint.                          |
+| `OPENAI_API_KEY`  | –                           | Empty ⇒ AI features disabled.                         |
+| `OPENAI_MODEL`    | `gpt-4o-mini`               | Model name.                                           |
+| `CSRF_KEY`        | ephemeral (dev)             | Hex 32-byte key. **Required in production.**          |
 
-### KI-Endpunkt-Beispiele
+### AI endpoint examples
 
 ```bash
 # OpenAI
@@ -97,67 +99,79 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 
-# Ollama (lokal)
+# Ollama (local)
 OPENAI_BASE_URL=http://localhost:11434/v1
 OPENAI_API_KEY=ollama
 OPENAI_MODEL=llama3.1
 
-# Azure OpenAI (OpenAI-kompatibler Pfad)
+# Azure OpenAI (OpenAI-compatible path)
 OPENAI_BASE_URL=https://<resource>.openai.azure.com/openai/deployments/<deployment>
 OPENAI_API_KEY=<key>
 ```
 
-## Sicherheit
+## Internationalization (i18n)
 
-- **CSRF**: zustandsloser, HMAC-signierter Double-Submit-Token; verpflichtend für alle
-  verändernden Requests (`POST/PUT/PATCH/DELETE`).
-- **Security-Header**: strikte `Content-Security-Policy` (self-hosted Skripte/Styles, nur
-  OSM-Kacheln extern), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`,
-  COOP/CORP, `Permissions-Policy`, HSTS (in Produktion).
-- **Robustheit**: Rate-Limiting pro IP, Request-Body-Limit, Timeouts, Graceful Shutdown.
-- **Container**: distroless, non-root, statisches Binary, keine Shell.
-- **Ausgabe-Escaping**: `html/template` escaped automatisch – auch KI-generierte Inhalte werden
-  nie als Roh-HTML gerendert (Schutz gegen XSS / Prompt-Injection-Auswirkungen).
+- The active language is resolved per request from the `lang` cookie, then the `Accept-Language`
+  header, then the default (`en`).
+- Users switch languages under **Settings** (`/settings`); the choice is stored in the `lang` cookie.
+- Translations live in [internal/i18n/messages.go](internal/i18n/messages.go). To add a language,
+  add a `Lang` constant plus a catalog map — a unit test enforces that every locale defines exactly
+  the same keys as the English fallback.
 
-> Hinweis: Es gibt (noch) keine Authentifizierung. Betreibe die App hinter einem
-> Reverse-Proxy/Ingress mit TLS und – falls nötig – Zugriffsschutz.
+## Security
 
-## Tests & Qualität
+- **CSRF**: stateless, HMAC-signed double-submit token; mandatory for all state-changing requests
+  (`POST/PUT/PATCH/DELETE`).
+- **Security headers**: strict `Content-Security-Policy` (self-hosted scripts/styles, only OSM tiles
+  are external), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, COOP/CORP,
+  `Permissions-Policy`, HSTS (in production).
+- **Robustness**: per-IP rate limiting, request body limit, timeouts, graceful shutdown.
+- **Container**: distroless, non-root, static binary, no shell.
+- **Output escaping**: `html/template` escapes automatically — AI-generated content is never
+  rendered as raw HTML (mitigating XSS / prompt-injection impact).
+
+> Note: there is no authentication (yet). Run the app behind a TLS reverse proxy / ingress and add
+> access control if needed.
+
+## Testing & quality
 
 ```bash
-go test -race ./...     # Unit-Tests inkl. Template-Rendering, CSRF, KI-Parsing
-golangci-lint run       # Linter-Suite (inkl. gosec)
-govulncheck ./...        # bekannte Schwachstellen in Abhängigkeiten
-gofmt -l .              # Formatprüfung
+go test -race ./...     # unit tests incl. template rendering, i18n, CSRF, AI parsing
+golangci-lint run       # linter suite (incl. gosec, misspell)
+govulncheck ./...        # known vulnerabilities in dependencies
+gofmt -l .              # formatting check
 ```
 
 ## CI/CD (GitHub Actions)
 
-- **CI** (`ci.yml`): Format, `go vet`, Build, Tests (Race + Coverage), golangci-lint,
-  govulncheck, gosec (SARIF), Trivy-Dateiscan.
-- **CodeQL** (`codeql.yml`): statische Sicherheitsanalyse.
-- **Docker** (`docker-publish.yml`): multi-arch (`amd64` + `arm64`) Build & Push nach GHCR mit
-  SBOM + Provenance, anschließend Trivy-Image-Scan.
-- **Dependabot**: wöchentliche Updates für Go-Module, GitHub-Actions und Docker.
+- **CI** (`ci.yml`): formatting, `go vet`, build, tests (race + coverage), golangci-lint,
+  govulncheck, gosec (SARIF), Trivy filesystem scan.
+- **CodeQL** (`codeql.yml`): static security analysis.
+- **Docker** (`docker-publish.yml`): multi-arch (`amd64` + `arm64`) build & push to GHCR with SBOM +
+  provenance, followed by a Trivy image scan.
+- **Dependabot**: weekly updates for Go modules, GitHub Actions and Docker.
 
-## Projektstruktur
+Actions are pinned to version tags (e.g. `@v4`), which track the latest release within that major.
+
+## Project structure
 
 ```
-cmd/server/            main + Health-Probe-Subcommand
+cmd/server/            main + health-probe subcommand
 internal/
-  ai/                  OpenAI-kompatibler Client
-  config/              Env-Konfiguration & Logger
-  models/              Domänen-Typen
-  server/              Routing, Middleware, CSRF, Rendering, Handler
-  store/               PostgreSQL-Store + eingebettete Migrationen
+  ai/                  OpenAI-compatible client
+  config/              env configuration & logger
+  i18n/                translation catalog (en/de) + resolver
+  models/              domain types
+  server/              routing, middleware, CSRF, rendering, handlers
+  store/               PostgreSQL store + embedded migrations
 web/
-  templates/           Layout, Seiten, Partials
+  templates/           layout, pages, partials
   static/              CSS, JS, vendored Leaflet/HTMX
 .github/workflows/     CI, CodeQL, Docker
-Dockerfile             Multi-Stage, multi-arch, distroless
-docker-compose.yml     App + PostgreSQL
+Dockerfile             multi-stage, multi-arch, distroless
+docker-compose.yml     app + PostgreSQL
 ```
 
-## Lizenz
+## License
 
-Noch nicht festgelegt – bei Bedarf eine `LICENSE` ergänzen.
+Not chosen yet – add a `LICENSE` file if needed.

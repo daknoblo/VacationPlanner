@@ -32,6 +32,10 @@ linters:
         linters:
           - errcheck
           - gosec
+      # messages.go is a translation catalog and intentionally contains non-English text.
+      - path: internal/i18n/messages\.go
+        linters:
+          - misspell
 
 formatters:
   enable:

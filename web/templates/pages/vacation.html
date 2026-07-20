@@ -1,17 +1,17 @@
 {{define "content"}}
 {{$v := .Data.Vacation}}
 {{$csrf := .CSRFToken}}
-<a class="back" href="/">← Alle Urlaube</a>
+<a class="back" href="/">{{t "vacation.back"}}</a>
 
 <header class="detail-head">
   <div>
     <h1>{{$v.Title}}</h1>
-    <p class="muted">📍 {{$v.Destination}} · 🗓️ {{fmtDate $v.StartDate}} – {{fmtDate $v.EndDate}} · {{$v.Nights}} Nächte</p>
+    <p class="muted">📍 {{$v.Destination}} · 🗓️ {{fmtDate $v.StartDate}} – {{fmtDate $v.EndDate}} · {{$v.Nights}} {{t "vacation.nights"}}</p>
   </div>
   <button class="btn btn--danger btn--ghost"
           hx-delete="/vacations/{{$v.ID}}"
-          hx-confirm="Diesen Urlaub inklusive aller Sehenswürdigkeiten wirklich löschen?">
-    Urlaub löschen
+          hx-confirm="{{t "vacation.confirm_delete"}}">
+    {{t "vacation.delete"}}
   </button>
 </header>
 
@@ -19,49 +19,49 @@
   <div class="detail__main">
 
     <section class="panel">
-      <h2>Reisedaten &amp; Notizen</h2>
+      <h2>{{t "section.traveldata"}}</h2>
       <form class="form grid"
             hx-post="/vacations/{{$v.ID}}"
             hx-target="#meta-error"
             hx-swap="innerHTML">
         <input type="hidden" name="csrf_token" value="{{$csrf}}">
         <div class="field field--wide">
-          <label for="m-title">Titel</label>
+          <label for="m-title">{{t "field.title"}}</label>
           <input id="m-title" name="title" required maxlength="200" value="{{$v.Title}}">
         </div>
         <div class="field field--wide">
-          <label for="m-destination">Reiseziel</label>
+          <label for="m-destination">{{t "field.destination"}}</label>
           <input id="m-destination" name="destination" required maxlength="200" value="{{$v.Destination}}">
         </div>
         <div class="field">
-          <label for="m-start">Von</label>
+          <label for="m-start">{{t "field.from"}}</label>
           <input id="m-start" name="start_date" type="date" required value="{{dateInput $v.StartDate}}">
         </div>
         <div class="field">
-          <label for="m-end">Bis</label>
+          <label for="m-end">{{t "field.to"}}</label>
           <input id="m-end" name="end_date" type="date" required value="{{dateInput $v.EndDate}}">
         </div>
         <div class="field">
-          <label for="m-lat">Breitengrad</label>
+          <label for="m-lat">{{t "field.latitude"}}</label>
           <input id="m-lat" name="latitude" inputmode="decimal" value="{{coord $v.Latitude}}">
         </div>
         <div class="field">
-          <label for="m-lng">Längengrad</label>
+          <label for="m-lng">{{t "field.longitude"}}</label>
           <input id="m-lng" name="longitude" inputmode="decimal" value="{{coord $v.Longitude}}">
         </div>
         <div class="field field--wide">
-          <label for="m-notes">Notizen</label>
+          <label for="m-notes">{{t "field.notes"}}</label>
           <textarea id="m-notes" name="notes" rows="4" maxlength="5000">{{$v.Notes}}</textarea>
         </div>
         <div class="field field--wide">
           <div id="meta-error" class="form-error"></div>
-          <button class="btn btn--primary" type="submit">Speichern</button>
+          <button class="btn btn--primary" type="submit">{{t "action.save"}}</button>
         </div>
       </form>
     </section>
 
     <section class="panel">
-      <h2>An- &amp; Abreise</h2>
+      <h2>{{t "section.travel"}}</h2>
       <ul id="travel-list" class="list">
         {{range $v.TravelSegments}}{{template "travel_item" .}}{{end}}
       </ul>
@@ -72,52 +72,52 @@
             data-reset>
         <input type="hidden" name="csrf_token" value="{{$csrf}}">
         <div class="field">
-          <label for="t-kind">Art</label>
+          <label for="t-kind">{{t "travel.kind"}}</label>
           <select id="t-kind" name="kind" required>
-            <option value="arrival">Anreise</option>
-            <option value="departure">Abreise</option>
+            <option value="arrival">{{t "travel.kind.arrival"}}</option>
+            <option value="departure">{{t "travel.kind.departure"}}</option>
           </select>
         </div>
         <div class="field">
-          <label for="t-mode">Verkehrsmittel</label>
+          <label for="t-mode">{{t "travel.mode"}}</label>
           <select id="t-mode" name="mode">
             <option value="">–</option>
-            <option value="flight">✈️ Flug</option>
-            <option value="train">🚆 Zug</option>
-            <option value="car">🚗 Auto</option>
-            <option value="bus">🚌 Bus</option>
-            <option value="ferry">⛴️ Fähre</option>
+            <option value="flight">{{t "travel.mode.flight"}}</option>
+            <option value="train">{{t "travel.mode.train"}}</option>
+            <option value="car">{{t "travel.mode.car"}}</option>
+            <option value="bus">{{t "travel.mode.bus"}}</option>
+            <option value="ferry">{{t "travel.mode.ferry"}}</option>
           </select>
         </div>
         <div class="field">
-          <label for="t-from">Von</label>
-          <input id="t-from" name="from_location" maxlength="200" placeholder="Berlin BER">
+          <label for="t-from">{{t "travel.from"}}</label>
+          <input id="t-from" name="from_location" maxlength="200" placeholder="{{t "placeholder.travel.from"}}">
         </div>
         <div class="field">
-          <label for="t-to">Nach</label>
-          <input id="t-to" name="to_location" maxlength="200" placeholder="Lissabon LIS">
+          <label for="t-to">{{t "travel.to"}}</label>
+          <input id="t-to" name="to_location" maxlength="200" placeholder="{{t "placeholder.travel.to"}}">
         </div>
         <div class="field">
-          <label for="t-depart">Abfahrt</label>
+          <label for="t-depart">{{t "travel.depart"}}</label>
           <input id="t-depart" name="depart_at" type="datetime-local">
         </div>
         <div class="field">
-          <label for="t-arrive">Ankunft</label>
+          <label for="t-arrive">{{t "travel.arrive"}}</label>
           <input id="t-arrive" name="arrive_at" type="datetime-local">
         </div>
         <div class="field field--wide">
-          <label for="t-notes">Notiz</label>
-          <input id="t-notes" name="notes" maxlength="2000" placeholder="Sitzplatz 14A, Buchungsnr. …">
+          <label for="t-notes">{{t "travel.note"}}</label>
+          <input id="t-notes" name="notes" maxlength="2000" placeholder="{{t "placeholder.travel.note"}}">
         </div>
         <div class="field field--wide">
           <div id="travel-error" class="form-error"></div>
-          <button class="btn" type="submit">Reiseabschnitt hinzufügen</button>
+          <button class="btn" type="submit">{{t "travel.add"}}</button>
         </div>
       </form>
     </section>
 
     <section class="panel">
-      <h2>Sehenswürdigkeiten</h2>
+      <h2>{{t "section.sights"}}</h2>
       <ul id="sights-list" class="list sights">
         {{range $v.Sights}}{{template "sight_item" .}}{{end}}
       </ul>
@@ -128,38 +128,38 @@
             data-reset>
         <input type="hidden" name="csrf_token" value="{{$csrf}}">
         <div class="field field--wide">
-          <label for="s-name">Name</label>
-          <input id="s-name" name="name" required maxlength="200" placeholder="Torre de Belém">
+          <label for="s-name">{{t "sight.name"}}</label>
+          <input id="s-name" name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
         </div>
         <div class="field">
-          <label for="s-category">Kategorie</label>
-          <input id="s-category" name="category" maxlength="100" placeholder="Wahrzeichen">
+          <label for="s-category">{{t "sight.category"}}</label>
+          <input id="s-category" name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
         </div>
         <div class="field">
-          <label for="s-planned">Geplant am</label>
+          <label for="s-planned">{{t "sight.planned"}}</label>
           <input id="s-planned" name="planned_date" type="date">
         </div>
         <div class="field">
-          <label for="sight-latitude">Breitengrad</label>
-          <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="Karte anklicken">
+          <label for="sight-latitude">{{t "field.latitude"}}</label>
+          <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
         </div>
         <div class="field">
-          <label for="sight-longitude">Längengrad</label>
-          <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="Karte anklicken">
+          <label for="sight-longitude">{{t "field.longitude"}}</label>
+          <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
         </div>
         <div class="field field--wide">
-          <label for="s-description">Beschreibung</label>
+          <label for="s-description">{{t "sight.description"}}</label>
           <textarea id="s-description" name="description" rows="2" maxlength="2000"></textarea>
         </div>
         <div class="field field--wide">
           <div id="sight-error" class="form-error"></div>
-          <button class="btn" type="submit">Sehenswürdigkeit hinzufügen</button>
+          <button class="btn" type="submit">{{t "sight.add"}}</button>
         </div>
       </form>
     </section>
 
     <section class="panel panel--ai">
-      <h2>✨ KI-Empfehlungen</h2>
+      <h2>{{t "section.ai"}}</h2>
       {{if .Data.AIEnabled}}
       <form class="form"
             hx-post="/vacations/{{$v.ID}}/ai/recommendations"
@@ -169,17 +169,17 @@
             hx-disabled-elt="find button">
         <input type="hidden" name="csrf_token" value="{{$csrf}}">
         <div class="field field--wide">
-          <label for="ai-interests">Worauf hast du Lust? <span class="muted">(optional)</span></label>
-          <input id="ai-interests" name="interests" maxlength="500" placeholder="Aussichtspunkte, lokale Küche, Museen …">
+          <label for="ai-interests">{{t "ai.interests_label"}} <span class="muted">{{t "label.optional"}}</span></label>
+          <input id="ai-interests" name="interests" maxlength="500" placeholder="{{t "ai.interests_placeholder"}}">
         </div>
         <div class="field field--wide row">
-          <button class="btn btn--primary" type="submit">Empfehlungen generieren</button>
+          <button class="btn btn--primary" type="submit">{{t "ai.generate"}}</button>
           <span id="ai-spinner" class="spinner htmx-indicator" aria-hidden="true"></span>
         </div>
       </form>
       <div id="ai-error" class="form-error"></div>
       {{else}}
-      <p class="muted">KI-Empfehlungen sind deaktiviert. Setze <code>OPENAI_API_KEY</code>, um sie zu aktivieren.</p>
+      <p class="muted">{{t "ai.disabled_pre"}} <code>OPENAI_API_KEY</code>{{t "ai.disabled_post"}}</p>
       {{end}}
       <div id="ai-results" class="ai-results"></div>
     </section>
@@ -190,8 +190,9 @@
     <div id="map"
          data-vacation-id="{{$v.ID}}"
          data-lat="{{coord $v.Latitude}}"
-         data-lng="{{coord $v.Longitude}}"></div>
-    <p class="muted small">Auf die Karte klicken, um Koordinaten für eine neue Sehenswürdigkeit zu übernehmen.</p>
+         data-lng="{{coord $v.Longitude}}"
+         data-attribution="{{t "map.attribution"}}"></div>
+    <p class="muted small">{{t "map.tip"}}</p>
   </aside>
 </div>
 {{end}}

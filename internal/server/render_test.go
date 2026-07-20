@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
@@ -67,9 +68,10 @@ func TestRenderPages(t *testing.T) {
 		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true}}},
 		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false}}},
 	}
+	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
-		if err := r.page(rec, c.name, c.data); err != nil {
+		if err := r.page(rec, c.name, loc, c.data); err != nil {
 			t.Fatalf("render page %q: %v", c.name, err)
 		}
 		if rec.Body.Len() == 0 {
@@ -99,9 +101,10 @@ func TestRenderFragments(t *testing.T) {
 		}},
 		{"ai_suggestions", aiSuggestionsView{VacationID: v.ID.String(), Error: "deaktiviert"}},
 	}
+	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, f := range fragments {
 		rec := httptest.NewRecorder()
-		if err := r.fragment(rec, f.name, f.data); err != nil {
+		if err := r.fragment(rec, f.name, loc, f.data); err != nil {
 			t.Fatalf("render fragment %q: %v", f.name, err)
 		}
 		if rec.Body.Len() == 0 {

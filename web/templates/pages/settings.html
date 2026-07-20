@@ -1,0 +1,26 @@
+{{define "content"}}
+<a class="back" href="/">{{t "vacation.back"}}</a>
+
+<section class="panel">
+  <h1>{{t "settings.heading"}}</h1>
+
+  <form class="form" method="post" action="/settings">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field field--wide">
+      <label>{{t "settings.language"}}</label>
+      <p class="muted small">{{t "settings.language.hint"}}</p>
+      <div class="lang-options">
+        {{range .Data.Languages}}
+        <label class="lang-option">
+          <input type="radio" name="lang" value="{{.}}" {{if eq . $.Data.Current}}checked{{end}}>
+          <span>{{t (printf "lang.%s" .)}}</span>
+        </label>
+        {{end}}
+      </div>
+    </div>
+    <div class="field field--wide">
+      <button class="btn btn--primary" type="submit">{{t "settings.save"}}</button>
+    </div>
+  </form>
+</section>
+{{end}}

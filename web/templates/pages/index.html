@@ -1,12 +1,12 @@
 {{define "content"}}
 <section class="hero">
-  <h1>Deine Urlaube</h1>
-  <p class="muted">Plane Zeiträume, An- &amp; Abreise, Sehenswürdigkeiten und lass dir von der KI Empfehlungen geben.</p>
+  <h1>{{t "index.hero.title"}}</h1>
+  <p class="muted">{{t "index.hero.subtitle"}}</p>
 </section>
 
 <section class="panel">
   <details class="new-vacation" {{if not .Data.Vacations}}open{{end}}>
-    <summary class="btn btn--primary">+ Neuen Urlaub anlegen</summary>
+    <summary class="btn btn--primary">{{t "index.new"}}</summary>
     <form class="form grid"
           hx-post="/vacations"
           hx-target="#form-error"
@@ -14,36 +14,36 @@
           data-reset>
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <div class="field">
-        <label for="title">Titel</label>
-        <input id="title" name="title" required maxlength="200" placeholder="Sommer in Lissabon">
+        <label for="title">{{t "field.title"}}</label>
+        <input id="title" name="title" required maxlength="200" placeholder="{{t "placeholder.title"}}">
       </div>
       <div class="field">
-        <label for="destination">Reiseziel</label>
-        <input id="destination" name="destination" required maxlength="200" placeholder="Lissabon, Portugal">
+        <label for="destination">{{t "field.destination"}}</label>
+        <input id="destination" name="destination" required maxlength="200" placeholder="{{t "placeholder.destination"}}">
       </div>
       <div class="field">
-        <label for="start_date">Von</label>
+        <label for="start_date">{{t "field.from"}}</label>
         <input id="start_date" name="start_date" type="date" required>
       </div>
       <div class="field">
-        <label for="end_date">Bis</label>
+        <label for="end_date">{{t "field.to"}}</label>
         <input id="end_date" name="end_date" type="date" required>
       </div>
       <div class="field">
-        <label for="latitude">Breitengrad <span class="muted">(optional)</span></label>
+        <label for="latitude">{{t "field.latitude"}} <span class="muted">{{t "label.optional"}}</span></label>
         <input id="latitude" name="latitude" inputmode="decimal" placeholder="38.7223">
       </div>
       <div class="field">
-        <label for="longitude">Längengrad <span class="muted">(optional)</span></label>
+        <label for="longitude">{{t "field.longitude"}} <span class="muted">{{t "label.optional"}}</span></label>
         <input id="longitude" name="longitude" inputmode="decimal" placeholder="-9.1393">
       </div>
       <div class="field field--wide">
-        <label for="notes">Notizen</label>
-        <textarea id="notes" name="notes" rows="2" maxlength="5000" placeholder="Ideen, Budget, To-dos …"></textarea>
+        <label for="notes">{{t "field.notes"}}</label>
+        <textarea id="notes" name="notes" rows="2" maxlength="5000" placeholder="{{t "placeholder.notes"}}"></textarea>
       </div>
       <div class="field field--wide">
         <div id="form-error" class="form-error"></div>
-        <button class="btn btn--primary" type="submit">Urlaub speichern</button>
+        <button class="btn btn--primary" type="submit">{{t "vacation.save"}}</button>
       </div>
     </form>
   </details>
@@ -55,7 +55,7 @@
 </section>
 {{else}}
 <section class="empty">
-  <p>Noch keine Urlaube geplant. Lege oben deinen ersten Urlaub an. ✈️</p>
+  <p>{{t "index.empty"}}</p>
 </section>
 {{end}}
 {{end}}
