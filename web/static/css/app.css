@@ -188,6 +188,26 @@ code {
 .tab-panel { display: none; }
 .tab-panel.is-active { display: block; }
 
+/* Activities */
+.list.activities { list-style: none; padding: 0; margin: 0 0 1rem; }
+.activity-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--panel);
+}
+.activity-item__head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.activity-item__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+.activity-item__title { flex: 1 1 auto; }
+.activity-item__desc { margin: 0.35rem 0 0; color: var(--muted); }
+.activity-form { margin-bottom: 1.5rem; }
+
 @media print {
   .topbar, .toast, .no-print { display: none !important; }
   .container { max-width: none; padding: 0; }

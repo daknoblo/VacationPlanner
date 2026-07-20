@@ -221,6 +221,87 @@ func (s *SQLite) DeleteSight(ctx context.Context, id uuid.UUID) error {
 	return checkAffected(res)
 }
 
+// ---- Activities ----
+
+func (s *SQLite) CreateActivity(ctx context.Context, a *models.Activity) error {
+	if a.ID == uuid.Nil {
+		a.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	a.CreatedAt = now
+	a.UpdatedAt = now
+
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO activities
+			(id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.ID, a.VacationID, dbDate(a.Day), a.Title, a.Category, a.StartMin, a.EndMin,
+		a.Description, a.Location, dbTime(a.CreatedAt), dbTime(a.UpdatedAt))
+	if err != nil {
+		return fmt.Errorf("store: creating activity: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) GetActivity(ctx context.Context, id uuid.UUID) (*models.Activity, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at
+		FROM activities WHERE id = ?`, id)
+	var a models.Activity
+	if err := scanActivity(row, &a); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: getting activity: %w", err)
+	}
+	return &a, nil
+}
+
+func (s *SQLite) ListActivities(ctx context.Context, vacationID uuid.UUID) ([]models.Activity, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at
+		FROM activities WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing activities: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Activity
+	for rows.Next() {
+		var a models.Activity
+		if err := scanActivity(rows, &a); err != nil {
+			return nil, fmt.Errorf("store: scanning activity: %w", err)
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating activities: %w", err)
+	}
+	return out, nil
+}
+
+func (s *SQLite) UpdateActivity(ctx context.Context, a *models.Activity) error {
+	a.UpdatedAt = time.Now().UTC()
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE activities
+		SET day = ?, title = ?, category = ?, start_min = ?, end_min = ?, description = ?, location = ?, updated_at = ?
+		WHERE id = ?`,
+		dbDate(a.Day), a.Title, a.Category, a.StartMin, a.EndMin, a.Description, a.Location,
+		dbTime(a.UpdatedAt), a.ID)
+	if err != nil {
+		return fmt.Errorf("store: updating activity: %w", err)
+	}
+	return checkAffected(res)
+}
+
+func (s *SQLite) DeleteActivity(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM activities WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting activity: %w", err)
+	}
+	return checkAffected(res)
+}
+
 // ---- Travel segments ----
 
 func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error {
@@ -380,6 +461,25 @@ func scanSight(sc rowScanner, sight *models.Sight) error {
 	var err error
 	if sight.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
 		return fmt.Errorf("store: parsing created_at: %w", err)
+	}
+	return nil
+}
+
+func scanActivity(sc rowScanner, a *models.Activity) error {
+	var day, created, updated string
+	if err := sc.Scan(&a.ID, &a.VacationID, &day, &a.Title, &a.Category,
+		&a.StartMin, &a.EndMin, &a.Description, &a.Location, &created, &updated); err != nil {
+		return err
+	}
+	var err error
+	if a.Day, err = time.Parse(dbDateLayout, day); err != nil {
+		return fmt.Errorf("store: parsing activity day: %w", err)
+	}
+	if a.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+		return fmt.Errorf("store: parsing created_at: %w", err)
+	}
+	if a.UpdatedAt, err = time.Parse(dbTimeLayout, updated); err != nil {
+		return fmt.Errorf("store: parsing updated_at: %w", err)
 	}
 	return nil
 }

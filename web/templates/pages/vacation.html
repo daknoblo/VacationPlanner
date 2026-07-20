@@ -26,6 +26,8 @@
     <button type="button" class="tabs__tab" data-tab="overview">{{t "tab.overview"}}</button>
   </div>
 
+  <div id="activity-error" class="form-error" role="alert"></div>
+
   <section class="tab-panel is-active" data-tab-panel="general">
     <div class="panel">
       <h2>{{t "section.traveldata"}}</h2>
@@ -128,6 +130,50 @@
   <section class="tab-panel" data-tab-panel="day-{{$i}}">
     <div class="panel">
       <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+
+      <h3>{{t "activity.section"}}</h3>
+      <ul id="day-activities-{{$i}}" class="list activities">
+        {{range $v.Activities}}{{if .OnDay $d}}{{template "activity_item" .}}{{end}}{{end}}
+      </ul>
+      <form class="form grid activity-form"
+            hx-post="/vacations/{{$v.ID}}/activities"
+            hx-target="#day-activities-{{$i}}"
+            hx-swap="beforeend"
+            data-reset>
+        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        <input type="hidden" name="day" value="{{dateInput $d}}">
+        <div class="field field--wide">
+          <label>{{t "activity.title"}}</label>
+          <div class="location-picker__field">
+            <input name="title" required maxlength="200" autocomplete="off"
+                   data-activity-input data-activity-dest="{{$v.Destination}}"
+                   placeholder="{{t "placeholder.sight.name"}}">
+            <div class="suggest" data-activity-list hidden></div>
+          </div>
+          <p class="muted small">{{t "activity.search_hint"}}</p>
+        </div>
+        <div class="field">
+          <label>{{t "activity.start"}}</label>
+          <input name="start" type="time" value="09:00">
+        </div>
+        <div class="field">
+          <label>{{t "activity.end"}}</label>
+          <input name="end" type="time" value="10:00">
+        </div>
+        <div class="field">
+          <label>{{t "sight.category"}}</label>
+          <input name="category" maxlength="100" data-activity-category placeholder="{{t "placeholder.sight.category"}}">
+        </div>
+        <div class="field field--wide">
+          <label>{{t "sight.description"}}</label>
+          <textarea name="description" rows="2" maxlength="2000" data-activity-desc></textarea>
+        </div>
+        <div class="field field--wide">
+          <button class="btn btn--primary" type="submit">{{t "activity.add"}}</button>
+        </div>
+      </form>
+
+      <h3>{{t "section.sights"}}</h3>
       <ul id="day-sights-{{$i}}" class="list sights">
         {{range $v.Sights}}{{if sameDay .PlannedDate $d}}{{template "sight_item" .}}{{end}}{{end}}
       </ul>

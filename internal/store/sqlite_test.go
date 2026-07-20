@@ -78,6 +78,51 @@ func TestVacationCRUD(t *testing.T) {
 	}
 }
 
+func TestActivityRoundTrip(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+
+	day := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
+	a := &models.Activity{
+		VacationID: v.ID, Day: day, Title: "Museum", Category: "Culture",
+		StartMin: 600, EndMin: 720, Description: "Visit", Location: "Center",
+	}
+	if err := st.CreateActivity(ctx, a); err != nil {
+		t.Fatalf("CreateActivity: %v", err)
+	}
+
+	list, err := st.ListActivities(ctx, v.ID)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListActivities: err=%v len=%d", err, len(list))
+	}
+	got := list[0]
+	if got.Title != "Museum" || got.StartMin != 600 || got.EndMin != 720 || !got.OnDay(day) {
+		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+
+	got.StartMin = 630
+	got.Title = "Museum Tour"
+	if err := st.UpdateActivity(ctx, &got); err != nil {
+		t.Fatalf("UpdateActivity: %v", err)
+	}
+	again, err := st.GetActivity(ctx, a.ID)
+	if err != nil || again.StartMin != 630 || again.Title != "Museum Tour" {
+		t.Fatalf("update not persisted: %+v err=%v", again, err)
+	}
+
+	if err := st.DeleteActivity(ctx, a.ID); err != nil {
+		t.Fatalf("DeleteActivity: %v", err)
+	}
+	if l, _ := st.ListActivities(ctx, v.ID); len(l) != 0 {
+		t.Fatalf("expected 0 activities after delete, got %d", len(l))
+	}
+}
+
 func TestCascadeDelete(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
@@ -92,6 +137,9 @@ func TestCascadeDelete(t *testing.T) {
 	if err := st.CreateTravelSegment(ctx, &models.TravelSegment{VacationID: v.ID, Kind: models.TravelArrival, Mode: "flight"}); err != nil {
 		t.Fatalf("CreateTravelSegment: %v", err)
 	}
+	if err := st.CreateActivity(ctx, &models.Activity{VacationID: v.ID, Day: time.Now().UTC(), Title: "Walk"}); err != nil {
+		t.Fatalf("CreateActivity: %v", err)
+	}
 
 	// Deleting the vacation must cascade (requires foreign_keys=ON).
 	if err := st.DeleteVacation(ctx, v.ID); err != nil {
@@ -102,6 +150,9 @@ func TestCascadeDelete(t *testing.T) {
 	}
 	if travel, _ := st.ListTravelSegments(ctx, v.ID); len(travel) != 0 {
 		t.Fatalf("cascade failed: %d travel segments remain", len(travel))
+	}
+	if acts, _ := st.ListActivities(ctx, v.ID); len(acts) != 0 {
+		t.Fatalf("cascade failed: %d activities remain", len(acts))
 	}
 }
 

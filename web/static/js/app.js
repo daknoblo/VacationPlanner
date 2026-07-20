@@ -296,9 +296,60 @@
     }
   }
 
+  // ---- Activity name autocomplete (AI, destination-aware) ----
+  function initActivityInputs() {
+    var inputs = document.querySelectorAll("[data-activity-input]");
+    for (var i = 0; i < inputs.length; i++) { initActivityInput(inputs[i]); }
+  }
+
+  function initActivityInput(input) {
+    var form = input.closest("form");
+    var list = form ? form.querySelector("[data-activity-list]") : null;
+    if (!list) return;
+    var dest = input.getAttribute("data-activity-dest") || "";
+    var timer = null;
+    function hide() { list.hidden = true; list.innerHTML = ""; }
+    function fill(it) {
+      input.value = it.name || "";
+      var cat = form.querySelector("[data-activity-category]");
+      var desc = form.querySelector("[data-activity-desc]");
+      if (cat && it.category) cat.value = it.category;
+      if (desc && it.description) desc.value = it.description;
+      hide();
+    }
+    function search(q) {
+      fetch("/api/activities/suggest?q=" + encodeURIComponent(q) + "&dest=" + encodeURIComponent(dest),
+        { headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (data) {
+          var items = (data && data.results) || [];
+          list.innerHTML = "";
+          if (!items.length) { hide(); return; }
+          items.forEach(function (it) {
+            var opt = document.createElement("button");
+            opt.type = "button";
+            opt.className = "suggest__item";
+            opt.textContent = it.name + (it.category ? " \u00b7 " + it.category : "");
+            opt.addEventListener("click", function () { fill(it); });
+            list.appendChild(opt);
+          });
+          list.hidden = false;
+        })
+        .catch(function () { hide(); });
+    }
+    input.addEventListener("input", function () {
+      var q = input.value.trim();
+      if (timer) window.clearTimeout(timer);
+      if (q.length < 2) { hide(); return; }
+      timer = window.setTimeout(function () { search(q); }, 400);
+    });
+    input.addEventListener("blur", function () { window.setTimeout(hide, 200); });
+  }
+
   function init() {
     initMap();
     initLocationPickers();
+    initActivityInputs();
     initTabs();
   }
 

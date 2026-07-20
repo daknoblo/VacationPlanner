@@ -44,6 +44,7 @@ func (s *Server) routes() {
 	r.Post("/settings/geo", s.handleUpdateGeoSettings)
 
 	r.Get("/api/geocode", s.handleGeocode)
+	r.Get("/api/activities/suggest", s.handleActivitySuggest)
 
 	r.Route("/vacations", func(r chi.Router) {
 		r.Get("/", s.handleIndex)
@@ -56,6 +57,7 @@ func (s *Server) routes() {
 			r.Get("/api/sights", s.handleSightsJSON)
 			r.Post("/sights", s.handleCreateSight)
 			r.Post("/travel", s.handleCreateTravel)
+			r.Post("/activities", s.handleCreateActivity)
 			r.Post("/ai/recommendations", s.handleAIRecommend)
 		})
 	})
@@ -67,6 +69,11 @@ func (s *Server) routes() {
 
 	r.Route("/travel/{travelID}", func(r chi.Router) {
 		r.Delete("/", s.handleDeleteTravel)
+	})
+
+	r.Route("/activities/{activityID}", func(r chi.Router) {
+		r.Post("/", s.handleUpdateActivity)
+		r.Delete("/", s.handleDeleteActivity)
 	})
 
 	s.router = r

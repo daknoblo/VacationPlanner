@@ -2,6 +2,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ type Vacation struct {
 	// Relations are populated on demand, not stored on this row.
 	TravelSegments []TravelSegment
 	Sights         []Sight
+	Activities     []Activity
 }
 
 // Nights returns the number of nights between start and end date.
@@ -106,4 +108,43 @@ type Sight struct {
 // HasCoords reports whether the sight can be placed on the map.
 func (s Sight) HasCoords() bool {
 	return s.Latitude != nil && s.Longitude != nil
+}
+
+// Activity is a planned activity on a specific day of a vacation. StartMin and
+// EndMin are minutes from midnight, which drives the day planner's hour grid.
+type Activity struct {
+	ID          uuid.UUID
+	VacationID  uuid.UUID
+	Day         time.Time
+	Title       string
+	Category    string
+	StartMin    int
+	EndMin      int
+	Description string
+	Location    string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// OnDay reports whether the activity is planned for the given calendar day.
+func (a Activity) OnDay(d time.Time) bool {
+	ay, am, ad := a.Day.Date()
+	by, bm, bd := d.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+// StartLabel returns the start time formatted as HH:MM.
+func (a Activity) StartLabel() string { return minLabel(a.StartMin) }
+
+// EndLabel returns the end time formatted as HH:MM.
+func (a Activity) EndLabel() string { return minLabel(a.EndMin) }
+
+func minLabel(m int) string {
+	if m < 0 {
+		m = 0
+	}
+	if m > 24*60 {
+		m = 24 * 60
+	}
+	return fmt.Sprintf("%02d:%02d", m/60, m%60)
 }

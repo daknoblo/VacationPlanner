@@ -44,6 +44,10 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	if v.Activities, err = s.store.ListActivities(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":  v,
