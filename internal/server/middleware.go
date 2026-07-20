@@ -58,8 +58,8 @@ func (s *Server) requestLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(ww, r)
 
 		s.log.Info("http request",
-			"method", r.Method,
-			"path", r.URL.Path,
+			"method", sanitizeLog(r.Method),
+			"path", sanitizeLog(r.URL.Path),
 			"status", ww.Status(),
 			"bytes", ww.BytesWritten(),
 			"duration_ms", time.Since(start).Milliseconds(),

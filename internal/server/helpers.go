@@ -24,11 +24,18 @@ func hxTrigger(w http.ResponseWriter, events string) {
 	w.Header().Set("HX-Trigger", events)
 }
 
+var logSanitizer = strings.NewReplacer("\n", "", "\r", "", "\t", " ")
+
+// sanitizeLog strips characters that could forge or split log entries (log injection).
+func sanitizeLog(s string) string {
+	return logSanitizer.Replace(s)
+}
+
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("internal error",
 		"err", err,
-		"method", r.Method,
-		"path", r.URL.Path,
+		"method", sanitizeLog(r.Method),
+		"path", sanitizeLog(r.URL.Path),
 	)
 	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
