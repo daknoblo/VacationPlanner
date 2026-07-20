@@ -35,9 +35,6 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("unexpected HTTPAddr: %q", cfg.HTTPAddr)
 	}
-	if cfg.OpenAIBaseURL != "https://api.openai.com/v1" {
-		t.Fatalf("unexpected base url: %q", cfg.OpenAIBaseURL)
-	}
 	if len(cfg.CSRFKey) < 32 {
 		t.Fatalf("ephemeral CSRF key too short: %d", len(cfg.CSRFKey))
 	}
@@ -49,17 +46,5 @@ func TestLoadProductionRequiresCSRFKey(t *testing.T) {
 
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error: production without CSRF_KEY")
-	}
-}
-
-func TestLoadTrimsBaseURL(t *testing.T) {
-	t.Setenv("OPENAI_BASE_URL", "https://example.com/v1/")
-
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.OpenAIBaseURL != "https://example.com/v1" {
-		t.Fatalf("trailing slash not trimmed: %q", cfg.OpenAIBaseURL)
 	}
 }

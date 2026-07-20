@@ -13,22 +13,25 @@ import (
 	"time"
 )
 
+// Default endpoint settings used when no override is configured.
+const (
+	DefaultBaseURL = "https://api.openai.com/v1"
+	DefaultModel   = "gpt-4o-mini"
+)
+
 // Client talks to an OpenAI-compatible /chat/completions endpoint.
 type Client struct {
-	http    *http.Client
-	baseURL string
-	apiKey  string
-	model   string
+	http   *http.Client
+	apiKey string
 }
 
-// New builds a client. When apiKey is empty the client is disabled and
-// Recommend returns ErrDisabled.
-func New(baseURL, apiKey, model string) *Client {
+// New builds a client using the given API key. When the key is empty the client
+// is disabled and Recommend returns ErrDisabled. The endpoint URL and model are
+// passed per call, since they are configured at runtime (not baked into the client).
+func New(apiKey string) *Client {
 	return &Client{
-		http:    &http.Client{Timeout: 60 * time.Second},
-		baseURL: strings.TrimRight(baseURL, "/"),
-		apiKey:  apiKey,
-		model:   model,
+		http:   &http.Client{Timeout: 60 * time.Second},
+		apiKey: apiKey,
 	}
 }
 
@@ -81,14 +84,23 @@ const systemPrompt = `You are a concise travel assistant. ` +
 	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"..."}]}. ` +
 	`Provide between 3 and 6 suggestions. Keep description and reason to one short sentence each.`
 
-// Recommend asks the model for points of interest for the given trip.
-func (c *Client) Recommend(ctx context.Context, in RecommendInput) ([]Suggestion, error) {
+// Recommend asks the model for points of interest for the given trip. baseURL
+// and model may be empty, in which case the package defaults are used.
+func (c *Client) Recommend(ctx context.Context, baseURL, model string, in RecommendInput) ([]Suggestion, error) {
 	if !c.Enabled() {
 		return nil, ErrDisabled
 	}
 
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+	if strings.TrimSpace(model) == "" {
+		model = DefaultModel
+	}
+
 	reqBody := chatRequest{
-		Model:       c.model,
+		Model:       model,
 		Temperature: 0.7,
 		Messages: []chatMessage{
 			{Role: "system", Content: systemPrompt},
@@ -101,7 +113,7 @@ func (c *Client) Recommend(ctx context.Context, in RecommendInput) ([]Suggestion
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/chat/completions", bytes.NewReader(payload))
+		baseURL+"/chat/completions", bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("ai: building request: %w", err)
 	}

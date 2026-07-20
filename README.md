@@ -77,33 +77,27 @@ More targets: `make help` (build, test, lint, sec, vuln, docker-build, docker-bu
 
 ## Configuration
 
-| Variable          | Default                     | Description                                           |
-| ----------------- | --------------------------- | ----------------------------------------------------- |
-| `APP_ENV`         | `development`               | `production` enables JSON logs, HSTS, secure cookies. |
-| `HTTP_ADDR`       | `:8080`                     | Listen address.                                       |
-| `DB_PATH`         | `vacation.db`               | SQLite database file path (created if missing).       |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Base URL of the AI endpoint.                          |
-| `OPENAI_API_KEY`  | –                           | Empty ⇒ AI features disabled.                         |
-| `OPENAI_MODEL`    | `gpt-4o-mini`               | Model name.                                           |
-| `CSRF_KEY`        | ephemeral (dev)             | Hex 32-byte key. **Required in production.**          |
+All variables are optional — the app runs with the defaults below. The AI endpoint URL and
+model are configured at runtime under **Settings** (stored in the database), not via env.
 
-### AI endpoint examples
+| Variable         | Default         | Description                                                              |
+| ---------------- | --------------- | ----------------------------------------------------------------------- |
+| `OPENAI_API_KEY` | –               | Empty ⇒ AI features disabled. Endpoint URL & model live in **Settings**. |
+| `CSRF_KEY`       | ephemeral (dev) | Hex 32-byte HMAC key that signs CSRF tokens. **Set in production** so tokens survive restarts/instances. |
+| `APP_ENV`        | `development`   | `production` enables JSON logs, HSTS, secure cookies.                    |
+| `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |
+| `DB_PATH`        | `vacation.db`   | SQLite database file path (created if missing).                         |
 
-```bash
-# OpenAI
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+### AI endpoint
 
-# Ollama (local)
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_API_KEY=ollama
-OPENAI_MODEL=llama3.1
+Set the API key via `OPENAI_API_KEY`. The **endpoint URL** and **model** are configured in
+the app under **Settings** — for example:
 
-# Azure OpenAI (OpenAI-compatible path)
-OPENAI_BASE_URL=https://<resource>.openai.azure.com/openai/deployments/<deployment>
-OPENAI_API_KEY=<key>
-```
+| Provider     | Endpoint URL                                                      | Model         |
+| ------------ | ----------------------------------------------------------------- | ------------- |
+| OpenAI       | `https://api.openai.com/v1`                                       | `gpt-4o-mini` |
+| Ollama       | `http://localhost:11434/v1`                                       | `llama3.1`    |
+| Azure OpenAI | `https://<resource>.openai.azure.com/openai/deployments/<deploy>` | (deployment)  |
 
 ## Internationalization (i18n)
 

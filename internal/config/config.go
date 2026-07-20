@@ -13,13 +13,11 @@ import (
 
 // Config holds all runtime settings for the service.
 type Config struct {
-	Env           string
-	HTTPAddr      string
-	DBPath        string
-	OpenAIBaseURL string
-	OpenAIAPIKey  string
-	OpenAIModel   string
-	CSRFKey       []byte
+	Env          string
+	HTTPAddr     string
+	DBPath       string
+	OpenAIAPIKey string
+	CSRFKey      []byte
 
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration
@@ -32,12 +30,10 @@ type Config struct {
 // Load reads configuration from environment variables and validates it.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Env:           getenv("APP_ENV", "development"),
-		HTTPAddr:      getenv("HTTP_ADDR", ":8080"),
-		DBPath:        getenv("DB_PATH", "vacation.db"),
-		OpenAIBaseURL: strings.TrimRight(getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"), "/"),
-		OpenAIAPIKey:  os.Getenv("OPENAI_API_KEY"),
-		OpenAIModel:   getenv("OPENAI_MODEL", "gpt-4o-mini"),
+		Env:          getenv("APP_ENV", "development"),
+		HTTPAddr:     getenv("HTTP_ADDR", ":8080"),
+		DBPath:       getenv("DB_PATH", "vacation.db"),
+		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
 
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,

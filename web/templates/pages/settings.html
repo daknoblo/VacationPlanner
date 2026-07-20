@@ -1,13 +1,13 @@
 {{define "content"}}
 <a class="back" href="/">{{t "vacation.back"}}</a>
 
-<section class="panel">
-  <h1>{{t "settings.heading"}}</h1>
+<h1>{{t "settings.heading"}}</h1>
 
+<section class="panel">
+  <h2>{{t "settings.language"}}</h2>
   <form class="form" method="post" action="/settings">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <div class="field field--wide">
-      <label>{{t "settings.language"}}</label>
       <p class="muted small">{{t "settings.language.hint"}}</p>
       <div class="lang-options">
         {{range .Data.Languages}}
@@ -19,6 +19,38 @@
       </div>
     </div>
     <div class="field field--wide">
+      <button class="btn btn--primary" type="submit">{{t "settings.save"}}</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>{{t "settings.ai.heading"}}</h2>
+  <p class="muted small">{{t "settings.ai.hint"}}</p>
+  <form class="form"
+        method="post" action="/settings/ai"
+        hx-post="/settings/ai"
+        hx-target="#ai-settings-error"
+        hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field field--wide">
+      <label for="ai-base-url">{{t "settings.ai.base_url"}}</label>
+      <input id="ai-base-url" name="base_url" maxlength="500" value="{{.Data.AIBaseURL}}" placeholder="{{.Data.AIDefaultBaseURL}}">
+    </div>
+    <div class="field field--wide">
+      <label for="ai-model">{{t "settings.ai.model"}}</label>
+      <input id="ai-model" name="model" maxlength="200" value="{{.Data.AIModel}}" placeholder="{{.Data.AIDefaultModel}}">
+    </div>
+    <div class="field field--wide">
+      <p class="muted small">
+        {{t "settings.ai.key_label"}}:
+        {{if .Data.AIKeyConfigured}}<span class="badge badge--ok">{{t "settings.ai.key_set"}}</span>
+        {{else}}<span class="badge">{{t "settings.ai.key_unset"}}</span>{{end}}
+      </p>
+      <p class="muted small">{{t "settings.ai.key_hint"}}</p>
+    </div>
+    <div class="field field--wide">
+      <div id="ai-settings-error" class="form-error"></div>
       <button class="btn btn--primary" type="submit">{{t "settings.save"}}</button>
     </div>
   </form>

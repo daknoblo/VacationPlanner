@@ -158,3 +158,37 @@ func TestToggleVisited(t *testing.T) {
 		t.Fatalf("visited not persisted: err=%v visited=%v", err, got.Visited)
 	}
 }
+
+func TestSettings(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	m, err := st.GetSettings(ctx)
+	if err != nil {
+		t.Fatalf("GetSettings: %v", err)
+	}
+	if len(m) != 0 {
+		t.Fatalf("expected no settings, got %v", m)
+	}
+
+	if err := st.PutSetting(ctx, "ai.model", "gpt-4o"); err != nil {
+		t.Fatalf("PutSetting: %v", err)
+	}
+	if err := st.PutSetting(ctx, "ai.model", "gpt-4o-mini"); err != nil { // upsert
+		t.Fatalf("PutSetting (upsert): %v", err)
+	}
+	if err := st.PutSetting(ctx, "ai.base_url", "https://example.com/v1"); err != nil {
+		t.Fatalf("PutSetting: %v", err)
+	}
+
+	m, err = st.GetSettings(ctx)
+	if err != nil {
+		t.Fatalf("GetSettings: %v", err)
+	}
+	if m["ai.model"] != "gpt-4o-mini" {
+		t.Fatalf("upsert failed: %q", m["ai.model"])
+	}
+	if m["ai.base_url"] != "https://example.com/v1" {
+		t.Fatalf("unexpected base_url: %q", m["ai.base_url"])
+	}
+}

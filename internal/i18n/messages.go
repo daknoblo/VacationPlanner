@@ -104,6 +104,15 @@ var messages = map[Lang]map[string]string{
 		"lang.en":                "English",
 		"lang.de":                "Deutsch",
 
+		"settings.ai.heading":   "AI recommendations",
+		"settings.ai.hint":      "Configure the OpenAI-compatible endpoint used for recommendations.",
+		"settings.ai.base_url":  "Endpoint URL",
+		"settings.ai.model":     "Model",
+		"settings.ai.key_label": "API key",
+		"settings.ai.key_set":   "configured",
+		"settings.ai.key_unset": "not set",
+		"settings.ai.key_hint":  "For security, the API key is provided via the OPENAI_API_KEY environment variable, not here.",
+
 		// Toast (used by JavaScript)
 		"toast.saved": "Saved ✓",
 
@@ -124,6 +133,7 @@ var messages = map[Lang]map[string]string{
 		"error.depart_invalid":             "The departure time is invalid.",
 		"error.arrive_invalid":             "The arrival time is invalid.",
 		"error.interests_toolong":          "Interests may be at most 500 characters.",
+		"error.ai_base_url_invalid":        "The endpoint URL must be a valid http(s) URL.",
 	},
 
 	LangDE: {
@@ -227,6 +237,15 @@ var messages = map[Lang]map[string]string{
 		"lang.en":                "English",
 		"lang.de":                "Deutsch",
 
+		"settings.ai.heading":   "KI-Empfehlungen",
+		"settings.ai.hint":      "Konfiguriere den OpenAI-kompatiblen Endpunkt für Empfehlungen.",
+		"settings.ai.base_url":  "Endpunkt-URL",
+		"settings.ai.model":     "Modell",
+		"settings.ai.key_label": "API-Schlüssel",
+		"settings.ai.key_set":   "konfiguriert",
+		"settings.ai.key_unset": "nicht gesetzt",
+		"settings.ai.key_hint":  "Aus Sicherheitsgründen wird der API-Schlüssel über die Umgebungsvariable OPENAI_API_KEY gesetzt, nicht hier.",
+
 		// Toast (used by JavaScript)
 		"toast.saved": "Gespeichert ✓",
 
@@ -247,5 +266,6 @@ var messages = map[Lang]map[string]string{
 		"error.depart_invalid":             "Abfahrtszeit ist ungültig.",
 		"error.arrive_invalid":             "Ankunftszeit ist ungültig.",
 		"error.interests_toolong":          "Interessen dürfen höchstens 500 Zeichen haben.",
+		"error.ai_base_url_invalid":        "Die Endpunkt-URL muss eine gültige http(s)-URL sein.",
 	},
 }

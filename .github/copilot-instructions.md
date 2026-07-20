@@ -36,7 +36,8 @@ a reverse proxy.
   translate via a `{{t "key"}}` function bound per request; the language is resolved from
   the `lang` cookie, then `Accept-Language`, then the default.
 - **AI:** **OpenAI-compatible** `/chat/completions` endpoint (OpenAI, Azure OpenAI, Ollama,
-  LocalAI, vLLM …), configurable via env. An empty `OPENAI_API_KEY` disables AI features.
+  LocalAI, vLLM …). Only `OPENAI_API_KEY` is an env var (empty = AI disabled); the endpoint
+  URL and model are configured at runtime under **Settings** (persisted in the DB).
 - **Auth:** none (private, internal, behind Traefik/reverse proxy, listens on `:8080`).
 
 ## 3. Functional requirements
@@ -64,6 +65,7 @@ a reverse proxy.
 - `POST /vacations/{id}/ai/recommendations` – AI recommendations for this destination.
 - `POST /sights/{id}/visited`, `DELETE /sights/{id}`, `DELETE /travel/{id}`.
 - `GET /settings`, `POST /settings` – choose the UI language (stored in the `lang` cookie).
+- `POST /settings/ai` – configure the AI endpoint URL and model (persisted in the DB).
 - `GET /healthz`, `GET /readyz` – health/readiness.
 
 ### Behavior
@@ -96,7 +98,7 @@ a reverse proxy.
 - Configuration exclusively via env (`internal/config`), never commit secrets:
   - `APP_ENV` (`production` ⇒ JSON logs, HSTS, secure cookies), `HTTP_ADDR` (`:8080`).
   - `DB_PATH` (SQLite database file path; default `vacation.db`).
-  - `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` (AI; empty key = disabled).
+  - `OPENAI_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).
 
 ## 6. Non-goals / deliberate simplifications

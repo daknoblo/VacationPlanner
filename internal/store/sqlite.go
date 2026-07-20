@@ -272,6 +272,39 @@ func (s *SQLite) DeleteTravelSegment(ctx context.Context, id uuid.UUID) error {
 	return checkAffected(res)
 }
 
+// ---- Settings ----
+
+func (s *SQLite) GetSettings(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT key, value FROM settings`)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing settings: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, fmt.Errorf("store: scanning setting: %w", err)
+		}
+		out[key] = value
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating settings: %w", err)
+	}
+	return out, nil
+}
+
+func (s *SQLite) PutSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	if err != nil {
+		return fmt.Errorf("store: putting setting: %w", err)
+	}
+	return nil
+}
+
 // ---- helpers ----
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.

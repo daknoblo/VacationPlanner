@@ -42,7 +42,7 @@ func TestParseSuggestionsInvalid(t *testing.T) {
 }
 
 func TestClientDisabled(t *testing.T) {
-	c := New("https://api.openai.com/v1", "", "gpt-4o-mini")
+	c := New("")
 	if c.Enabled() {
 		t.Fatal("client without API key must be disabled")
 	}
