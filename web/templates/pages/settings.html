@@ -46,7 +46,10 @@
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <div class="field field--wide">
       <label for="home-address">{{t "settings.home.address"}}</label>
-      <input id="home-address" name="address" maxlength="200" value="{{.Data.HomeAddress}}" placeholder="{{t "placeholder.home"}}">
+      <div class="location-picker__field">
+        <input id="home-address" name="address" maxlength="200" autocomplete="off" data-geo-lite value="{{.Data.HomeAddress}}" placeholder="{{t "placeholder.home"}}">
+        <div class="suggest" data-geo-lite-list hidden></div>
+      </div>
     </div>
     <div class="field field--wide">
       <div id="home-settings-error" class="form-error"></div>

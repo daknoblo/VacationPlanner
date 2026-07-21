@@ -19,12 +19,18 @@
   </div>
   <div class="field">
     <label>{{t "travel.from"}}</label>
-    <input name="from_location" maxlength="200" placeholder="{{t "placeholder.travel.from"}}">
+    <div class="location-picker__field">
+      <input name="from_location" maxlength="200" autocomplete="off" data-geo-lite placeholder="{{t "placeholder.travel.from"}}">
+      <div class="suggest" data-geo-lite-list hidden></div>
+    </div>
     {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="from_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
   </div>
   <div class="field">
     <label>{{t "travel.to"}}</label>
-    <input name="to_location" maxlength="200" placeholder="{{t "placeholder.travel.to"}}">
+    <div class="location-picker__field">
+      <input name="to_location" maxlength="200" autocomplete="off" data-geo-lite placeholder="{{t "placeholder.travel.to"}}">
+      <div class="suggest" data-geo-lite-list hidden></div>
+    </div>
     {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="to_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
   </div>
   <div class="field">

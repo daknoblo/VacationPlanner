@@ -390,6 +390,7 @@
       if (latIn) latIn.value = it.lat;
       if (lngIn) lngIn.value = it.lng;
       hide();
+      input.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     input.addEventListener("input", function () {
