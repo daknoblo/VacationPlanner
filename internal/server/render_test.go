@@ -110,7 +110,7 @@ func TestRenderFragments(t *testing.T) {
 		{"travel_block", travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Multi: true, Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, Multi: true}}}},
 		{"detail_head", map[string]any{"V": v, "OOB": true}},
 		{"budget_panel", newBudgetView(v, v.Items, nil)},
-		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Weekday: "Saturday", Title: "Test", Category: "POI"}}},
+		{"overview_list", []overviewActivity{{DateLabel: "01.08.2026", TimeLabel: "09:00", Weekday: "Saturday", Title: "Test", Category: "POI"}}},
 		{"ideas_backlog", []models.Item{v.Items[0]}},
 		{"item_edit", map[string]any{"Item": v.Items[0], "Cats": []models.Category{{Name: "POI", Icon: "📍"}}, "CSRF": "tok"}},
 		{"destination_info", destinationInfoView{Destination: "Lisbon", Description: "capital of Portugal", Extract: "Lisbon is the capital of Portugal.", URL: "https://en.wikipedia.org/wiki/Lisbon"}},

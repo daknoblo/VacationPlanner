@@ -421,8 +421,8 @@ code {
 .activity-item.is-active { border-color: var(--primary); background: #eff6ff; }
 .activity-item.is-nogeo { cursor: default; opacity: 0.7; }
 .activity-item__when { flex: 0 0 auto; display: flex; flex-direction: column; min-width: 6.5rem; }
-.activity-item__date { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--primary); font-size: 0.85rem; }
-.activity-item__wd { color: var(--muted); font-size: 0.75rem; }
+.activity-item__wd { font-weight: 700; color: var(--primary); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.activity-item__date { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .activity-item__body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; }
 .activity-item__type {
   align-self: flex-start;
@@ -430,12 +430,24 @@ code {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--primary);
-  background: #eff6ff;
-  border: 1px solid #dbe8fe;
+  color: var(--cat-fg, var(--primary));
+  background: var(--cat-bg, #eff6ff);
+  border: 1px solid var(--cat-bd, #dbe8fe);
   padding: 0.05rem 0.5rem;
   border-radius: 999px;
 }
+
+/* Category label colors (stable per category via catclass) */
+.cat-0 { --cat-bg: #dbeafe; --cat-fg: #1d4ed8; --cat-bd: #bfdbfe; }
+.cat-1 { --cat-bg: #dcfce7; --cat-fg: #15803d; --cat-bd: #bbf7d0; }
+.cat-2 { --cat-bg: #fef3c7; --cat-fg: #b45309; --cat-bd: #fde68a; }
+.cat-3 { --cat-bg: #fce7f3; --cat-fg: #be185d; --cat-bd: #fbcfe8; }
+.cat-4 { --cat-bg: #ede9fe; --cat-fg: #6d28d9; --cat-bd: #ddd6fe; }
+.cat-5 { --cat-bg: #cffafe; --cat-fg: #0e7490; --cat-bd: #a5f3fc; }
+.cat-6 { --cat-bg: #ffedd5; --cat-fg: #c2410c; --cat-bd: #fed7aa; }
+.cat-7 { --cat-bg: #d1fae5; --cat-fg: #047857; --cat-bd: #a7f3d0; }
+.cat-8 { --cat-bg: #e0e7ff; --cat-fg: #4338ca; --cat-bd: #c7d2fe; }
+.cat-9 { --cat-bg: #fee2e2; --cat-fg: #b91c1c; --cat-bd: #fecaca; }
 .activity-item__title { font-weight: 600; line-height: 1.3; }
 
 /* Destination info (Wikipedia intro) */

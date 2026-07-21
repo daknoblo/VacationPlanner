@@ -184,6 +184,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "travel_out", s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false))
 }
 
@@ -315,6 +316,7 @@ func (s *Server) renderTravelBlock(w http.ResponseWriter, r *http.Request, vacat
 		return
 	}
 	_, tz := s.regionSettings(r.Context())
+	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "travel_block", s.travelBlock(r.Context(), tz, v, kind))
 }
 

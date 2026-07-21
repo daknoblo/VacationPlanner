@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -57,6 +58,7 @@ var funcMap = template.FuncMap{
 	"seq":         seq,
 	"weekday":     weekdayKey,
 	"sameDay":     sameDay,
+	"catclass":    catClass,
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
 }
@@ -197,6 +199,22 @@ func fmtDate(t time.Time) string {
 // as an i18n key for localized weekday labels.
 func weekdayKey(t time.Time) string {
 	return strings.ToLower(t.Weekday().String())
+}
+
+// catColorCount is the number of category color variants defined in the CSS
+// (.cat-0 … .cat-N-1).
+const catColorCount = 10
+
+// catClass maps a category (or travel-mode) label to a stable CSS color class so
+// the same category always renders with the same color across the UI.
+func catClass(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return "cat-0"
+	}
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(name))
+	return fmt.Sprintf("cat-%d", h.Sum32()%catColorCount)
 }
 
 func fmtDatePtr(t *time.Time) string {

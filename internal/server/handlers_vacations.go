@@ -324,8 +324,9 @@ func (s *Server) applyEndpointDefaults(ctx context.Context, v *models.Vacation, 
 
 // overviewActivity is a scheduled entry shown in the Overview activity list.
 type overviewActivity struct {
-	WhenLabel string
 	Weekday   string
+	DateLabel string
+	TimeLabel string
 	Title     string
 	Category  string
 	Latitude  *float64
@@ -541,21 +542,22 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
 	for i := range v.TravelSegments {
 		ts := v.TravelSegments[i]
-		var when string
+		var date, tm string
 		var key time.Time
 		var wd time.Time
 		switch {
 		case ts.DepartAt != nil:
 			dep := ts.DepartAt.In(tz)
-			when = fmtDate(dep) + " · " + dep.Format("15:04")
+			date = fmtDate(dep)
+			tm = dep.Format("15:04")
 			key = *ts.DepartAt
 			wd = dep
 		case ts.Kind == models.TravelArrival:
-			when = fmtDate(v.StartDate)
+			date = fmtDate(v.StartDate)
 			key = v.StartDate
 			wd = v.StartDate
 		default:
-			when = fmtDate(v.EndDate)
+			date = fmtDate(v.EndDate)
 			key = v.EndDate.Add(24*time.Hour - time.Minute)
 			wd = v.EndDate
 		}
@@ -564,8 +566,9 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 			lat, lng = ts.FromLat, ts.FromLng
 		}
 		activities = append(activities, overviewActivity{
-			WhenLabel: when,
 			Weekday:   weekdayLabel(loc, wd),
+			DateLabel: date,
+			TimeLabel: tm,
 			Title:     travelLabel(loc, ts),
 			Category:  modeLabel(loc, ts.Mode),
 			Latitude:  lat,
@@ -579,15 +582,16 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 			ideas = append(ideas, it)
 			continue
 		}
-		when := fmtDate(*it.Day)
 		key := *it.Day
+		tm := ""
 		if it.Timed() {
-			when += " · " + it.StartLabel()
+			tm = it.StartLabel()
 			key = it.Day.Add(time.Duration(it.StartMin) * time.Minute)
 		}
 		activities = append(activities, overviewActivity{
-			WhenLabel: when,
 			Weekday:   weekdayLabel(loc, *it.Day),
+			DateLabel: fmtDate(*it.Day),
+			TimeLabel: tm,
 			Title:     it.Title,
 			Category:  it.Category,
 			Latitude:  it.Latitude,
