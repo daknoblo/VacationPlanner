@@ -466,7 +466,11 @@
       if (timer) window.clearTimeout(timer);
       if (q.length < 3) { hide(); return; }
       timer = window.setTimeout(function () {
-        fetch("/api/geocode?q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } })
+        var url = "/api/geocode?q=" + encodeURIComponent(q);
+        var nlat = input.getAttribute("data-geo-near-lat");
+        var nlng = input.getAttribute("data-geo-near-lng");
+        if (nlat && nlng) { url += "&lat=" + encodeURIComponent(nlat) + "&lon=" + encodeURIComponent(nlng); }
+        fetch(url, { headers: { "Accept": "application/json" } })
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
           .then(function (data) {
             if (!list) return;

@@ -18,6 +18,7 @@ var messages = map[Lang]map[string]string{
 		"export.day":     "This day only",
 		"action.save":    "Save",
 		"action.delete":  "Delete",
+		"form.autosave":  "Changes are saved automatically.",
 		"label.optional": "(optional)",
 
 		// Index page
@@ -276,6 +277,7 @@ var messages = map[Lang]map[string]string{
 		"export.day":     "Nur dieser Tag",
 		"action.save":    "Speichern",
 		"action.delete":  "Löschen",
+		"form.autosave":  "Änderungen werden automatisch gespeichert.",
 		"label.optional": "(optional)",
 
 		// Index page

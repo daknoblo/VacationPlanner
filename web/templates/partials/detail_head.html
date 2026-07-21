@@ -1,0 +1,6 @@
+{{define "detail_head"}}
+<div id="detail-head"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <h1>{{.V.Title}}</h1>
+  <p class="muted">📍 {{.V.Destination}} · 🗓️ {{fmtDate .V.StartDate}} – {{fmtDate .V.EndDate}} · {{.V.Nights}} {{t "vacation.nights"}}</p>
+</div>
+{{end}}

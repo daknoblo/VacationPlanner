@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -96,7 +99,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 
 	categories, _ := s.store.ListCategories(r.Context())
 	loc := i18n.FromContext(r.Context())
-	_, tz := s.regionSettings(r.Context())
+	weekStart, tz := s.regionSettings(r.Context())
+	mondayStart := weekStart != "sunday"
 	var spent float64
 	for _, it := range v.Items {
 		if it.Cost != nil {
@@ -114,6 +118,9 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"ActivityList":    activities,
 		"Ideas":           ideas,
 		"CalTravel":       travelCalBlocks(loc, tz, v),
+		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
+		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),
+		"HourRows":        calHourRows(),
 		"ArrivalTravel":   s.travelEditor(r.Context(), tz, v, models.TravelArrival),
 		"DepartureTravel": s.travelEditor(r.Context(), tz, v, models.TravelDeparture),
 	})
@@ -205,6 +212,141 @@ func travelCalBlocks(loc *i18n.Localizer, tz *time.Location, v *models.Vacation)
 		out[day] = append(out[day], calTravelBlock{StartMin: startMin, EndMin: endMin, Title: travelLabel(loc, ts), Label: label})
 	}
 	return out
+}
+
+// ---- Week calendar (calendar weeks, Mon–Sun rows) ----
+
+const (
+	calEarlyHourPx  = 16 // 0:00–6:00 rendered compressed (people sleep then)
+	calNormalHourPx = 40 // 6:00–24:00 normal spacing
+	calEarlyEndHour = 6
+)
+
+// calMinPx maps a minute-of-day to a vertical pixel offset, compressing the
+// hours before 6:00 and using normal spacing afterwards.
+func calMinPx(min int) int {
+	if min < 0 {
+		min = 0
+	}
+	if min > 1440 {
+		min = 1440
+	}
+	const earlyEnd = calEarlyEndHour * 60
+	if min <= earlyEnd {
+		return int(math.Round(float64(min) * float64(calEarlyHourPx) / 60))
+	}
+	base := calEarlyEndHour * calEarlyHourPx
+	return base + int(math.Round(float64(min-earlyEnd)*float64(calNormalHourPx)/60))
+}
+
+// calHourRow is one hour label on the week calendar's time axis.
+type calHourRow struct {
+	Label string
+	Px    int
+}
+
+func calHourRows() []calHourRow {
+	rows := make([]calHourRow, 24)
+	for h := 0; h < 24; h++ {
+		px := calNormalHourPx
+		if h < calEarlyEndHour {
+			px = calEarlyHourPx
+		}
+		rows[h] = calHourRow{Label: fmt.Sprintf("%d:00", h), Px: px}
+	}
+	return rows
+}
+
+// calWeekday is a column header for the week calendar.
+type calWeekday struct {
+	Label   string
+	Weekend bool
+}
+
+// weekOrder returns the seven weekdays in display order for the configured week start.
+func weekOrder(mondayStart bool) []time.Weekday {
+	if mondayStart {
+		return []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday, time.Sunday}
+	}
+	return []time.Weekday{time.Sunday, time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday}
+}
+
+func calWeekdayHeaders(loc *i18n.Localizer, mondayStart bool) []calWeekday {
+	order := weekOrder(mondayStart)
+	out := make([]calWeekday, len(order))
+	for i, wd := range order {
+		out[i] = calWeekday{
+			Label:   loc.T("weekday." + strings.ToLower(wd.String())),
+			Weekend: wd == time.Saturday || wd == time.Sunday,
+		}
+	}
+	return out
+}
+
+// weekdayCol returns the 0-based column for a date under the configured week start.
+func weekdayCol(d time.Time, mondayStart bool) int {
+	if mondayStart {
+		return (int(d.Weekday()) + 6) % 7
+	}
+	return int(d.Weekday())
+}
+
+// calBlock is a positioned block (item or travel) on the week calendar.
+type calBlock struct {
+	TopPx    int
+	HeightPx int
+	Title    string
+	Label    string
+	Travel   bool
+}
+
+// calDay is one occupied day cell in a calendar week.
+type calDay struct {
+	Date     time.Time
+	DayIndex int
+	Weekend  bool
+	Blocks   []calBlock
+}
+
+// calWeek is one calendar-week row; Days is indexed by weekday column
+// (nil where the day falls outside the trip).
+type calWeek struct {
+	Days [7]*calDay
+}
+
+// buildWeekCalendar groups the trip days into calendar weeks (Mon–Sun rows),
+// placing each day in its weekday column with its timed items and travel legs.
+func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool, v *models.Vacation) []calWeek {
+	travel := travelCalBlocks(loc, tz, v)
+	var weeks []calWeek
+	idx := make(map[string]int)
+	for i, d := range v.Days() {
+		col := weekdayCol(d, mondayStart)
+		key := d.AddDate(0, 0, -col).Format("2006-01-02")
+		wi, ok := idx[key]
+		if !ok {
+			wi = len(weeks)
+			idx[key] = wi
+			weeks = append(weeks, calWeek{})
+		}
+		cd := &calDay{
+			Date:     d,
+			DayIndex: i,
+			Weekend:  d.Weekday() == time.Saturday || d.Weekday() == time.Sunday,
+		}
+		for _, it := range v.Items {
+			if it.OnDay(d) && it.Timed() {
+				top := calMinPx(it.StartMin)
+				cd.Blocks = append(cd.Blocks, calBlock{TopPx: top, HeightPx: calMinPx(it.EndMin) - top, Title: it.Title, Label: it.StartLabel()})
+			}
+		}
+		for _, tb := range travel[d.Format("2006-01-02")] {
+			top := calMinPx(tb.StartMin)
+			cd.Blocks = append(cd.Blocks, calBlock{TopPx: top, HeightPx: calMinPx(tb.EndMin) - top, Title: tb.Title, Label: tb.Label, Travel: true})
+		}
+		weeks[wi].Days[col] = cd
+	}
+	return weeks
 }
 
 // overviewLists splits items into a chronological activity list (those with a
@@ -306,12 +448,20 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The dates/title/destination ripple through the header, overview, day plan
-	// and travel defaults, so refresh the page to reflect them everywhere.
-	if isHTMX(r) {
-		w.Header().Set("HX-Refresh", "true")
+	if !isHTMX(r) {
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	// Changing the dates regenerates the day plan, week calendar and travel
+	// defaults, so a full refresh is needed. Other fields only affect the
+	// header, which we update out-of-band to keep the current tab and scroll.
+	if !existing.StartDate.Equal(updated.StartDate) || !existing.EndDate.Equal(updated.EndDate) {
+		w.Header().Set("HX-Refresh", "true")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	hxTrigger(w, "saved")
+	s.fragment(w, r, "detail_head", map[string]any{"V": updated, "OOB": true})
 }
 
 func (s *Server) handleDeleteVacation(w http.ResponseWriter, r *http.Request) {

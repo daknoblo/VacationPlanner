@@ -53,7 +53,8 @@
     <label>{{t "field.title"}}</label>
     <div class="location-picker__field">
       <input name="title" required maxlength="200" autocomplete="off"
-             data-geo-lite placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}{{t "placeholder.sight.name"}}{{end}}">
+             data-geo-lite data-geo-near-lat="{{coord .V.Latitude}}" data-geo-near-lng="{{coord .V.Longitude}}"
+             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}{{t "placeholder.sight.name"}}{{end}}">
       <div class="suggest" data-geo-lite-list hidden></div>
     </div>
     <input type="hidden" name="latitude" data-geo-lite-lat>
@@ -72,7 +73,7 @@
   {{else}}
   <div class="field">
     <label>{{t "sight.planned"}}</label>
-    <input name="day" type="date">
+    <input name="day" type="date" min="{{dateInput .V.StartDate}}" max="{{dateInput .V.EndDate}}" value="{{dateInput .V.StartDate}}">
   </div>
   {{end}}
   <div class="field">

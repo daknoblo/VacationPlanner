@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/daknoblo/vacationplanner/internal/geo"
@@ -11,6 +12,15 @@ import (
 )
 
 const settingGeoBaseURL = "geo.base_url"
+
+// queryFloat reads a float query parameter, returning 0 when absent or invalid.
+func queryFloat(r *http.Request, key string) float64 {
+	f, err := strconv.ParseFloat(strings.TrimSpace(r.URL.Query().Get(key)), 64)
+	if err != nil {
+		return 0
+	}
+	return f
+}
 
 // geoBaseURL returns the configured geocoder base URL or the built-in default.
 func (s *Server) geoBaseURL(ctx context.Context) string {
@@ -35,7 +45,7 @@ func (s *Server) handleGeocode(w http.ResponseWriter, r *http.Request) {
 	results := []geo.Result{}
 	if len([]rune(q)) >= 2 {
 		loc := i18n.FromContext(r.Context())
-		found, err := s.geo.Search(r.Context(), s.geoBaseURL(r.Context()), q, loc.Code(), 5)
+		found, err := s.geo.Search(r.Context(), s.geoBaseURL(r.Context()), q, loc.Code(), 5, queryFloat(r, "lat"), queryFloat(r, "lon"))
 		if err != nil {
 			s.log.Warn("geocode failed", "err", err)
 			w.Header().Set("Content-Type", "application/json")

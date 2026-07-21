@@ -72,8 +72,10 @@ type nominatimResult struct {
 }
 
 // Search performs a forward geocode for the given free-text query. baseURL may
-// be empty, in which case the public Nominatim endpoint is used.
-func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit int) ([]Result, error) {
+// be empty, in which case the public Nominatim endpoint is used. A non-zero
+// biasLat/biasLon prioritizes results near that point (Photon location bias),
+// so activity searches favour the current destination.
+func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit int, biasLat, biasLon float64) ([]Result, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, nil
@@ -87,7 +89,11 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	}
 	lang = strings.ToLower(strings.TrimSpace(lang))
 
-	key := baseURL + "|" + lang + "|" + strconv.Itoa(limit) + "|" + strings.ToLower(query)
+	bias := ""
+	if biasLat != 0 || biasLon != 0 {
+		bias = strconv.FormatFloat(biasLat, 'f', 5, 64) + "," + strconv.FormatFloat(biasLon, 'f', 5, 64)
+	}
+	key := baseURL + "|" + lang + "|" + strconv.Itoa(limit) + "|" + bias + "|" + strings.ToLower(query)
 	if cached, ok := c.cachedResults(key); ok {
 		return cached, nil
 	}
@@ -97,6 +103,10 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	q.Set("limit", strconv.Itoa(limit))
 	if lang != "" {
 		q.Set("lang", lang)
+	}
+	if biasLat != 0 || biasLon != 0 {
+		q.Set("lat", strconv.FormatFloat(biasLat, 'f', 6, 64))
+		q.Set("lon", strconv.FormatFloat(biasLon, 'f', 6, 64))
 	}
 	if c.apiKey != "" {
 		q.Set("key", c.apiKey)

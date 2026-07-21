@@ -62,9 +62,13 @@ func TestRenderPages(t *testing.T) {
 
 	v := sampleVacation()
 
+	loc := i18n.NewLocalizer(i18n.LangEN)
 	arrivalEditor := travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DepartDate: "2026-08-01", DepartTime: "09:30", DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}
 	departureEditor := travelEditorView{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String(), DepartDate: "2026-08-10"}
 	calTravel := map[string][]calTravelBlock{"2026-08-01": {{StartMin: 570, EndMin: 720, Title: "Arrival · BER → LIS", Label: "09:30–12:00"}}}
+	weekCal := buildWeekCalendar(loc, time.UTC, true, v)
+	weekHeaders := calWeekdayHeaders(loc, true)
+	hourRows := calHourRows()
 
 	cases := []struct {
 		name string
@@ -72,10 +76,9 @@ func TestRenderPages(t *testing.T) {
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
 	}
-	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
 		if err := r.page(rec, c.name, loc, c.data, time.UTC); err != nil {
@@ -102,6 +105,7 @@ func TestRenderFragments(t *testing.T) {
 		{"item_row", v.Items[0]},
 		{"travel_item", v.TravelSegments[0]},
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
+		{"detail_head", map[string]any{"V": v, "OOB": true}},
 		{"form_error", "etwas ist schiefgelaufen"},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),

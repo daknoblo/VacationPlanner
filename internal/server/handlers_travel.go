@@ -179,7 +179,7 @@ func (s *Server) resolvePoint(ctx context.Context, lat, lng *float64, text strin
 		return nil
 	}
 	loc := i18n.FromContext(ctx)
-	res, err := s.geo.Search(ctx, s.geoBaseURL(ctx), text, loc.Code(), 1)
+	res, err := s.geo.Search(ctx, s.geoBaseURL(ctx), text, loc.Code(), 1, 0, 0)
 	if err != nil || len(res) == 0 {
 		return nil
 	}

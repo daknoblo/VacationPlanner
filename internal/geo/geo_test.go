@@ -20,7 +20,7 @@ func TestSearchParsesResults(t *testing.T) {
 	defer srv.Close()
 
 	c := New("")
-	res, err := c.Search(context.Background(), srv.URL, "Däne", "en", 5)
+	res, err := c.Search(context.Background(), srv.URL, "Däne", "en", 5, 0, 0)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestSearchParsesResults(t *testing.T) {
 	}
 
 	// A second identical query must be served from cache (no extra HTTP call).
-	if _, err := c.Search(context.Background(), srv.URL, "Däne", "en", 5); err != nil {
+	if _, err := c.Search(context.Background(), srv.URL, "Däne", "en", 5, 0, 0); err != nil {
 		t.Fatalf("cached Search: %v", err)
 	}
 	if calls != 1 {
@@ -42,7 +42,7 @@ func TestSearchParsesResults(t *testing.T) {
 
 func TestSearchEmptyQuery(t *testing.T) {
 	c := New("")
-	res, err := c.Search(context.Background(), "", "  ", "en", 5)
+	res, err := c.Search(context.Background(), "", "  ", "en", 5, 0, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -59,7 +59,7 @@ func TestSearchParsesPhoton(t *testing.T) {
 	defer srv.Close()
 
 	c := New("")
-	res, err := c.Search(context.Background(), srv.URL, "Däne", "de", 5)
+	res, err := c.Search(context.Background(), srv.URL, "Däne", "de", 5, 0, 0)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestSearchAppendsAPIKey(t *testing.T) {
 	defer srv.Close()
 
 	c := New("secret")
-	if _, err := c.Search(context.Background(), srv.URL, "Berlin", "en", 3); err != nil {
+	if _, err := c.Search(context.Background(), srv.URL, "Berlin", "en", 3, 0, 0); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
 }

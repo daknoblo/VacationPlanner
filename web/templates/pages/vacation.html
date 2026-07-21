@@ -4,10 +4,7 @@
 <a class="back" href="/">{{t "vacation.back"}}</a>
 
 <header class="detail-head">
-  <div>
-    <h1>{{$v.Title}}</h1>
-    <p class="muted">📍 {{$v.Destination}} · 🗓️ {{fmtDate $v.StartDate}} – {{fmtDate $v.EndDate}} · {{$v.Nights}} {{t "vacation.nights"}}</p>
-  </div>
+  {{template "detail_head" (dict "V" $v)}}
   <button class="btn btn--danger btn--ghost"
           hx-delete="/vacations/{{$v.ID}}"
           hx-confirm="{{t "vacation.confirm_delete"}}">
@@ -34,6 +31,7 @@
       <h2>{{t "section.traveldata"}}</h2>
       <form class="form grid"
             hx-post="/vacations/{{$v.ID}}"
+            hx-trigger="change delay:400ms"
             hx-target="#meta-error"
             hx-swap="innerHTML">
         <input type="hidden" name="csrf_token" value="{{$csrf}}">
@@ -75,7 +73,7 @@
         </div>
         <div class="field field--wide">
           <div id="meta-error" class="form-error"></div>
-          <button class="btn btn--primary" type="submit">{{t "action.save"}}</button>
+          <p class="muted small">{{t "form.autosave"}}</p>
         </div>
       </form>
     </div>
@@ -150,7 +148,7 @@
       </section>
       {{end}}
       </div>
-      {{template "weekcal" (dict "V" $v "CalTravel" $.Data.CalTravel)}}
+      {{template "weekcal" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders "HourRows" $.Data.HourRows)}}
     </div>
     {{else}}
     <div class="panel"><p class="muted">{{t "tagesplan.nodays"}}</p></div>

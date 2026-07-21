@@ -1,37 +1,31 @@
 {{define "weekcal"}}
-{{$cal := .CalTravel}}
 <div class="weekcal" data-weekview hidden>
-  <div class="weekcal__axis">
-    <div class="weekcal__axishead"></div>
-    {{range $h := seq 24}}<div class="weekcal__hour"><span>{{$h}}:00</span></div>{{end}}
-  </div>
-  <div class="weekcal__days">
-    {{range $i, $d := .V.Days}}
-    <div class="weekcal__day">
-      <button type="button" class="weekcal__dayhead" data-goto-day="{{$i}}" title="{{t "tagesplan.view.day"}}">
-        <span class="weekcal__dow">{{t (printf "weekday.%s" (weekday $d))}}</span>
-        <span class="weekcal__date">{{fmtDate $d}}</span>
-      </button>
+  {{range .Weeks}}
+  <div class="weekcal__week">
+    <div class="weekcal__axis">
+      <div class="weekcal__corner"></div>
+      {{range $.HourRows}}<div class="weekcal__hour" style="height:{{.Px}}px"><span>{{.Label}}</span></div>{{end}}
+    </div>
+    {{range $ci, $col := .Days}}
+    {{$hd := index $.Headers $ci}}
+    <div class="weekcal__day{{if $hd.Weekend}} is-weekend{{end}}{{if not $col}} is-empty{{end}}">
+      <div class="weekcal__dayhead">
+        <span class="weekcal__dow">{{$hd.Label}}</span>
+        {{if $col}}<button type="button" class="weekcal__date" data-goto-day="{{$col.DayIndex}}" title="{{t "tagesplan.view.day"}}">{{fmtDate $col.Date}}</button>{{end}}
+      </div>
       <div class="weekcal__col">
-        {{range $.V.Items}}{{if and (.OnDay $d) .Timed}}
-        <div class="weekcal-block"
-             style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));"
-             title="{{.Title}} ({{.StartLabel}}–{{.EndLabel}})">
-          <span class="weekcal-block__time">{{.StartLabel}}</span>
-          <span class="weekcal-block__title">{{.Title}}</span>
+        {{range $.HourRows}}<div class="weekcal__slot" style="height:{{.Px}}px"></div>{{end}}
+        {{if $col}}{{range $col.Blocks}}
+        <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"
+             style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
+          <span class="weekcal-block__time">{{.Label}}</span>
+          <span class="weekcal-block__title">{{if .Travel}}✈ {{end}}{{.Title}}</span>
         </div>
         {{end}}{{end}}
-        {{range index $cal (dateInput $d)}}
-        <div class="weekcal-block weekcal-block--travel"
-             style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));"
-             title="{{.Title}} ({{.Label}})">
-          <span class="weekcal-block__time">{{.Label}}</span>
-          <span class="weekcal-block__title">✈ {{.Title}}</span>
-        </div>
-        {{end}}
       </div>
     </div>
     {{end}}
   </div>
+  {{end}}
 </div>
 {{end}}
