@@ -94,7 +94,7 @@ func run() error {
 		return err
 	}
 
-	aiClient := ai.New(cfg.OpenAIAPIKey)
+	aiClient := ai.New(cfg.AIAPIKey)
 
 	srv, err := server.New(cfg, logger, st, aiClient)
 	if err != nil {

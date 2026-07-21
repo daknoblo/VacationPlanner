@@ -52,7 +52,7 @@ Requires a running Docker daemon.
 
 ```bash
 # optional: enable AI
-export OPENAI_API_KEY=sk-...
+export VP_API_KEY=sk-...
 # recommended for production:
 export CSRF_KEY=$(openssl rand -hex 32)
 
@@ -82,7 +82,7 @@ model are configured at runtime under **Settings** (stored in the database), not
 
 | Variable         | Default         | Description                                                              |
 | ---------------- | --------------- | ----------------------------------------------------------------------- |
-| `OPENAI_API_KEY` | –               | Empty ⇒ AI features disabled. Endpoint URL & model live in **Settings**. |
+| `VP_API_KEY`     | –               | Empty ⇒ AI features disabled. Endpoint URL & model live in **Settings**. |
 | `CSRF_KEY`       | ephemeral (dev) | Hex 32-byte HMAC key that signs CSRF tokens. **Set in production** so tokens survive restarts/instances. |
 | `APP_ENV`        | `development`   | `production` enables JSON logs, HSTS, secure cookies.                    |
 | `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |
@@ -90,7 +90,7 @@ model are configured at runtime under **Settings** (stored in the database), not
 
 ### AI endpoint
 
-Set the API key via `OPENAI_API_KEY`. The **endpoint URL** and **model** are configured in
+Set the API key via `VP_API_KEY`. The **endpoint URL** and **model** are configured in
 the app under **Settings** — for example:
 
 | Provider     | Endpoint URL                                                      | Model         |

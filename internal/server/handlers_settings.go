@@ -142,7 +142,7 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateAISettings persists the OpenAI-compatible endpoint URL, model and
 // optional API version. The API key itself is never stored here; it comes from
-// OPENAI_API_KEY.
+// VP_API_KEY.
 func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
 

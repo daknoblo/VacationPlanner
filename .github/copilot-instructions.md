@@ -36,7 +36,7 @@ a reverse proxy.
   translate via a `{{t "key"}}` function bound per request; the language is resolved from
   the `lang` cookie, then `Accept-Language`, then the default.
 - **AI:** **OpenAI-compatible** `/chat/completions` endpoint (OpenAI, Azure OpenAI, Ollama,
-  LocalAI, vLLM …). Only `OPENAI_API_KEY` is an env var (empty = AI disabled); the endpoint
+  LocalAI, vLLM …). Only `VP_API_KEY` is an env var (empty = AI disabled); the endpoint
   URL and model are configured at runtime under **Settings** (persisted in the DB).
 - **Geocoding:** server-proxied in `internal/geo`; default **Photon** (Komoot) for as-you-type
   autocomplete, with a tolerant Photon/Nominatim parser. Base URL is configured under **Settings**;
@@ -115,7 +115,7 @@ a reverse proxy.
 - Configuration exclusively via env (`internal/config`), never commit secrets:
   - `APP_ENV` (`production` ⇒ JSON logs, HSTS, secure cookies), `HTTP_ADDR` (`:8080`).
   - `DB_PATH` (SQLite database file path; default `vacation.db`).
-  - `OPENAI_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
+  - `VP_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
   - `GEOCODER_API_KEY` (optional; for keyed Photon/Nominatim-compatible geocoders; base URL in Settings).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).
 

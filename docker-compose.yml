@@ -6,7 +6,7 @@ services:
       HTTP_ADDR: ":8080"
       DB_PATH: /appdata/vacation.db
       # AI API key (optional); the endpoint URL and model are set in the app under Settings.
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      VP_API_KEY: ${VP_API_KEY:-}
       # Generate once with: openssl rand -hex 32
       CSRF_KEY: ${CSRF_KEY:-}
     ports:

@@ -117,7 +117,7 @@ var messages = map[Lang]map[string]string{
 		"ai.disabled_post":         " to enable them.",
 		"ai.add_sight":             "+ Add to sights",
 		"ai.none":                  "No recommendations received. Try different interests.",
-		"ai.not_configured":        "AI recommendations are not configured. Set OPENAI_API_KEY to enable them.",
+		"ai.not_configured":        "AI recommendations are not configured. Set VP_API_KEY to enable them.",
 		"ai.failed":                "The AI recommendations could not be loaded right now. Please try again later.",
 
 		// Settings
@@ -165,7 +165,7 @@ var messages = map[Lang]map[string]string{
 		"settings.ai.key_label":           "API key",
 		"settings.ai.key_set":             "configured",
 		"settings.ai.key_unset":           "not set",
-		"settings.ai.key_hint":            "For security, the API key is provided via the OPENAI_API_KEY environment variable, not here.",
+		"settings.ai.key_hint":            "For security, the API key is provided via the VP_API_KEY environment variable, not here.",
 
 		// Toast (used by JavaScript)
 		"toast.saved": "Saved ✓",
@@ -309,7 +309,7 @@ var messages = map[Lang]map[string]string{
 		"ai.disabled_post":         ", um sie zu aktivieren.",
 		"ai.add_sight":             "+ Zu Sehenswürdigkeiten",
 		"ai.none":                  "Keine Empfehlungen erhalten. Versuche es mit anderen Interessen.",
-		"ai.not_configured":        "KI-Empfehlungen sind nicht konfiguriert. Setze OPENAI_API_KEY, um sie zu aktivieren.",
+		"ai.not_configured":        "KI-Empfehlungen sind nicht konfiguriert. Setze VP_API_KEY, um sie zu aktivieren.",
 		"ai.failed":                "Die KI-Empfehlungen konnten gerade nicht geladen werden. Bitte später erneut versuchen.",
 
 		// Settings
@@ -357,7 +357,7 @@ var messages = map[Lang]map[string]string{
 		"settings.ai.key_label":           "API-Schlüssel",
 		"settings.ai.key_set":             "konfiguriert",
 		"settings.ai.key_unset":           "nicht gesetzt",
-		"settings.ai.key_hint":            "Aus Sicherheitsgründen wird der API-Schlüssel über die Umgebungsvariable OPENAI_API_KEY gesetzt, nicht hier.",
+		"settings.ai.key_hint":            "Aus Sicherheitsgründen wird der API-Schlüssel über die Umgebungsvariable VP_API_KEY gesetzt, nicht hier.",
 
 		// Toast (used by JavaScript)
 		"toast.saved": "Gespeichert ✓",

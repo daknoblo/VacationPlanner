@@ -16,7 +16,7 @@ type Config struct {
 	Env            string
 	HTTPAddr       string
 	DBPath         string
-	OpenAIAPIKey   string
+	AIAPIKey       string
 	GeocoderAPIKey string
 	CSRFKey        []byte
 
@@ -34,7 +34,7 @@ func Load() (*Config, error) {
 		Env:            getenv("APP_ENV", "development"),
 		HTTPAddr:       getenv("HTTP_ADDR", ":8080"),
 		DBPath:         getenv("DB_PATH", "vacation.db"),
-		OpenAIAPIKey:   os.Getenv("OPENAI_API_KEY"),
+		AIAPIKey:       os.Getenv("VP_API_KEY"),
 		GeocoderAPIKey: os.Getenv("GEOCODER_API_KEY"),
 
 		ReadHeaderTimeout: 10 * time.Second,
