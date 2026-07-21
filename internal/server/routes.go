@@ -41,6 +41,7 @@ func (s *Server) routes() {
 	r.Post("/settings", s.handleUpdateSettings)
 	r.Post("/settings/ai", s.handleUpdateAISettings)
 	r.Post("/settings/geo", s.handleUpdateGeoSettings)
+	r.Post("/settings/route", s.handleUpdateRouteSettings)
 	r.Post("/settings/categories", s.handleCreateCategory)
 	r.Delete("/settings/categories/{categoryID}", s.handleDeleteCategory)
 
@@ -65,6 +66,7 @@ func (s *Server) routes() {
 			r.Get("/export", s.handleExport)
 			r.Get("/export.pdf", s.handleExportPDF)
 			r.Get("/api/items", s.handleItemsJSON)
+			r.Get("/api/day-summary", s.handleDaySummary)
 			r.Post("/items", s.handleCreateItem)
 			r.Post("/travel", s.handleCreateTravel)
 			r.Post("/ai/recommendations", s.handleAIRecommend)

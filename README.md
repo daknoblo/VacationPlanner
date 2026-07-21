@@ -97,6 +97,8 @@ model are configured at runtime under **Settings** (stored in the database), not
 | Variable         | Default         | Description                                                              |
 | ---------------- | --------------- | ----------------------------------------------------------------------- |
 | `VP_API_KEY`     | –               | Empty ⇒ AI features disabled. Endpoint URL & model live in **Settings**. |
+| `GEOCODER_API_KEY` | –             | Optional key for a Photon/Nominatim-compatible geocoder. Base URL in **Settings**. |
+| `ROUTER_API_KEY` | –               | Optional OpenRouteService key for driving time/distance between stops. Base URL in **Settings**. |
 | `CSRF_KEY`       | ephemeral (dev) | Hex 32-byte HMAC key that signs CSRF tokens. **Set in production** so tokens survive restarts/instances. |
 | `APP_ENV`        | `development`   | `production` enables JSON logs, HSTS, secure cookies.                    |
 | `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |

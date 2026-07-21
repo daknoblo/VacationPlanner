@@ -1,0 +1,14 @@
+{{define "day_summary"}}
+{{if .Empty}}
+<p class="muted small">{{t "day.summary.empty"}}</p>
+{{else}}
+<pre class="mermaid">{{.Mermaid}}</pre>
+{{if .Lines}}
+<details class="day-summary__timeline">
+  <summary>{{t "day.summary.timeline"}}</summary>
+  <ol>{{range .Lines}}<li>{{.}}</li>{{end}}</ol>
+</details>
+{{end}}
+{{if .Approx}}<p class="muted small">📏 {{t "day.summary.approx"}}</p>{{end}}
+{{end}}
+{{end}}

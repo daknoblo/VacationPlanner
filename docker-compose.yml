@@ -7,6 +7,9 @@ services:
       DB_PATH: /appdata/vacation.db
       # AI API key (optional); the endpoint URL and model are set in the app under Settings.
       VP_API_KEY: ${VP_API_KEY:-}
+      # Optional geocoding/routing keys (base URLs are set in the app under Settings).
+      GEOCODER_API_KEY: ${GEOCODER_API_KEY:-}
+      ROUTER_API_KEY: ${ROUTER_API_KEY:-}
       # Generate once with: openssl rand -hex 32
       CSRF_KEY: ${CSRF_KEY:-}
     ports:

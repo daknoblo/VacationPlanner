@@ -150,6 +150,16 @@
     <div class="panel">
       <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
 
+      <div class="day-summary-wrap">
+        <h3>{{t "day.summary.heading"}}</h3>
+        <div class="day-summary" data-day-summary
+             hx-get="/vacations/{{$v.ID}}/api/day-summary?day={{dateInput $d}}"
+             hx-trigger="loadsummary"
+             hx-target="this" hx-swap="innerHTML">
+          <p class="muted small">{{t "day.summary.loading"}}</p>
+        </div>
+      </div>
+
       <div class="planner" data-planner>
         <div class="planner__hours">
           {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}

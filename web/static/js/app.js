@@ -266,6 +266,7 @@
       panels[j].classList.toggle("is-active", panels[j].getAttribute("data-tab-panel") === name);
     }
     resizeMaps();
+    nudgeDaySummary();
   }
 
   document.addEventListener("click", function (e) {
@@ -503,7 +504,32 @@
     grid.addEventListener("pointercancel", finish);
   }
 
+  // ---- Mermaid day-summary rendering ----
+  function renderMermaid(root) {
+    if (typeof window.mermaid === "undefined") return;
+    var scope = (root && root.querySelectorAll) ? root : document;
+    var nodes = scope.querySelectorAll(".mermaid:not([data-processed])");
+    if (!nodes.length) return;
+    try { window.mermaid.run({ nodes: nodes }); } catch (e) { /* ignore render errors */ }
+  }
+
+  function nudgeDaySummary() {
+    var el = document.querySelector(".tab-panel.is-active [data-day-summary]");
+    if (el) el.dispatchEvent(new CustomEvent("loadsummary"));
+  }
+
+  document.body.addEventListener("htmx:afterSwap", function (e) { renderMermaid(e.target); });
+  document.body.addEventListener("itemsChanged", nudgeDaySummary);
+
   function init() {
+    if (typeof window.mermaid !== "undefined") {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "default",
+        flowchart: { htmlLabels: false, curve: "basis" }
+      });
+    }
     initMap();
     initLocationPickers();
     initActivityInputs();

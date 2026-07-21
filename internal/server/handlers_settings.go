@@ -10,6 +10,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
+	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
 const (
@@ -93,24 +94,27 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	stats, _ := s.store.Stats(r.Context())
 	categories, _ := s.store.ListCategories(r.Context())
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
-		"Languages":         i18n.Supported(),
-		"Current":           loc.Lang(),
-		"AIBaseURL":         settings[settingAIBaseURL],
-		"AIModel":           settings[settingAIModel],
-		"AIAPIVersion":      settings[settingAIAPIVersion],
-		"AIDefaultBaseURL":  ai.DefaultBaseURL,
-		"AIDefaultModel":    ai.DefaultModel,
-		"AIKeyConfigured":   s.ai.Enabled(),
-		"WeekStart":         weekStart,
-		"Timezone":          timezone,
-		"Timezones":         commonTimezones,
-		"GeoBaseURL":        settings[settingGeoBaseURL],
-		"GeoDefaultBaseURL": geo.DefaultBaseURL,
-		"GeoKeyConfigured":  s.cfg.GeocoderAPIKey != "",
-		"Categories":        categories,
-		"Stats":             stats,
-		"DBSize":            humanBytes(s.dbSizeBytes()),
-		"Backups":           s.listBackups(),
+		"Languages":           i18n.Supported(),
+		"Current":             loc.Lang(),
+		"AIBaseURL":           settings[settingAIBaseURL],
+		"AIModel":             settings[settingAIModel],
+		"AIAPIVersion":        settings[settingAIAPIVersion],
+		"AIDefaultBaseURL":    ai.DefaultBaseURL,
+		"AIDefaultModel":      ai.DefaultModel,
+		"AIKeyConfigured":     s.ai.Enabled(),
+		"WeekStart":           weekStart,
+		"Timezone":            timezone,
+		"Timezones":           commonTimezones,
+		"GeoBaseURL":          settings[settingGeoBaseURL],
+		"GeoDefaultBaseURL":   geo.DefaultBaseURL,
+		"GeoKeyConfigured":    s.cfg.GeocoderAPIKey != "",
+		"RouteBaseURL":        settings[settingRouteBaseURL],
+		"RouteDefaultBaseURL": route.DefaultBaseURL,
+		"RouteKeyConfigured":  s.cfg.RouterAPIKey != "",
+		"Categories":          categories,
+		"Stats":               stats,
+		"DBSize":              humanBytes(s.dbSizeBytes()),
+		"Backups":             s.listBackups(),
 	})
 }
 

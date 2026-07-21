@@ -7,11 +7,13 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ### Day-planner overhaul (epic, 2026-07-21)
 
-- [ ] **Unified day items** — merge Sights and Activities into a single per-day `items`
+### Day-planner overhaul (epic, 2026-07-21)
+
+- [x] **Unified day items** — merge Sights and Activities into a single per-day `items`
       model (category, time, location/coordinates, cost); Overview map fed from items.
-- [ ] **OSM routing** — server-proxied routing client (OpenRouteService/Valhalla; API key
+- [x] **OSM routing** — server-proxied routing client (OpenRouteService/Valhalla; API key
       via `ROUTER_API_KEY`, base URL in Settings) computing per-leg time + distance.
-- [ ] **Day summary** — a full-width Mermaid route diagram above the calendar
+- [x] **Day summary** — a full-width Mermaid route diagram above the calendar
       (Hotel → item → … → Hotel) with drive time/distance per leg.
 
 - [ ] **Edit sights & travel segments** — currently only create/delete are supported;

@@ -121,6 +121,7 @@ a reverse proxy.
   - `DB_PATH` (SQLite database file path; default `vacation.db`).
   - `VP_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
   - `GEOCODER_API_KEY` (optional; for keyed Photon/Nominatim-compatible geocoders; base URL in Settings).
+  - `ROUTER_API_KEY` (optional; OpenRouteService key for driving time/distance between stops; base URL in Settings).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).
 
 ## 6. Non-goals / deliberate simplifications

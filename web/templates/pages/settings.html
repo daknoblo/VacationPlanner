@@ -100,6 +100,33 @@
 </section>
 
 <section class="panel">
+  <h2>{{t "settings.route.heading"}}</h2>
+  <p class="muted small">{{t "settings.route.hint"}}</p>
+  <form class="form"
+        method="post" action="/settings/route"
+        hx-post="/settings/route" hx-trigger="change"
+        hx-target="#route-settings-error"
+        hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field field--wide">
+      <label for="route-base-url">{{t "settings.route.base_url"}}</label>
+      <input id="route-base-url" name="base_url" maxlength="500" value="{{.Data.RouteBaseURL}}" placeholder="{{.Data.RouteDefaultBaseURL}}">
+    </div>
+    <div class="field field--wide">
+      <p class="muted small">
+        {{t "settings.ai.key_label"}}:
+        {{if .Data.RouteKeyConfigured}}<span class="badge badge--ok">{{t "settings.ai.key_set"}}</span>
+        {{else}}<span class="badge">{{t "settings.ai.key_unset"}}</span>{{end}}
+      </p>
+      <p class="muted small">{{t "settings.route.key_hint"}}</p>
+    </div>
+    <div class="field field--wide">
+      <div id="route-settings-error" class="form-error"></div>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
   <h2>{{t "settings.categories.heading"}}</h2>
   <p class="muted small">{{t "settings.categories.hint"}}</p>
   <ul id="category-list" class="cat-list">

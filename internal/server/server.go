@@ -11,6 +11,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/destimg"
 	"github.com/daknoblo/vacationplanner/internal/geo"
+	"github.com/daknoblo/vacationplanner/internal/route"
 	"github.com/daknoblo/vacationplanner/internal/store"
 )
 
@@ -21,6 +22,7 @@ type Server struct {
 	store   store.Store
 	ai      *ai.Client
 	geo     *geo.Client
+	routing *route.Client
 	destImg *destimg.Client
 	render  *renderer
 	limiter *ipRateLimiter
@@ -40,6 +42,7 @@ func New(cfg *config.Config, log *slog.Logger, st store.Store, aiClient *ai.Clie
 		store:   st,
 		ai:      aiClient,
 		geo:     geo.New(cfg.GeocoderAPIKey),
+		routing: route.New(cfg.RouterAPIKey),
 		destImg: destimg.New(),
 		render:  r,
 		limiter: newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300

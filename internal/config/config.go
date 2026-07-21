@@ -18,6 +18,7 @@ type Config struct {
 	DBPath         string
 	AIAPIKey       string
 	GeocoderAPIKey string
+	RouterAPIKey   string
 	CSRFKey        []byte
 
 	ReadHeaderTimeout time.Duration
@@ -36,6 +37,7 @@ func Load() (*Config, error) {
 		DBPath:         getenv("DB_PATH", "vacation.db"),
 		AIAPIKey:       os.Getenv("VP_API_KEY"),
 		GeocoderAPIKey: os.Getenv("GEOCODER_API_KEY"),
+		RouterAPIKey:   os.Getenv("ROUTER_API_KEY"),
 
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
