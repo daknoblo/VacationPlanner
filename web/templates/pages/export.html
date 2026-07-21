@@ -53,8 +53,7 @@
         </span>
       </h2>
       <ul class="export__list">
-        {{range $v.Activities}}{{if .OnDay $d}}<li><strong>{{.StartLabel}}–{{.EndLabel}}</strong> {{.Title}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}{{if .Description}}<br><span class="muted">{{.Description}}</span>{{end}}</li>{{end}}{{end}}
-        {{range $v.Sights}}{{if sameDay .PlannedDate $d}}<li>📍 {{.Name}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}</li>{{end}}{{end}}
+        {{range $v.Items}}{{if .OnDay $d}}<li>{{if .Timed}}<strong>{{.StartLabel}}–{{.EndLabel}}</strong> {{else}}📍 {{end}}{{.Title}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}{{if .Description}}<br><span class="muted">{{.Description}}</span>{{end}}</li>{{end}}{{end}}
       </ul>
     </section>
     {{end}}

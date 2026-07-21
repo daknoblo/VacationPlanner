@@ -24,17 +24,11 @@ type Store interface {
 	UpdateVacation(ctx context.Context, v *models.Vacation) error
 	DeleteVacation(ctx context.Context, id uuid.UUID) error
 
-	CreateSight(ctx context.Context, s *models.Sight) error
-	GetSight(ctx context.Context, id uuid.UUID) (*models.Sight, error)
-	ListSights(ctx context.Context, vacationID uuid.UUID) ([]models.Sight, error)
-	UpdateSight(ctx context.Context, s *models.Sight) error
-	DeleteSight(ctx context.Context, id uuid.UUID) error
-
-	CreateActivity(ctx context.Context, a *models.Activity) error
-	GetActivity(ctx context.Context, id uuid.UUID) (*models.Activity, error)
-	ListActivities(ctx context.Context, vacationID uuid.UUID) ([]models.Activity, error)
-	UpdateActivity(ctx context.Context, a *models.Activity) error
-	DeleteActivity(ctx context.Context, id uuid.UUID) error
+	CreateItem(ctx context.Context, i *models.Item) error
+	GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error)
+	ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error)
+	UpdateItem(ctx context.Context, i *models.Item) error
+	DeleteItem(ctx context.Context, id uuid.UUID) error
 
 	CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error
 	ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error)

@@ -45,7 +45,7 @@
     {{end}}
   </div>
 
-  <div id="activity-error" class="form-error" role="alert"></div>
+  <div id="item-error" class="form-error" role="alert"></div>
 
   <section class="tab-panel is-active" data-tab-panel="general">
     <div class="panel">
@@ -150,80 +150,22 @@
     <div class="panel">
       <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
 
-      <h3>{{t "activity.section"}}</h3>
       <div class="planner" data-planner>
         <div class="planner__hours">
           {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
         </div>
-        <div id="day-activities-{{$i}}" class="planner__grid" data-planner-grid>
-          {{range $v.Activities}}{{if .OnDay $d}}{{template "planner_block" .}}{{end}}{{end}}
+        <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid>
+          {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
         </div>
       </div>
-      <form class="form grid activity-form"
-            hx-post="/vacations/{{$v.ID}}/activities"
-            hx-target="#day-activities-{{$i}}"
-            hx-swap="beforeend"
-            data-reset>
-        <input type="hidden" name="csrf_token" value="{{$csrf}}">
-        <input type="hidden" name="day" value="{{dateInput $d}}">
-        <div class="field field--wide">
-          <label>{{t "activity.title"}}</label>
-          <div class="location-picker__field">
-            <input name="title" required maxlength="200" autocomplete="off"
-                   data-activity-input data-activity-dest="{{$v.Destination}}"
-                   placeholder="{{t "placeholder.sight.name"}}">
-            <div class="suggest" data-activity-list hidden></div>
-          </div>
-          <p class="muted small">{{t "activity.search_hint"}}</p>
-        </div>
-        <div class="field">
-          <label>{{t "activity.start"}}</label>
-          <input name="start" type="time" value="09:00">
-        </div>
-        <div class="field">
-          <label>{{t "activity.end"}}</label>
-          <input name="end" type="time" value="10:00">
-        </div>
-        <div class="field">
-          <label>{{t "sight.category"}}</label>
-          <input name="category" maxlength="100" data-activity-category placeholder="{{t "placeholder.sight.category"}}">
-        </div>
-        <div class="field field--wide">
-          <label>{{t "sight.description"}}</label>
-          <textarea name="description" rows="2" maxlength="2000" data-activity-desc></textarea>
-        </div>
-        <div class="field field--wide">
-          <button class="btn btn--primary" type="submit">{{t "activity.add"}}</button>
-        </div>
-      </form>
 
-      <h3>{{t "section.sights"}}</h3>
-      <ul id="day-sights-{{$i}}" class="list sights">
-        {{range $v.Sights}}{{if sameDay .PlannedDate $d}}{{template "sight_item" .}}{{end}}{{end}}
-      </ul>
-      <form class="form grid"
-            hx-post="/vacations/{{$v.ID}}/sights"
-            hx-target="#day-sights-{{$i}}"
-            hx-swap="beforeend"
-            data-reset>
-        <input type="hidden" name="csrf_token" value="{{$csrf}}">
-        <input type="hidden" name="planned_date" value="{{dateInput $d}}">
-        <div class="field field--wide">
-          <label>{{t "sight.name"}}</label>
-          <input name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
-        </div>
-        <div class="field">
-          <label>{{t "sight.category"}}</label>
-          <input name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
-        </div>
-        <div class="field field--wide">
-          <label>{{t "sight.description"}}</label>
-          <textarea name="description" rows="2" maxlength="2000"></textarea>
-        </div>
-        <div class="field field--wide">
-          <button class="btn" type="submit">{{t "sight.add"}}</button>
-        </div>
-      </form>
+      <div class="day-items">
+        <h3>{{t "item.section"}}</h3>
+        <ul id="day-list-{{dateInput $d}}" class="list items">
+          {{range $v.Items}}{{if .OnDay $d}}{{template "item_row" .}}{{end}}{{end}}
+        </ul>
+        {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" (dateInput $d) "List" (printf "#day-list-%s" (dateInput $d)) "Timed" true)}}
+      </div>
     </div>
   </section>
   {{end}}
@@ -232,45 +174,11 @@
     <div class="detail">
       <div class="detail__main">
         <section class="panel">
-          <h2>{{t "section.sights"}}</h2>
-          <ul id="sights-list" class="list sights">
-            {{range $v.Sights}}{{template "sight_item" .}}{{end}}
+          <h2>{{t "item.section"}}</h2>
+          <ul id="items-list" class="list items">
+            {{range $v.Items}}{{template "item_row" .}}{{end}}
           </ul>
-          <form class="form grid"
-                hx-post="/vacations/{{$v.ID}}/sights"
-                hx-target="#sights-list"
-                hx-swap="beforeend"
-                data-reset>
-            <input type="hidden" name="csrf_token" value="{{$csrf}}">
-            <div class="field field--wide">
-              <label for="s-name">{{t "sight.name"}}</label>
-              <input id="s-name" name="name" required maxlength="200" placeholder="{{t "placeholder.sight.name"}}">
-            </div>
-            <div class="field">
-              <label for="s-category">{{t "sight.category"}}</label>
-              <input id="s-category" name="category" maxlength="100" placeholder="{{t "placeholder.sight.category"}}">
-            </div>
-            <div class="field">
-              <label for="s-planned">{{t "sight.planned"}}</label>
-              <input id="s-planned" name="planned_date" type="date">
-            </div>
-            <div class="field">
-              <label for="sight-latitude">{{t "field.latitude"}}</label>
-              <input id="sight-latitude" name="latitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
-            </div>
-            <div class="field">
-              <label for="sight-longitude">{{t "field.longitude"}}</label>
-              <input id="sight-longitude" name="longitude" inputmode="decimal" placeholder="{{t "placeholder.coords"}}">
-            </div>
-            <div class="field field--wide">
-              <label for="s-description">{{t "sight.description"}}</label>
-              <textarea id="s-description" name="description" rows="2" maxlength="2000"></textarea>
-            </div>
-            <div class="field field--wide">
-              <div id="sight-error" class="form-error"></div>
-              <button class="btn" type="submit">{{t "sight.add"}}</button>
-            </div>
-          </form>
+          {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" "" "List" "#items-list" "Timed" false)}}
         </section>
       </div>
 

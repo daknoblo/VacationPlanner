@@ -153,164 +153,86 @@ func (s *SQLite) DeleteVacation(ctx context.Context, id uuid.UUID) error {
 	return checkAffected(res)
 }
 
-// ---- Sights ----
+// ---- Items ----
 
-func (s *SQLite) CreateSight(ctx context.Context, sight *models.Sight) error {
-	if sight.ID == uuid.Nil {
-		sight.ID = uuid.New()
-	}
-	sight.CreatedAt = time.Now().UTC()
-
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO sights
-			(id, vacation_id, name, category, description, latitude, longitude, planned_date, visited, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sight.ID, sight.VacationID, sight.Name, sight.Category, sight.Description,
-		sight.Latitude, sight.Longitude, dbDatePtr(sight.PlannedDate), sight.Visited,
-		sight.Notes, dbTime(sight.CreatedAt))
-	if err != nil {
-		return fmt.Errorf("store: creating sight: %w", err)
-	}
-	return nil
-}
-
-func (s *SQLite) GetSight(ctx context.Context, id uuid.UUID) (*models.Sight, error) {
-	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, name, category, description, latitude, longitude, planned_date, visited, notes, created_at
-		FROM sights WHERE id = ?`, id)
-
-	var sight models.Sight
-	if err := scanSight(row, &sight); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("store: getting sight: %w", err)
-	}
-	return &sight, nil
-}
-
-func (s *SQLite) ListSights(ctx context.Context, vacationID uuid.UUID) ([]models.Sight, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, name, category, description, latitude, longitude, planned_date, visited, notes, created_at
-		FROM sights WHERE vacation_id = ? ORDER BY created_at ASC`, vacationID)
-	if err != nil {
-		return nil, fmt.Errorf("store: listing sights: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var out []models.Sight
-	for rows.Next() {
-		var sight models.Sight
-		if err := scanSight(rows, &sight); err != nil {
-			return nil, fmt.Errorf("store: scanning sight: %w", err)
-		}
-		out = append(out, sight)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("store: iterating sights: %w", err)
-	}
-	return out, nil
-}
-
-func (s *SQLite) UpdateSight(ctx context.Context, sight *models.Sight) error {
-	res, err := s.db.ExecContext(ctx, `
-		UPDATE sights
-		SET name = ?, category = ?, description = ?, latitude = ?, longitude = ?,
-		    planned_date = ?, visited = ?, notes = ?
-		WHERE id = ?`,
-		sight.Name, sight.Category, sight.Description, sight.Latitude, sight.Longitude,
-		dbDatePtr(sight.PlannedDate), sight.Visited, sight.Notes, sight.ID)
-	if err != nil {
-		return fmt.Errorf("store: updating sight: %w", err)
-	}
-	return checkAffected(res)
-}
-
-func (s *SQLite) DeleteSight(ctx context.Context, id uuid.UUID) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM sights WHERE id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("store: deleting sight: %w", err)
-	}
-	return checkAffected(res)
-}
-
-// ---- Activities ----
-
-func (s *SQLite) CreateActivity(ctx context.Context, a *models.Activity) error {
-	if a.ID == uuid.Nil {
-		a.ID = uuid.New()
+func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
+	if i.ID == uuid.Nil {
+		i.ID = uuid.New()
 	}
 	now := time.Now().UTC()
-	a.CreatedAt = now
-	a.UpdatedAt = now
+	i.CreatedAt = now
+	i.UpdatedAt = now
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO activities
-			(id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.ID, a.VacationID, dbDate(a.Day), a.Title, a.Category, a.StartMin, a.EndMin,
-		a.Description, a.Location, dbTime(a.CreatedAt), dbTime(a.UpdatedAt))
+		INSERT INTO items
+			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		i.ID, i.VacationID, i.Category, i.Title, i.Description, i.Location,
+		i.Latitude, i.Longitude, dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost,
+		i.Visited, i.Notes, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
 	if err != nil {
-		return fmt.Errorf("store: creating activity: %w", err)
+		return fmt.Errorf("store: creating item: %w", err)
 	}
 	return nil
 }
 
-func (s *SQLite) GetActivity(ctx context.Context, id uuid.UUID) (*models.Activity, error) {
+func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at
-		FROM activities WHERE id = ?`, id)
-	var a models.Activity
-	if err := scanActivity(row, &a); err != nil {
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at
+		FROM items WHERE id = ?`, id)
+	var it models.Item
+	if err := scanItem(row, &it); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("store: getting activity: %w", err)
+		return nil, fmt.Errorf("store: getting item: %w", err)
 	}
-	return &a, nil
+	return &it, nil
 }
 
-func (s *SQLite) ListActivities(ctx context.Context, vacationID uuid.UUID) ([]models.Activity, error) {
+func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, day, title, category, start_min, end_min, description, location, created_at, updated_at
-		FROM activities WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at
+		FROM items WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
 	if err != nil {
-		return nil, fmt.Errorf("store: listing activities: %w", err)
+		return nil, fmt.Errorf("store: listing items: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var out []models.Activity
+	var out []models.Item
 	for rows.Next() {
-		var a models.Activity
-		if err := scanActivity(rows, &a); err != nil {
-			return nil, fmt.Errorf("store: scanning activity: %w", err)
+		var it models.Item
+		if err := scanItem(rows, &it); err != nil {
+			return nil, fmt.Errorf("store: scanning item: %w", err)
 		}
-		out = append(out, a)
+		out = append(out, it)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("store: iterating activities: %w", err)
+		return nil, fmt.Errorf("store: iterating items: %w", err)
 	}
 	return out, nil
 }
 
-func (s *SQLite) UpdateActivity(ctx context.Context, a *models.Activity) error {
-	a.UpdatedAt = time.Now().UTC()
+func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
+	i.UpdatedAt = time.Now().UTC()
 	res, err := s.db.ExecContext(ctx, `
-		UPDATE activities
-		SET day = ?, title = ?, category = ?, start_min = ?, end_min = ?, description = ?, location = ?, updated_at = ?
+		UPDATE items
+		SET category = ?, title = ?, description = ?, location = ?, latitude = ?, longitude = ?,
+		    day = ?, start_min = ?, end_min = ?, cost = ?, visited = ?, notes = ?, updated_at = ?
 		WHERE id = ?`,
-		dbDate(a.Day), a.Title, a.Category, a.StartMin, a.EndMin, a.Description, a.Location,
-		dbTime(a.UpdatedAt), a.ID)
+		i.Category, i.Title, i.Description, i.Location, i.Latitude, i.Longitude,
+		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, i.Visited, i.Notes,
+		dbTime(i.UpdatedAt), i.ID)
 	if err != nil {
-		return fmt.Errorf("store: updating activity: %w", err)
+		return fmt.Errorf("store: updating item: %w", err)
 	}
 	return checkAffected(res)
 }
 
-func (s *SQLite) DeleteActivity(ctx context.Context, id uuid.UUID) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM activities WHERE id = ?`, id)
+func (s *SQLite) DeleteItem(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, id)
 	if err != nil {
-		return fmt.Errorf("store: deleting activity: %w", err)
+		return fmt.Errorf("store: deleting item: %w", err)
 	}
 	return checkAffected(res)
 }
@@ -516,42 +438,26 @@ func scanVacation(sc rowScanner, v *models.Vacation) error {
 	return nil
 }
 
-func scanSight(sc rowScanner, sight *models.Sight) error {
-	var planned sql.NullString
-	var created string
-	if err := sc.Scan(&sight.ID, &sight.VacationID, &sight.Name, &sight.Category,
-		&sight.Description, &sight.Latitude, &sight.Longitude, &planned,
-		&sight.Visited, &sight.Notes, &created); err != nil {
+func scanItem(sc rowScanner, it *models.Item) error {
+	var day sql.NullString
+	var created, updated string
+	if err := sc.Scan(&it.ID, &it.VacationID, &it.Category, &it.Title, &it.Description,
+		&it.Location, &it.Latitude, &it.Longitude, &day, &it.StartMin, &it.EndMin,
+		&it.Cost, &it.Visited, &it.Notes, &created, &updated); err != nil {
 		return err
 	}
-	if planned.Valid {
-		t, err := time.Parse(dbDateLayout, planned.String)
+	if day.Valid {
+		t, err := time.Parse(dbDateLayout, day.String)
 		if err != nil {
-			return fmt.Errorf("store: parsing planned_date: %w", err)
+			return fmt.Errorf("store: parsing item day: %w", err)
 		}
-		sight.PlannedDate = &t
+		it.Day = &t
 	}
 	var err error
-	if sight.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+	if it.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
 		return fmt.Errorf("store: parsing created_at: %w", err)
 	}
-	return nil
-}
-
-func scanActivity(sc rowScanner, a *models.Activity) error {
-	var day, created, updated string
-	if err := sc.Scan(&a.ID, &a.VacationID, &day, &a.Title, &a.Category,
-		&a.StartMin, &a.EndMin, &a.Description, &a.Location, &created, &updated); err != nil {
-		return err
-	}
-	var err error
-	if a.Day, err = time.Parse(dbDateLayout, day); err != nil {
-		return fmt.Errorf("store: parsing activity day: %w", err)
-	}
-	if a.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
-		return fmt.Errorf("store: parsing created_at: %w", err)
-	}
-	if a.UpdatedAt, err = time.Parse(dbTimeLayout, updated); err != nil {
+	if it.UpdatedAt, err = time.Parse(dbTimeLayout, updated); err != nil {
 		return fmt.Errorf("store: parsing updated_at: %w", err)
 	}
 	return nil

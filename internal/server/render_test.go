@@ -14,6 +14,7 @@ import (
 
 func sampleVacation() *models.Vacation {
 	lat, lng := 38.7223, -9.1393
+	budget := 1500.0
 	depart := time.Date(2026, 8, 1, 9, 30, 0, 0, time.UTC)
 	planned := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
 	id := uuid.New()
@@ -26,14 +27,16 @@ func sampleVacation() *models.Vacation {
 		Latitude:    &lat,
 		Longitude:   &lng,
 		Notes:       "Budget: 1500€",
+		Budget:      &budget,
+		People:      2,
 		TravelSegments: []models.TravelSegment{{
 			ID: uuid.New(), VacationID: id, Kind: models.TravelArrival,
 			Mode: "flight", FromLocation: "BER", ToLocation: "LIS", DepartAt: &depart,
 		}},
-		Sights: []models.Sight{{
-			ID: uuid.New(), VacationID: id, Name: "Torre de Belém",
+		Items: []models.Item{{
+			ID: uuid.New(), VacationID: id, Title: "Torre de Belém",
 			Category: "Wahrzeichen", Description: "UNESCO-Turm", Latitude: &lat,
-			Longitude: &lng, PlannedDate: &planned, Notes: "früh hin",
+			Longitude: &lng, Day: &planned, StartMin: 540, EndMin: 660, Notes: "früh hin",
 		}},
 	}
 }
@@ -65,8 +68,8 @@ func TestRenderPages(t *testing.T) {
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}}}},
 	}
 	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, c := range cases {
@@ -92,7 +95,7 @@ func TestRenderFragments(t *testing.T) {
 		data any
 	}{
 		{"vacation_card", v},
-		{"sight_item", v.Sights[0]},
+		{"item_row", v.Items[0]},
 		{"travel_item", v.TravelSegments[0]},
 		{"form_error", "etwas ist schiefgelaufen"},
 		{"ai_suggestions", aiSuggestionsView{

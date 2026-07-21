@@ -14,7 +14,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/pdf"
 )
 
-// loadVacationFull loads a vacation together with its travel, sights and activities.
+// loadVacationFull loads a vacation together with its travel segments and items.
 func (s *Server) loadVacationFull(ctx context.Context, id uuid.UUID) (*models.Vacation, error) {
 	v, err := s.store.GetVacation(ctx, id)
 	if err != nil {
@@ -23,10 +23,7 @@ func (s *Server) loadVacationFull(ctx context.Context, id uuid.UUID) (*models.Va
 	if v.TravelSegments, err = s.store.ListTravelSegments(ctx, id); err != nil {
 		return nil, err
 	}
-	if v.Sights, err = s.store.ListSights(ctx, id); err != nil {
-		return nil, err
-	}
-	if v.Activities, err = s.store.ListActivities(ctx, id); err != nil {
+	if v.Items, err = s.store.ListItems(ctx, id); err != nil {
 		return nil, err
 	}
 	return v, nil

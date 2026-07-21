@@ -25,8 +25,7 @@ type Vacation struct {
 
 	// Relations are populated on demand, not stored on this row.
 	TravelSegments []TravelSegment
-	Sights         []Sight
-	Activities     []Activity
+	Items          []Item
 }
 
 // Nights returns the number of nights between start and end date.
@@ -90,54 +89,50 @@ type TravelSegment struct {
 	CreatedAt    time.Time
 }
 
-// Sight is a point of interest planned for a vacation.
-type Sight struct {
+// Item is a single planned entry for a vacation — a sight, activity, meal or any
+// user-defined category. It optionally has a day, a time range, map coordinates
+// and a cost, unifying the former Sight and Activity concepts.
+type Item struct {
 	ID          uuid.UUID
 	VacationID  uuid.UUID
-	Name        string
 	Category    string
-	Description string
-	Latitude    *float64
-	Longitude   *float64
-	PlannedDate *time.Time
-	Visited     bool
-	Notes       string
-	CreatedAt   time.Time
-}
-
-// HasCoords reports whether the sight can be placed on the map.
-func (s Sight) HasCoords() bool {
-	return s.Latitude != nil && s.Longitude != nil
-}
-
-// Activity is a planned activity on a specific day of a vacation. StartMin and
-// EndMin are minutes from midnight, which drives the day planner's hour grid.
-type Activity struct {
-	ID          uuid.UUID
-	VacationID  uuid.UUID
-	Day         time.Time
 	Title       string
-	Category    string
-	StartMin    int
-	EndMin      int
 	Description string
 	Location    string
+	Latitude    *float64
+	Longitude   *float64
+	Day         *time.Time
+	StartMin    int
+	EndMin      int
+	Cost        *float64
+	Visited     bool
+	Notes       string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
-// OnDay reports whether the activity is planned for the given calendar day.
-func (a Activity) OnDay(d time.Time) bool {
-	ay, am, ad := a.Day.Date()
+// HasCoords reports whether the item can be placed on the map.
+func (i Item) HasCoords() bool { return i.Latitude != nil && i.Longitude != nil }
+
+// Timed reports whether the item has a real time range and thus renders as a
+// block on the day planner (untimed items only appear in the day's list).
+func (i Item) Timed() bool { return i.EndMin > i.StartMin }
+
+// OnDay reports whether the item is planned for the given calendar day.
+func (i Item) OnDay(d time.Time) bool {
+	if i.Day == nil {
+		return false
+	}
+	ay, am, ad := i.Day.Date()
 	by, bm, bd := d.Date()
 	return ay == by && am == bm && ad == bd
 }
 
 // StartLabel returns the start time formatted as HH:MM.
-func (a Activity) StartLabel() string { return minLabel(a.StartMin) }
+func (i Item) StartLabel() string { return minLabel(i.StartMin) }
 
 // EndLabel returns the end time formatted as HH:MM.
-func (a Activity) EndLabel() string { return minLabel(a.EndMin) }
+func (i Item) EndLabel() string { return minLabel(i.EndMin) }
 
 func minLabel(m int) string {
 	if m < 0 {

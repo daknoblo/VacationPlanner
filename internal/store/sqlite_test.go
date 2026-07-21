@@ -78,7 +78,7 @@ func TestVacationCRUD(t *testing.T) {
 	}
 }
 
-func TestActivityRoundTrip(t *testing.T) {
+func TestItemRoundTrip(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
 
@@ -88,38 +88,43 @@ func TestActivityRoundTrip(t *testing.T) {
 	}
 
 	day := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
-	a := &models.Activity{
-		VacationID: v.ID, Day: day, Title: "Museum", Category: "Culture",
+	lat, lng, cost := 1.5, 2.5, 42.0
+	it := &models.Item{
+		VacationID: v.ID, Day: &day, Title: "Museum", Category: "Culture",
 		StartMin: 600, EndMin: 720, Description: "Visit", Location: "Center",
+		Latitude: &lat, Longitude: &lng, Cost: &cost,
 	}
-	if err := st.CreateActivity(ctx, a); err != nil {
-		t.Fatalf("CreateActivity: %v", err)
+	if err := st.CreateItem(ctx, it); err != nil {
+		t.Fatalf("CreateItem: %v", err)
 	}
 
-	list, err := st.ListActivities(ctx, v.ID)
+	list, err := st.ListItems(ctx, v.ID)
 	if err != nil || len(list) != 1 {
-		t.Fatalf("ListActivities: err=%v len=%d", err, len(list))
+		t.Fatalf("ListItems: err=%v len=%d", err, len(list))
 	}
 	got := list[0]
 	if got.Title != "Museum" || got.StartMin != 600 || got.EndMin != 720 || !got.OnDay(day) {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
+	if !got.HasCoords() || got.Cost == nil || *got.Cost != 42.0 || !got.Timed() {
+		t.Fatalf("coords/cost/timed round-trip mismatch: %+v", got)
+	}
 
 	got.StartMin = 630
 	got.Title = "Museum Tour"
-	if err := st.UpdateActivity(ctx, &got); err != nil {
-		t.Fatalf("UpdateActivity: %v", err)
+	if err := st.UpdateItem(ctx, &got); err != nil {
+		t.Fatalf("UpdateItem: %v", err)
 	}
-	again, err := st.GetActivity(ctx, a.ID)
+	again, err := st.GetItem(ctx, it.ID)
 	if err != nil || again.StartMin != 630 || again.Title != "Museum Tour" {
 		t.Fatalf("update not persisted: %+v err=%v", again, err)
 	}
 
-	if err := st.DeleteActivity(ctx, a.ID); err != nil {
-		t.Fatalf("DeleteActivity: %v", err)
+	if err := st.DeleteItem(ctx, it.ID); err != nil {
+		t.Fatalf("DeleteItem: %v", err)
 	}
-	if l, _ := st.ListActivities(ctx, v.ID); len(l) != 0 {
-		t.Fatalf("expected 0 activities after delete, got %d", len(l))
+	if l, _ := st.ListItems(ctx, v.ID); len(l) != 0 {
+		t.Fatalf("expected 0 items after delete, got %d", len(l))
 	}
 }
 
@@ -131,32 +136,30 @@ func TestCascadeDelete(t *testing.T) {
 	if err := st.CreateVacation(ctx, v); err != nil {
 		t.Fatalf("CreateVacation: %v", err)
 	}
-	if err := st.CreateSight(ctx, &models.Sight{VacationID: v.ID, Name: "Tower", Visited: true}); err != nil {
-		t.Fatalf("CreateSight: %v", err)
+	day := time.Now().UTC()
+	if err := st.CreateItem(ctx, &models.Item{VacationID: v.ID, Title: "Tower", Visited: true}); err != nil {
+		t.Fatalf("CreateItem: %v", err)
 	}
 	if err := st.CreateTravelSegment(ctx, &models.TravelSegment{VacationID: v.ID, Kind: models.TravelArrival, Mode: "flight"}); err != nil {
 		t.Fatalf("CreateTravelSegment: %v", err)
 	}
-	if err := st.CreateActivity(ctx, &models.Activity{VacationID: v.ID, Day: time.Now().UTC(), Title: "Walk"}); err != nil {
-		t.Fatalf("CreateActivity: %v", err)
+	if err := st.CreateItem(ctx, &models.Item{VacationID: v.ID, Day: &day, Title: "Walk", StartMin: 540, EndMin: 600}); err != nil {
+		t.Fatalf("CreateItem: %v", err)
 	}
 
 	// Deleting the vacation must cascade (requires foreign_keys=ON).
 	if err := st.DeleteVacation(ctx, v.ID); err != nil {
 		t.Fatalf("DeleteVacation: %v", err)
 	}
-	if sights, _ := st.ListSights(ctx, v.ID); len(sights) != 0 {
-		t.Fatalf("cascade failed: %d sights remain", len(sights))
+	if items, _ := st.ListItems(ctx, v.ID); len(items) != 0 {
+		t.Fatalf("cascade failed: %d items remain", len(items))
 	}
 	if travel, _ := st.ListTravelSegments(ctx, v.ID); len(travel) != 0 {
 		t.Fatalf("cascade failed: %d travel segments remain", len(travel))
 	}
-	if acts, _ := st.ListActivities(ctx, v.ID); len(acts) != 0 {
-		t.Fatalf("cascade failed: %d activities remain", len(acts))
-	}
 }
 
-func TestSightAndTravelRoundTrip(t *testing.T) {
+func TestItemAndTravelRoundTrip(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
 
@@ -167,13 +170,13 @@ func TestSightAndTravelRoundTrip(t *testing.T) {
 
 	planned := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
 	lat, lng := 1.5, 2.5
-	sight := &models.Sight{VacationID: v.ID, Name: "T", Category: "c", Visited: true, PlannedDate: &planned, Latitude: &lat, Longitude: &lng}
-	if err := st.CreateSight(ctx, sight); err != nil {
-		t.Fatalf("CreateSight: %v", err)
+	it := &models.Item{VacationID: v.ID, Title: "T", Category: "c", Visited: true, Day: &planned, Latitude: &lat, Longitude: &lng}
+	if err := st.CreateItem(ctx, it); err != nil {
+		t.Fatalf("CreateItem: %v", err)
 	}
-	sights, _ := st.ListSights(ctx, v.ID)
-	if len(sights) != 1 || !sights[0].Visited || sights[0].PlannedDate == nil || !sights[0].HasCoords() {
-		t.Fatalf("sight round-trip: %+v", sights)
+	items, _ := st.ListItems(ctx, v.ID)
+	if len(items) != 1 || !items[0].Visited || items[0].Day == nil || !items[0].HasCoords() {
+		t.Fatalf("item round-trip: %+v", items)
 	}
 
 	depart := time.Date(2026, 8, 1, 9, 30, 0, 0, time.UTC)
@@ -203,14 +206,14 @@ func TestToggleVisited(t *testing.T) {
 
 	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
 	_ = st.CreateVacation(ctx, v)
-	sight := &models.Sight{VacationID: v.ID, Name: "T"}
-	_ = st.CreateSight(ctx, sight)
+	it := &models.Item{VacationID: v.ID, Title: "T"}
+	_ = st.CreateItem(ctx, it)
 
-	sight.Visited = true
-	if err := st.UpdateSight(ctx, sight); err != nil {
-		t.Fatalf("UpdateSight: %v", err)
+	it.Visited = true
+	if err := st.UpdateItem(ctx, it); err != nil {
+		t.Fatalf("UpdateItem: %v", err)
 	}
-	got, err := st.GetSight(ctx, sight.ID)
+	got, err := st.GetItem(ctx, it.ID)
 	if err != nil || !got.Visited {
 		t.Fatalf("visited not persisted: err=%v visited=%v", err, got.Visited)
 	}
@@ -303,15 +306,15 @@ func TestStatsBackupRestore(t *testing.T) {
 	if err := st.CreateVacation(ctx, v); err != nil {
 		t.Fatalf("CreateVacation: %v", err)
 	}
-	if err := st.CreateSight(ctx, &models.Sight{VacationID: v.ID, Name: "A"}); err != nil {
-		t.Fatalf("CreateSight: %v", err)
+	if err := st.CreateItem(ctx, &models.Item{VacationID: v.ID, Title: "A"}); err != nil {
+		t.Fatalf("CreateItem: %v", err)
 	}
 
 	stats, err := st.Stats(ctx)
 	if err != nil {
 		t.Fatalf("Stats: %v", err)
 	}
-	if stats.Vacations != 1 || stats.Days != 3 || stats.Sights != 1 {
+	if stats.Vacations != 1 || stats.Days != 3 || stats.Items != 1 {
 		t.Fatalf("unexpected stats: %+v", stats)
 	}
 

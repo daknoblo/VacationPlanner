@@ -1,0 +1,90 @@
+{{define "item_row"}}
+<li class="item-row{{if .Visited}} is-visited{{end}}" id="item-{{.ID}}" data-id="{{.ID}}">
+  <div class="item-row__head">
+    <div class="item-row__title">
+      {{if .Timed}}<span class="item-row__time">{{.StartLabel}}–{{.EndLabel}}</span>{{end}}
+      <strong>{{.Title}}</strong>
+      {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+      {{if .Visited}}<span class="badge badge--ok">{{t "sight.visited"}}</span>{{end}}
+    </div>
+    <div class="item-row__actions">
+      <button class="btn btn--sm" title="{{t "sight.mark_visited"}}"
+              hx-post="/items/{{.ID}}/visited"
+              hx-target="closest .item-row"
+              hx-swap="outerHTML">{{if .Visited}}↩︎{{else}}✓{{end}}</button>
+      <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
+              hx-delete="/items/{{.ID}}"
+              hx-target="closest .item-row"
+              hx-swap="outerHTML"
+              hx-confirm="{{t "item.confirm_delete"}}">✕</button>
+    </div>
+  </div>
+  {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
+  {{if or .Cost .HasCoords}}
+  <p class="muted small">
+    {{if .Cost}}💶 {{money .Cost}}{{end}}
+    {{if .HasCoords}}{{if .Cost}} · {{end}}📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
+  </p>
+  {{end}}
+  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
+</li>
+{{end}}
+
+{{define "item_created"}}
+{{template "item_row" .Item}}
+{{if and .Item.Timed .Grid}}{{template "planner_block" (dict "Item" .Item "OOB" .Grid)}}{{end}}
+{{end}}
+
+{{define "item_form"}}
+<form class="form grid item-form"
+      hx-post="/vacations/{{.V.ID}}/items"
+      hx-target="{{.List}}"
+      hx-swap="beforeend"
+      data-reset>
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  {{if and .Day .Timed}}<input type="hidden" name="day" value="{{.Day}}">{{end}}
+  <div class="field">
+    <label>{{t "sight.category"}}</label>
+    <select name="category">
+      {{range .Cats}}<option value="{{.Name}}">{{if .Icon}}{{.Icon}} {{end}}{{.Name}}</option>{{end}}
+    </select>
+  </div>
+  <div class="field field--wide">
+    <label>{{t "field.title"}}</label>
+    <div class="location-picker__field">
+      <input name="title" required maxlength="200" autocomplete="off"
+             data-geo-lite placeholder="{{t "placeholder.sight.name"}}">
+      <div class="suggest" data-geo-lite-list hidden></div>
+    </div>
+    <input type="hidden" name="latitude" data-geo-lite-lat>
+    <input type="hidden" name="longitude" data-geo-lite-lng>
+    <p class="muted small">{{t "item.location_hint"}}</p>
+  </div>
+  {{if .Timed}}
+  <div class="field">
+    <label>{{t "activity.start"}}</label>
+    <input name="start" type="time" value="09:00">
+  </div>
+  <div class="field">
+    <label>{{t "activity.end"}}</label>
+    <input name="end" type="time" value="10:00">
+  </div>
+  {{else}}
+  <div class="field">
+    <label>{{t "sight.planned"}}</label>
+    <input name="day" type="date">
+  </div>
+  {{end}}
+  <div class="field">
+    <label>{{t "item.cost"}}</label>
+    <input name="cost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+  </div>
+  <div class="field field--wide">
+    <label>{{t "sight.description"}}</label>
+    <textarea name="description" rows="2" maxlength="2000"></textarea>
+  </div>
+  <div class="field field--wide">
+    <button class="btn btn--primary" type="submit">{{t "item.add"}}</button>
+  </div>
+</form>
+{{end}}

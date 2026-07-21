@@ -79,28 +79,23 @@ func Vacation(w io.Writer, v *models.Vacation, day *time.Time, loc *i18n.Localiz
 		}
 		h2(fmt.Sprintf("%s %d - %s", loc.T("tab.day"), i+1, d.Format("02.01.2006")))
 		found := false
-		for _, a := range v.Activities {
-			if !a.OnDay(d) {
+		for _, it := range v.Items {
+			if !it.OnDay(d) {
 				continue
 			}
 			found = true
-			line := fmt.Sprintf("%s-%s  %s", a.StartLabel(), a.EndLabel(), a.Title)
-			if a.Category != "" {
-				line += " (" + a.Category + ")"
+			var line string
+			if it.Timed() {
+				line = fmt.Sprintf("%s-%s  %s", it.StartLabel(), it.EndLabel(), it.Title)
+			} else {
+				line = "- " + it.Title
+			}
+			if it.Category != "" {
+				line += " (" + it.Category + ")"
 			}
 			body(line)
-			if strings.TrimSpace(a.Description) != "" {
-				muted("    " + a.Description)
-			}
-		}
-		for _, s := range v.Sights {
-			if s.PlannedDate != nil && sameDate(*s.PlannedDate, d) {
-				found = true
-				line := "- " + s.Name
-				if s.Category != "" {
-					line += " (" + s.Category + ")"
-				}
-				body(line)
+			if strings.TrimSpace(it.Description) != "" {
+				muted("    " + it.Description)
 			}
 		}
 		if !found {

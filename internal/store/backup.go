@@ -10,11 +10,10 @@ import (
 
 // Stats holds aggregate object counts used by the statistics view.
 type Stats struct {
-	Vacations  int
-	Days       int
-	Sights     int
-	Activities int
-	Travel     int
+	Vacations int
+	Days      int
+	Items     int
+	Travel    int
 }
 
 // Stats returns aggregate counts across all vacations.
@@ -31,11 +30,8 @@ func (s *SQLite) Stats(ctx context.Context) (Stats, error) {
 		 FROM vacations WHERE end_date >= start_date`).Scan(&st.Days); err != nil {
 		return st, fmt.Errorf("store: summing days: %w", err)
 	}
-	if err := count(`SELECT COUNT(*) FROM sights`, &st.Sights); err != nil {
-		return st, fmt.Errorf("store: counting sights: %w", err)
-	}
-	if err := count(`SELECT COUNT(*) FROM activities`, &st.Activities); err != nil {
-		return st, fmt.Errorf("store: counting activities: %w", err)
+	if err := count(`SELECT COUNT(*) FROM items`, &st.Items); err != nil {
+		return st, fmt.Errorf("store: counting items: %w", err)
 	}
 	if err := count(`SELECT COUNT(*) FROM travel_segments`, &st.Travel); err != nil {
 		return st, fmt.Errorf("store: counting travel segments: %w", err)

@@ -39,14 +39,14 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 
 	view := aiSuggestionsView{VacationID: vacationID.String()}
 
-	sights, err := s.store.ListSights(r.Context(), vacationID)
+	items, err := s.store.ListItems(r.Context(), vacationID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	existing := make([]string, 0, len(sights))
-	for _, sight := range sights {
-		existing = append(existing, sight.Name)
+	existing := make([]string, 0, len(items))
+	for _, it := range items {
+		existing = append(existing, it.Title)
 	}
 
 	input := ai.RecommendInput{

@@ -290,6 +290,23 @@ code {
 .cat-form .field--grow { flex: 1 1 14rem; }
 .cat-form__icon { width: 4.5rem; text-align: center; }
 
+/* Day items (unified sights + activities) */
+.day-items { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 2px solid var(--line); }
+.list.items { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.item-row {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.item-row.is-visited { opacity: 0.65; }
+.item-row__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.item-row__title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.item-row__time { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--primary); font-size: 0.9rem; }
+.item-row__actions { display: flex; gap: 0.3rem; flex: 0 0 auto; }
+.item-row__desc { margin: 0.35rem 0 0; }
+.item-form { margin-top: 0.5rem; }
+
 /* Day planner */
 .planner {
   --ppm: 0.8px;

@@ -66,13 +66,19 @@ func TestVacationHasCoords(t *testing.T) {
 	}
 }
 
-func TestSightHasCoords(t *testing.T) {
+func TestItemHasCoords(t *testing.T) {
 	lat, lng := 1.0, 2.0
-	if (Sight{}).HasCoords() {
-		t.Fatal("Sight.HasCoords() ohne Koordinaten muss false sein")
+	if (Item{}).HasCoords() {
+		t.Fatal("Item.HasCoords() without coordinates must be false")
 	}
-	if !(Sight{Latitude: &lat, Longitude: &lng}).HasCoords() {
-		t.Fatal("Sight.HasCoords() mit Koordinaten muss true sein")
+	if !(Item{Latitude: &lat, Longitude: &lng}).HasCoords() {
+		t.Fatal("Item.HasCoords() with coordinates must be true")
+	}
+	if !(Item{StartMin: 540, EndMin: 600}).Timed() {
+		t.Fatal("Item.Timed() with a range must be true")
+	}
+	if (Item{StartMin: 540, EndMin: 540}).Timed() {
+		t.Fatal("Item.Timed() without a range must be false")
 	}
 }
 

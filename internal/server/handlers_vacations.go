@@ -86,19 +86,24 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if v.Sights, err = s.store.ListSights(r.Context(), id); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	if v.Activities, err = s.store.ListActivities(r.Context(), id); err != nil {
+	if v.Items, err = s.store.ListItems(r.Context(), id); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 
+	categories, _ := s.store.ListCategories(r.Context())
+	var spent float64
+	for _, it := range v.Items {
+		if it.Cost != nil {
+			spent += *it.Cost
+		}
+	}
+
 	s.page(w, r, "vacation", v.Title, map[string]any{
-		"Vacation":  v,
-		"AIEnabled": s.ai.Enabled(),
-		"Budget":    newBudgetView(v, 0),
+		"Vacation":   v,
+		"AIEnabled":  s.ai.Enabled(),
+		"Budget":     newBudgetView(v, spent),
+		"Categories": categories,
 	})
 }
 
@@ -152,7 +157,7 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isHTMX(r) {
-		hxTrigger(w, "saved, sightsChanged")
+		hxTrigger(w, "saved, itemsChanged")
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

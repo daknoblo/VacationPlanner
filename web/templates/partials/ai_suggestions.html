@@ -9,10 +9,10 @@
     {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
     {{if .Description}}<p class="small">{{.Description}}</p>{{end}}
     {{if .Reason}}<p class="muted small">💡 {{.Reason}}</p>{{end}}
-    <form hx-post="/vacations/{{$.VacationID}}/sights"
-          hx-target="#sights-list"
+    <form hx-post="/vacations/{{$.VacationID}}/items"
+          hx-target="#items-list"
           hx-swap="beforeend">
-      <input type="hidden" name="name" value="{{.Name}}">
+      <input type="hidden" name="title" value="{{.Name}}">
       <input type="hidden" name="category" value="{{.Category}}">
       <input type="hidden" name="description" value="{{.Description}}">
       <button class="btn btn--sm" type="submit">{{t "ai.add_sight"}}</button>

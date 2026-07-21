@@ -96,7 +96,7 @@
     });
 
     refreshMarkers();
-    document.body.addEventListener("sightsChanged", refreshMarkers);
+    document.body.addEventListener("itemsChanged", refreshMarkers);
   }
 
   function refreshMarkers() {
@@ -105,16 +105,16 @@
     var id = el.dataset.vacationId;
     if (!id) return;
 
-    fetch("/vacations/" + encodeURIComponent(id) + "/api/sights", {
+    fetch("/vacations/" + encodeURIComponent(id) + "/api/items", {
       headers: { "Accept": "application/json" }
     })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (data) {
         markerLayer.clearLayers();
         var bounds = [];
-        (data.sights || []).forEach(function (s) {
+        (data.items || []).forEach(function (s) {
           var marker = L.marker([s.lat, s.lng], { opacity: s.visited ? 0.5 : 1 });
-          var title = s.name + (s.category ? " (" + s.category + ")" : "");
+          var title = s.title + (s.category ? " (" + s.category + ")" : "");
           marker.bindPopup(escapeHtml(title));
           marker.addTo(markerLayer);
           bounds.push([s.lat, s.lng]);
@@ -367,6 +367,60 @@
     input.addEventListener("blur", function () { window.setTimeout(hide, 200); });
   }
 
+  // ---- Item location autocomplete (geocode -> fills hidden lat/lng) ----
+  function initGeoLiteInputs() {
+    var inputs = document.querySelectorAll("[data-geo-lite]");
+    for (var i = 0; i < inputs.length; i++) { initGeoLite(inputs[i]); }
+  }
+
+  function initGeoLite(input) {
+    var wrap = input.closest(".location-picker__field") || input.parentNode;
+    var list = wrap.querySelector("[data-geo-lite-list]");
+    var form = input.closest("form");
+    var latIn = form ? form.querySelector("[data-geo-lite-lat]") : null;
+    var lngIn = form ? form.querySelector("[data-geo-lite-lng]") : null;
+    var timer = null;
+
+    function clearCoords() { if (latIn) latIn.value = ""; if (lngIn) lngIn.value = ""; }
+    function hide() { if (list) { list.hidden = true; list.innerHTML = ""; } }
+
+    function choose(it) {
+      input.value = it.display_name || input.value;
+      if (latIn) latIn.value = it.lat;
+      if (lngIn) lngIn.value = it.lng;
+      hide();
+    }
+
+    input.addEventListener("input", function () {
+      clearCoords();
+      var q = input.value.trim();
+      if (timer) window.clearTimeout(timer);
+      if (q.length < 3) { hide(); return; }
+      timer = window.setTimeout(function () {
+        fetch("/api/geocode?q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function (data) {
+            if (!list) return;
+            var results = (data && data.results) || [];
+            if (!results.length) { hide(); return; }
+            list.innerHTML = "";
+            results.slice(0, 6).forEach(function (it) {
+              var b = document.createElement("button");
+              b.type = "button";
+              b.className = "suggest__item";
+              b.textContent = it.display_name;
+              b.addEventListener("click", function () { choose(it); });
+              list.appendChild(b);
+            });
+            list.hidden = false;
+          })
+          .catch(function () { hide(); });
+      }, 300);
+    });
+
+    input.addEventListener("blur", function () { window.setTimeout(hide, 200); });
+  }
+
   // ---- Day planner (drag + resize activity blocks) ----
   var PLANNER_PPM = 0.8;   // px per minute (must match CSS --ppm)
   var PLANNER_SNAP = 5;    // snap to 5-minute steps
@@ -401,7 +455,7 @@
       var body = new URLSearchParams();
       body.set("start", plLabel(parseInt(block.getAttribute("data-start"), 10)));
       body.set("end", plLabel(parseInt(block.getAttribute("data-end"), 10)));
-      fetch("/activities/" + encodeURIComponent(id), {
+      fetch("/items/" + encodeURIComponent(id), {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -453,6 +507,7 @@
     initMap();
     initLocationPickers();
     initActivityInputs();
+    initGeoLiteInputs();
     initPlanners();
     initTabs();
   }

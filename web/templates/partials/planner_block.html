@@ -1,15 +1,17 @@
 {{define "planner_block"}}
-<div class="planner-block" data-id="{{.ID}}" data-start="{{.StartMin}}" data-end="{{.EndMin}}"
-     style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));"
-     title="{{.Title}}{{if .Description}} — {{.Description}}{{end}}">
+{{- $it := .Item -}}
+<div class="planner-block" data-id="{{$it.ID}}" data-start="{{$it.StartMin}}" data-end="{{$it.EndMin}}"
+     {{if .OOB}}hx-swap-oob="beforeend:{{.OOB}}"{{end}}
+     style="top: calc({{$it.StartMin}} * var(--ppm)); height: calc({{sub $it.EndMin $it.StartMin}} * var(--ppm));"
+     title="{{$it.Title}}{{if $it.Description}} — {{$it.Description}}{{end}}">
   <div class="planner-block__inner">
-    <span class="planner-block__time">{{.StartLabel}}–{{.EndLabel}}</span>
-    <span class="planner-block__title">{{.Title}}</span>
+    <span class="planner-block__time">{{$it.StartLabel}}–{{$it.EndLabel}}</span>
+    <span class="planner-block__title">{{$it.Title}}</span>
     <button class="planner-block__del" type="button" title="{{t "action.delete"}}"
-            hx-delete="/activities/{{.ID}}"
+            hx-delete="/items/{{$it.ID}}"
             hx-target="closest .planner-block"
             hx-swap="outerHTML"
-            hx-confirm="{{t "activity.confirm_delete"}}">✕</button>
+            hx-confirm="{{t "item.confirm_delete"}}">✕</button>
   </div>
   <span class="planner-block__resize" data-planner-resize></span>
 </div>
