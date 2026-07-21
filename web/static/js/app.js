@@ -269,6 +269,19 @@
   }
 
   document.addEventListener("click", function (e) {
+    // Expander toggle for the collapsible day row (long trips).
+    var toggle = e.target && e.target.closest ? e.target.closest("[data-days-toggle]") : null;
+    if (toggle) {
+      var wrap = toggle.closest("[data-day-tabs]");
+      var panel = wrap ? wrap.querySelector("[data-days-panel]") : null;
+      if (panel) {
+        var willOpen = panel.hasAttribute("hidden");
+        if (willOpen) { panel.removeAttribute("hidden"); }
+        else { panel.setAttribute("hidden", ""); }
+        toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      }
+      return;
+    }
     var tab = e.target && e.target.closest ? e.target.closest(".tabs__tab") : null;
     if (!tab) return;
     var tabsEl = tab.closest("[data-tabs]");
@@ -278,7 +291,21 @@
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, "", "#" + name);
     }
+    reflectCollapsedDay(tab);
   });
+
+  // reflectCollapsedDay updates the day expander's label and closes its panel
+  // once a day inside it has been chosen.
+  function reflectCollapsedDay(tab) {
+    var coll = tab.closest ? tab.closest("[data-days-collapsible]") : null;
+    if (!coll) return;
+    var current = coll.querySelector("[data-days-current]");
+    if (current) { current.textContent = (tab.textContent || "").replace(/\s+/g, " ").trim(); }
+    var panel = coll.querySelector("[data-days-panel]");
+    if (panel) { panel.setAttribute("hidden", ""); }
+    var toggle = coll.querySelector("[data-days-toggle]");
+    if (toggle) { toggle.setAttribute("aria-expanded", "false"); }
+  }
 
   function initTabs() {
     var tabsEl = document.querySelector("[data-tabs]");
@@ -286,7 +313,7 @@
     var hash = (window.location.hash || "").replace(/^#/, "");
     if (/^[a-z0-9-]+$/.test(hash)) {
       var target = tabsEl.querySelector('.tabs__tab[data-tab="' + hash + '"]');
-      if (target) activateTab(tabsEl, hash);
+      if (target) { activateTab(tabsEl, hash); reflectCollapsedDay(target); }
     }
   }
 

@@ -17,13 +17,32 @@
 
 <div class="tabs" data-tabs>
   <div class="tabs__bar" role="tablist">
-    <button type="button" class="tabs__tab is-active" data-tab="general">{{t "tab.general"}}</button>
-    <button type="button" class="tabs__tab" data-tab="arrival">{{t "tab.arrival"}}</button>
-    <button type="button" class="tabs__tab" data-tab="departure">{{t "tab.departure"}}</button>
-    {{range $i, $d := $v.Days}}
-    <button type="button" class="tabs__tab" data-tab="day-{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
+    <div class="tabs__row tabs__row--main">
+      <button type="button" class="tabs__tab is-active" data-tab="general">{{t "tab.general"}}</button>
+      <button type="button" class="tabs__tab" data-tab="arrival">{{t "tab.arrival"}}</button>
+      <button type="button" class="tabs__tab" data-tab="departure">{{t "tab.departure"}}</button>
+      <button type="button" class="tabs__tab" data-tab="overview">{{t "tab.overview"}}</button>
+      <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
+    </div>
+    {{if $v.Days}}
+    <div class="tabs__row tabs__row--days" data-day-tabs {{if gt (len $v.Days) 14}}data-days-collapsible{{end}}>
+      {{if gt (len $v.Days) 14}}
+      <button type="button" class="days-toggle" data-days-toggle aria-expanded="false" aria-controls="days-panel">
+        <span class="days-toggle__label" data-days-current>{{t "tab.day"}} 1 · {{fmtDate (index $v.Days 0)}}</span>
+        <span class="days-toggle__caret" aria-hidden="true">▾</span>
+      </button>
+      <div id="days-panel" class="days-panel" data-days-panel hidden>
+        {{range $i, $d := $v.Days}}
+        <button type="button" class="tabs__tab tabs__tab--day" data-tab="day-{{$i}}" data-day-index="{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
+        {{end}}
+      </div>
+      {{else}}
+      {{range $i, $d := $v.Days}}
+      <button type="button" class="tabs__tab tabs__tab--day" data-tab="day-{{$i}}" data-day-index="{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
+      {{end}}
+      {{end}}
+    </div>
     {{end}}
-    <button type="button" class="tabs__tab" data-tab="overview">{{t "tab.overview"}}</button>
   </div>
 
   <div id="activity-error" class="form-error" role="alert"></div>
@@ -263,6 +282,41 @@
              data-attribution="{{t "map.attribution"}}"></div>
         <p class="muted small">{{t "map.tip"}}</p>
       </aside>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab-panel="budget">
+    <div class="panel">
+      <h2>{{t "tab.budget"}}</h2>
+      {{$b := .Data.Budget}}
+      {{if $b.HasBudget}}
+      <div class="budget">
+        <div class="budget__summary">
+          <div class="budget__stat">
+            <span class="budget__label">{{t "budget.total"}}</span>
+            <span class="budget__value">{{money $b.Total}}</span>
+          </div>
+          <div class="budget__stat">
+            <span class="budget__label">{{t "budget.spent"}}</span>
+            <span class="budget__value">{{moneyF $b.Spent}}</span>
+          </div>
+          <div class="budget__stat budget__stat--remaining{{if $b.Over}} is-over{{end}}">
+            <span class="budget__label">{{t "budget.remaining"}}</span>
+            <span class="budget__value">{{moneyF $b.Remaining}}</span>
+          </div>
+        </div>
+        <div class="budget__bar">
+          <div class="budget__bar-fill{{if $b.Over}} is-over{{end}}" style="width:{{$b.PercentClamped}}%"></div>
+        </div>
+        <ul class="budget__meta">
+          {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{moneyF $b.PerPerson}}</strong></li>{{end}}
+          {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{moneyF $b.PerNight}}</strong></li>{{end}}
+        </ul>
+        <p class="muted small">{{t "budget.hint"}}</p>
+      </div>
+      {{else}}
+      <p class="muted">{{t "budget.none"}}</p>
+      {{end}}
     </div>
   </section>
 </div>

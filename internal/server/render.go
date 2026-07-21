@@ -47,6 +47,8 @@ var funcMap = template.FuncMap{
 	"dtInput":     dateTimeInput,
 	"fmtDateTime": fmtDateTime,
 	"coord":       coordValue,
+	"money":       money,
+	"moneyF":      moneyF,
 	"dict":        dict,
 	"add":         addInt,
 	"sub":         subInt,
@@ -248,6 +250,19 @@ func coordValue(f *float64) string {
 		return ""
 	}
 	return strconv.FormatFloat(*f, 'f', -1, 64)
+}
+
+// money formats an optional monetary amount with two decimals; nil renders "".
+func money(f *float64) string {
+	if f == nil {
+		return ""
+	}
+	return moneyF(*f)
+}
+
+// moneyF formats a monetary amount with two decimals.
+func moneyF(f float64) string {
+	return strconv.FormatFloat(f, 'f', 2, 64)
 }
 
 // addInt adds two integers (used for 1-based day numbering in templates).

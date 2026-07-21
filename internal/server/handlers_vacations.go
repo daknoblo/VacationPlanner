@@ -19,6 +19,52 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// budgetView is the computed budget breakdown shown on the Budget tab.
+type budgetView struct {
+	HasBudget      bool
+	Total          *float64
+	Spent          float64
+	Remaining      float64
+	Over           bool
+	PercentClamped int
+	People         int
+	Nights         int
+	PerPerson      float64
+	PerNight       float64
+}
+
+// newBudgetView computes the budget breakdown for a vacation. spent is the sum
+// of planned item costs (0 until per-item costs are tracked).
+func newBudgetView(v *models.Vacation, spent float64) budgetView {
+	b := budgetView{People: v.People, Nights: v.Nights()}
+	if v.Budget == nil {
+		return b
+	}
+	total := *v.Budget
+	b.HasBudget = true
+	b.Total = v.Budget
+	b.Spent = spent
+	b.Remaining = total - spent
+	b.Over = spent > total
+	if total > 0 {
+		p := int(spent / total * 100)
+		if p < 0 {
+			p = 0
+		}
+		if p > 100 {
+			p = 100
+		}
+		b.PercentClamped = p
+	}
+	if v.People > 0 {
+		b.PerPerson = total / float64(v.People)
+	}
+	if b.Nights > 0 {
+		b.PerNight = total / float64(b.Nights)
+	}
+	return b
+}
+
 func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	id, err := urlUUID(r, "vacationID")
 	if err != nil {
@@ -52,6 +98,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":  v,
 		"AIEnabled": s.ai.Enabled(),
+		"Budget":    newBudgetView(v, 0),
 	})
 }
 

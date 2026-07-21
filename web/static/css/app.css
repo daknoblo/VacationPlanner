@@ -153,11 +153,21 @@ code {
 /* Tabs */
 .tabs__bar {
   display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+.tabs__row {
+  display: flex;
   gap: 0.25rem;
   overflow-x: auto;
   border-bottom: 2px solid var(--line);
-  margin-bottom: 1.25rem;
   -webkit-overflow-scrolling: touch;
+}
+.tabs__row--days {
+  border-bottom: none;
+  align-items: center;
+  flex-wrap: wrap;
 }
 .tabs__tab {
   flex: 0 0 auto;
@@ -181,6 +191,86 @@ code {
 .tabs__sub { font-size: 0.72rem; font-weight: 400; color: var(--muted); }
 .tab-panel { display: none; }
 .tab-panel.is-active { display: block; }
+
+/* Collapsible day selector (long trips) */
+.days-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+}
+.days-toggle__caret { color: var(--muted); transition: transform 0.15s ease; }
+.days-toggle[aria-expanded="true"] .days-toggle__caret { transform: rotate(180deg); }
+.days-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.25rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.days-panel[hidden] { display: none; }
+.days-panel .tabs__tab--day {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+.days-panel .tabs__tab--day.is-active {
+  border-color: var(--primary);
+  background: #fff;
+}
+
+/* Budget */
+.budget__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.budget__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.budget__label { font-size: 0.8rem; color: var(--muted); }
+.budget__value { font-size: 1.35rem; font-weight: 700; color: var(--ink); }
+.budget__stat--remaining .budget__value { color: var(--primary); }
+.budget__stat--remaining.is-over .budget__value { color: var(--danger, #dc2626); }
+.budget__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.budget__bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+.budget__bar-fill.is-over { background: var(--danger, #dc2626); }
+.budget__meta {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
 
 /* Day planner */
 .planner {

@@ -5,6 +5,20 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Now / next
 
+### Day-planner overhaul (epic, 2026-07-21)
+
+- [ ] **Tab UX** — two-row tab bar: row 1 = General / Arrival / Departure / Overview /
+      Budget; row 2 = the days, with an expander when there are many days (inline when few).
+- [ ] **Custom categories** — a Settings section to manage item categories (defaults:
+      Activity / Food / Point-of-Interest), used by the day-item forms.
+- [ ] **Unified day items** — merge Sights and Activities into a single per-day `items`
+      model (category, time, location/coordinates, cost); Overview map fed from items.
+- [ ] **Budget tab** — remaining = Budget − Σ item costs, with a per-category breakdown.
+- [ ] **OSM routing** — server-proxied routing client (OpenRouteService/Valhalla; API key
+      via `ROUTER_API_KEY`, base URL in Settings) computing per-leg time + distance.
+- [ ] **Day summary** — a full-width Mermaid route diagram above the calendar
+      (Hotel → item → … → Hotel) with drive time/distance per leg.
+
 - [ ] **Edit sights & travel segments** — currently only create/delete are supported;
       add inline edit (name, category, coordinates, dates, notes).
 - [ ] **Geocode AI suggestions** — look up coordinates (e.g. OpenStreetMap Nominatim,
