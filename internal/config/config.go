@@ -88,15 +88,6 @@ func loadCSRFKey(env string) ([]byte, error) {
 	return key, nil
 }
 
-// NewLogger builds a structured slog logger appropriate for the environment.
-func NewLogger(env string) *slog.Logger {
-	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
-	if strings.EqualFold(env, "production") || strings.EqualFold(env, "prod") {
-		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
-	}
-	return slog.New(slog.NewTextHandler(os.Stdout, opts))
-}
-
 func getenv(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v

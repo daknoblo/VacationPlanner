@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/destimg"
 	"github.com/daknoblo/vacationplanner/internal/geo"
@@ -19,6 +20,7 @@ import (
 type Server struct {
 	cfg     *config.Config
 	log     *slog.Logger
+	logs    *applog.Controller
 	store   store.Store
 	ai      *ai.Client
 	geo     *geo.Client
@@ -30,7 +32,7 @@ type Server struct {
 }
 
 // New constructs a Server and wires up all routes.
-func New(cfg *config.Config, log *slog.Logger, st store.Store, aiClient *ai.Client) (*Server, error) {
+func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store.Store, aiClient *ai.Client) (*Server, error) {
 	r, err := newRenderer()
 	if err != nil {
 		return nil, err
@@ -39,6 +41,7 @@ func New(cfg *config.Config, log *slog.Logger, st store.Store, aiClient *ai.Clie
 	s := &Server{
 		cfg:     cfg,
 		log:     log,
+		logs:    logs,
 		store:   st,
 		ai:      aiClient,
 		geo:     geo.New(cfg.GeocoderAPIKey),

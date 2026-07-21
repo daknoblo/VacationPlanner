@@ -65,6 +65,10 @@ func (s *Server) requestLogger(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
 
+		// Don't log the diagnostics poller — it would spam its own view.
+		if r.URL.Path == "/settings/logs" {
+			return
+		}
 		s.log.Info("http request",
 			"method", sanitizeLog(r.Method),
 			"path", sanitizeLog(r.URL.Path),

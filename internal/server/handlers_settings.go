@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/route"
@@ -111,6 +112,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"RouteBaseURL":        settings[settingRouteBaseURL],
 		"RouteDefaultBaseURL": route.DefaultBaseURL,
 		"RouteKeyConfigured":  s.cfg.RouterAPIKey != "",
+		"LogLevel":            s.logs.LevelName(),
+		"LogLevels":           applog.Levels(),
 		"Categories":          categories,
 		"Stats":               stats,
 		"DBSize":              humanBytes(s.dbSizeBytes()),

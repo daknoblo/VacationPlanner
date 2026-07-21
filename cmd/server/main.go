@@ -19,6 +19,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
+	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/server"
 	"github.com/daknoblo/vacationplanner/internal/store"
@@ -77,7 +78,7 @@ func run() error {
 		return err
 	}
 
-	logger := config.NewLogger(cfg.Env)
+	logger, logs := applog.New(cfg.Env)
 	slog.SetDefault(logger)
 
 	// Cancel the root context on SIGINT/SIGTERM for graceful shutdown.
@@ -94,9 +95,16 @@ func run() error {
 		return err
 	}
 
+	// Apply the persisted log level (if any) now that the store is available.
+	if settings, err := st.GetSettings(ctx); err == nil {
+		if lvl, ok := applog.ParseLevel(settings["log.level"]); ok {
+			logs.SetLevel(lvl)
+		}
+	}
+
 	aiClient := ai.New(cfg.AIAPIKey)
 
-	srv, err := server.New(cfg, logger, st, aiClient)
+	srv, err := server.New(cfg, logger, logs, st, aiClient)
 	if err != nil {
 		return err
 	}

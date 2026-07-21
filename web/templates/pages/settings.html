@@ -165,6 +165,36 @@
 </section>
 
 <section class="panel">
+  <h2>{{t "settings.logs.heading"}}</h2>
+  <p class="muted small">{{t "settings.logs.hint"}}</p>
+  <form class="form"
+        method="post" action="/settings/log"
+        hx-post="/settings/log" hx-trigger="change"
+        hx-target="#log-settings-error" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="log-level">{{t "settings.logs.level"}}</label>
+      <select id="log-level" name="level">
+        {{range .Data.LogLevels}}<option value="{{.}}" {{if eq . $.Data.LogLevel}}selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </div>
+    <div class="field field--wide">
+      <div id="log-settings-error" class="form-error"></div>
+    </div>
+  </form>
+
+  <details class="logview">
+    <summary>{{t "settings.logs.show"}}</summary>
+    <div class="logview__body"
+         hx-get="/settings/logs"
+         hx-trigger="load, every 3s"
+         hx-target="this" hx-swap="innerHTML">
+      <p class="muted small">{{t "settings.logs.loading"}}</p>
+    </div>
+  </details>
+</section>
+
+<section class="panel">
   <h2>{{t "settings.backup.heading"}}</h2>
   <p class="muted small">{{t "settings.backup.hint"}}</p>
   <form hx-post="/settings/backups" hx-target="#backup-list" hx-swap="outerHTML">

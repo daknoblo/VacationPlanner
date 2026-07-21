@@ -42,6 +42,8 @@ func (s *Server) routes() {
 	r.Post("/settings/ai", s.handleUpdateAISettings)
 	r.Post("/settings/geo", s.handleUpdateGeoSettings)
 	r.Post("/settings/route", s.handleUpdateRouteSettings)
+	r.Post("/settings/log", s.handleUpdateLogSettings)
+	r.Get("/settings/logs", s.handleLogs)
 	r.Post("/settings/categories", s.handleCreateCategory)
 	r.Delete("/settings/categories/{categoryID}", s.handleDeleteCategory)
 

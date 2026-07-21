@@ -1,0 +1,15 @@
+{{define "log_view"}}
+{{if .Lines}}
+<ul class="logview__list">
+  {{range .Lines}}
+  <li class="logview__row logview__row--{{.Level}}">
+    <span class="logview__time">{{.Time}}</span>
+    <span class="logview__level">{{.Level}}</span>
+    <span class="logview__msg">{{.Message}}{{if .Attrs}} <span class="logview__attrs">{{.Attrs}}</span>{{end}}</span>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="muted small">{{t "settings.logs.empty"}}</p>
+{{end}}
+{{end}}

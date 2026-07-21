@@ -322,6 +322,36 @@ code {
 .day-summary__timeline > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
 .day-summary__timeline ol { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 
+/* Log viewer (diagnostics) */
+.logview { margin-top: 0.75rem; }
+.logview > summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.logview__body {
+  margin-top: 0.5rem;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+.logview__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+.logview__row { display: flex; gap: 0.6rem; padding: 0.05rem 0.15rem; color: #cbd5e1; }
+.logview__row--error { background: rgba(248, 113, 113, 0.10); border-radius: 4px; }
+.logview__time { color: #64748b; flex: 0 0 auto; }
+.logview__level { flex: 0 0 3rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; }
+.logview__row--info .logview__level { color: #38bdf8; }
+.logview__row--warn .logview__level { color: #f59e0b; }
+.logview__row--error .logview__level { color: #f87171; }
+.logview__msg { flex: 1 1 auto; word-break: break-word; }
+.logview__attrs { color: #94a3b8; }
+.logview__body .muted { color: #94a3b8; }
+
 /* Day planner */
 .planner {
   --ppm: 0.8px;
