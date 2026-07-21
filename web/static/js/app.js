@@ -39,6 +39,7 @@
     if (form && form.matches && form.matches("form[data-reset]") && evt.detail.successful) {
       form.reset();
       clearTempMarker();
+      resyncIconPicker(form);
     }
   });
 
@@ -270,19 +271,6 @@
   }
 
   document.addEventListener("click", function (e) {
-    // Expander toggle for the collapsible day row (long trips).
-    var toggle = e.target && e.target.closest ? e.target.closest("[data-days-toggle]") : null;
-    if (toggle) {
-      var wrap = toggle.closest("[data-day-tabs]");
-      var panel = wrap ? wrap.querySelector("[data-days-panel]") : null;
-      if (panel) {
-        var willOpen = panel.hasAttribute("hidden");
-        if (willOpen) { panel.removeAttribute("hidden"); }
-        else { panel.setAttribute("hidden", ""); }
-        toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
-      }
-      return;
-    }
     var tab = e.target && e.target.closest ? e.target.closest(".tabs__tab") : null;
     if (!tab) return;
     var tabsEl = tab.closest("[data-tabs]");
@@ -292,20 +280,35 @@
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, "", "#" + name);
     }
-    reflectCollapsedDay(tab);
   });
 
-  // reflectCollapsedDay updates the day expander's label and closes its panel
-  // once a day inside it has been chosen.
-  function reflectCollapsedDay(tab) {
-    var coll = tab.closest ? tab.closest("[data-days-collapsible]") : null;
-    if (!coll) return;
-    var current = coll.querySelector("[data-days-current]");
-    if (current) { current.textContent = (tab.textContent || "").replace(/\s+/g, " ").trim(); }
-    var panel = coll.querySelector("[data-days-panel]");
-    if (panel) { panel.setAttribute("hidden", ""); }
-    var toggle = coll.querySelector("[data-days-toggle]");
-    if (toggle) { toggle.setAttribute("aria-expanded", "false"); }
+  // ---- Icon picker (category symbols) ----
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest("[data-icon-picker] .icon-picker__btn") : null;
+    if (!btn) return;
+    var form = btn.closest("form");
+    var hidden = form ? form.querySelector("[data-icon-value]") : null;
+    if (hidden) { hidden.value = btn.getAttribute("data-emoji"); }
+    selectIcon(btn.closest("[data-icon-picker]"), btn);
+  });
+
+  function selectIcon(picker, active) {
+    if (!picker) return;
+    var selected = picker.querySelectorAll(".is-selected");
+    for (var i = 0; i < selected.length; i++) { selected[i].classList.remove("is-selected"); }
+    if (active) { active.classList.add("is-selected"); }
+  }
+
+  // resyncIconPicker resets the picker to its first (default) icon after the
+  // form is reset following a successful submit.
+  function resyncIconPicker(form) {
+    if (!form) return;
+    var picker = form.querySelector("[data-icon-picker]");
+    if (!picker) return;
+    var hidden = form.querySelector("[data-icon-value]");
+    var first = picker.querySelector(".icon-picker__btn");
+    if (hidden && first) { hidden.value = first.getAttribute("data-emoji"); }
+    selectIcon(picker, first);
   }
 
   function initTabs() {
@@ -314,7 +317,7 @@
     var hash = (window.location.hash || "").replace(/^#/, "");
     if (/^[a-z0-9-]+$/.test(hash)) {
       var target = tabsEl.querySelector('.tabs__tab[data-tab="' + hash + '"]');
-      if (target) { activateTab(tabsEl, hash); reflectCollapsedDay(target); }
+      if (target) { activateTab(tabsEl, hash); }
     }
   }
 

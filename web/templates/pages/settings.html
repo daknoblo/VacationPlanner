@@ -159,9 +159,12 @@
         hx-target="#category-list" hx-swap="beforeend"
         data-reset>
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-    <div class="field">
-      <label for="cat-icon">{{t "settings.categories.icon"}}</label>
-      <input id="cat-icon" name="icon" maxlength="16" class="cat-form__icon" placeholder="📍">
+    <input type="hidden" name="icon" data-icon-value value="{{index .Data.CategoryIcons 0}}">
+    <div class="field field--wide">
+      <label>{{t "settings.categories.icon"}}</label>
+      <div class="icon-picker" data-icon-picker>
+        {{range $i, $ic := .Data.CategoryIcons}}<button type="button" class="icon-picker__btn{{if eq $i 0}} is-selected{{end}}" data-emoji="{{$ic}}" title="{{$ic}}">{{$ic}}</button>{{end}}
+      </div>
     </div>
     <div class="field field--grow">
       <label for="cat-name">{{t "settings.categories.name"}}</label>

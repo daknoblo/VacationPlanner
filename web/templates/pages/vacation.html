@@ -20,23 +20,12 @@
     <div class="tabs__row tabs__row--main">
       <button type="button" class="tabs__tab is-active" data-tab="overview">{{t "tab.overview"}}</button>
       <button type="button" class="tabs__tab" data-tab="general">{{t "tab.general"}}</button>
-      <button type="button" class="tabs__tab" data-tab="arrival">{{t "tab.arrival"}}</button>
-      <button type="button" class="tabs__tab" data-tab="departure">{{t "tab.departure"}}</button>
+      <button type="button" class="tabs__tab" data-tab="travel">{{t "tab.travel"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
     </div>
     {{if $v.Days}}
-    <div class="tabs__row tabs__row--days" data-day-tabs {{if gt (len $v.Days) 14}}data-days-collapsible{{end}}>
-      {{if gt (len $v.Days) 14}}
-      <button type="button" class="days-toggle" data-days-toggle aria-expanded="false" aria-controls="days-panel">
-        <span class="days-toggle__label" data-days-current>{{t (printf "weekday.%s" (weekday (index $v.Days 0)))}} · {{fmtDate (index $v.Days 0)}}</span>
-        <span class="days-toggle__caret" aria-hidden="true">▾</span>
-      </button>
-      <div id="days-panel" class="days-panel" data-days-panel hidden>
-        {{template "day_tabs" (dict "Days" $v.Days)}}
-      </div>
-      {{else}}
+    <div class="tabs__row tabs__row--days" data-day-tabs>
       {{template "day_tabs" (dict "Days" $v.Days)}}
-      {{end}}
     </div>
     {{end}}
   </div>
@@ -121,7 +110,7 @@
     </section>
   </section>
 
-  <section class="tab-panel" data-tab-panel="arrival">
+  <section class="tab-panel" data-tab-panel="travel">
     <div class="panel">
       <h2>{{t "tab.arrival"}}</h2>
       <ul id="arrival-list" class="list">
@@ -129,9 +118,6 @@
       </ul>
       {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list" "Home" $.Data.HomeAddress)}}
     </div>
-  </section>
-
-  <section class="tab-panel" data-tab-panel="departure">
     <div class="panel">
       <h2>{{t "tab.departure"}}</h2>
       <ul id="departure-list" class="list">

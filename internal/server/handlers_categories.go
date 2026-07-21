@@ -8,6 +8,13 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
+// defaultCategoryIcons are the emoji offered in the Settings category picker.
+var defaultCategoryIcons = []string{
+	"📍", "🎯", "🍽️", "☕", "🍷", "🏛️", "🖼️", "🎭", "🏰", "⛪",
+	"🏖️", "⛰️", "🥾", "📷", "🛒", "🎡", "🎢", "🏊", "🏨", "🚗",
+	"🚆", "✈️", "⛴️", "🎉", "⭐",
+}
+
 // handleCreateCategory adds a new user-managed item category.
 func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())

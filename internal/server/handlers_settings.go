@@ -115,6 +115,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"LogLevel":            s.logs.LevelName(),
 		"LogLevels":           applog.Levels(),
 		"Categories":          categories,
+		"CategoryIcons":       defaultCategoryIcons,
 		"Stats":               stats,
 		"DBSize":              humanBytes(s.dbSizeBytes()),
 		"Backups":             s.listBackups(),

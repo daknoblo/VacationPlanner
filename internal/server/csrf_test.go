@@ -25,12 +25,14 @@ func TestCSRFTokenRejectsTampering(t *testing.T) {
 	s := testServer()
 	token := s.newCSRFToken()
 
-	// Flip the last character to invalidate the signature.
-	bad := token[:len(token)-1]
-	if token[len(token)-1] == 'A' {
-		bad += "B"
+	// Flip the first character to invalidate the signature. The first base64
+	// character is always fully significant, unlike a trailing character whose
+	// low bits are padding (flipping which can decode to the same bytes).
+	var bad string
+	if token[0] == 'A' {
+		bad = "B" + token[1:]
 	} else {
-		bad += "A"
+		bad = "A" + token[1:]
 	}
 	if s.validCSRFToken(bad) {
 		t.Fatal("tampered token must be rejected")
