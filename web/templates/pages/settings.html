@@ -33,6 +33,14 @@
         {{end}}
       </select>
     </div>
+    <div class="field">
+      <label for="currency">{{t "field.currency"}}</label>
+      <select id="currency" name="currency">
+        {{range .Data.Currencies}}
+        <option value="{{.}}" {{if eq . $.Data.Currency}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </div>
   </form>
 </section>
 

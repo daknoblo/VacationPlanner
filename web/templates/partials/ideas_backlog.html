@@ -4,7 +4,7 @@
   <span class="muted small">{{t "ideen.backlog_hint"}}</span>
 </div>
 {{if .}}
-<div class="ideas-backlog__chips">
+<div class="ideas-backlog__chips{{if gt (len .) 3}} ideas-backlog__chips--cols{{end}}">
   {{range .}}
   <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
     <span class="idea-chip__grip" aria-hidden="true">⠿</span>

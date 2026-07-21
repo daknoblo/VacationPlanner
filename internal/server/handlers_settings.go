@@ -20,8 +20,32 @@ const (
 	settingAIAPIVersion = "ai.api_version"
 	settingWeekStart    = "region.week_start"
 	settingTimezone     = "region.timezone"
+	settingCurrency     = "region.currency"
 	settingHomeAddress  = "home.address"
 )
+
+// supportedCurrencies are the currency symbols offered in Settings.
+var supportedCurrencies = []string{"€", "$"}
+
+// currencySymbol returns the configured budget currency symbol, defaulting to €.
+func (s *Server) currencySymbol(ctx context.Context) string {
+	settings, err := s.store.GetSettings(ctx)
+	if err != nil {
+		return "€"
+	}
+	return normalizeCurrency(settings[settingCurrency])
+}
+
+// normalizeCurrency validates a currency symbol, falling back to €.
+func normalizeCurrency(v string) string {
+	v = strings.TrimSpace(v)
+	for _, c := range supportedCurrencies {
+		if v == c {
+			return v
+		}
+	}
+	return "€"
+}
 
 // commonTimezones is a curated list of IANA zones offered in Settings.
 var commonTimezones = []string{
@@ -106,6 +130,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"AIKeyConfigured":  s.ai.Enabled(),
 		"WeekStart":        weekStart,
 		"Timezone":         timezone,
+		"Currency":         normalizeCurrency(settings[settingCurrency]),
+		"Currencies":       supportedCurrencies,
 		"Timezones":        commonTimezones, "HomeAddress": settings[settingHomeAddress], "GeoBaseURL": settings[settingGeoBaseURL],
 		"GeoDefaultBaseURL":   geo.DefaultBaseURL,
 		"GeoKeyConfigured":    s.cfg.GeocoderAPIKey != "",
@@ -144,6 +170,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		timezone = "UTC"
 	}
 	if err := s.store.PutSetting(r.Context(), settingTimezone, timezone); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.store.PutSetting(r.Context(), settingCurrency, normalizeCurrency(formStr(r, "currency"))); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

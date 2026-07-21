@@ -6,15 +6,15 @@
   <div class="budget__summary">
     <div class="budget__stat">
       <span class="budget__label">{{t "budget.total"}}</span>
-      <span class="budget__value">{{money $b.Total}}</span>
+      <span class="budget__value">{{bmoneyp $b.Total $b.Currency}}</span>
     </div>
     <div class="budget__stat">
       <span class="budget__label">{{t "budget.spent"}}</span>
-      <span class="budget__value">{{moneyF $b.Spent}}</span>
+      <span class="budget__value">{{bmoney $b.Spent $b.Currency}}</span>
     </div>
     <div class="budget__stat budget__stat--remaining{{if $b.Over}} is-over{{end}}">
       <span class="budget__label">{{t "budget.remaining"}}</span>
-      <span class="budget__value">{{moneyF $b.Remaining}}</span>
+      <span class="budget__value">{{bmoney $b.Remaining $b.Currency}}</span>
     </div>
   </div>
   <div class="budget__bar">
@@ -22,8 +22,8 @@
   </div>
   <ul class="budget__meta">
     <li>{{t "budget.used"}}: <strong>{{$b.PercentClamped}}%</strong></li>
-    {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{moneyF $b.PerPerson}}</strong></li>{{end}}
-    {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{moneyF $b.PerNight}}</strong></li>{{end}}
+    {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{bmoney $b.PerPerson $b.Currency}}</strong></li>{{end}}
+    {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{bmoney $b.PerNight $b.Currency}}</strong></li>{{end}}
   </ul>
   {{end}}
 
@@ -36,22 +36,22 @@
     </div>
     <div class="budget__stat budget__stat--sm">
       <span class="budget__label">{{t "budget.avg"}}</span>
-      <span class="budget__value">{{moneyF $b.AvgExpense}}</span>
+      <span class="budget__value">{{bmoney $b.AvgExpense $b.Currency}}</span>
     </div>
     <div class="budget__stat budget__stat--sm">
       <span class="budget__label">{{t "budget.top"}}</span>
-      <span class="budget__value">{{moneyF $b.TopAmount}}</span>
+      <span class="budget__value">{{bmoney $b.TopAmount $b.Currency}}</span>
     </div>
     {{if gt $b.People 0}}
     <div class="budget__stat budget__stat--sm">
       <span class="budget__label">{{t "budget.spent_per_person"}}</span>
-      <span class="budget__value">{{moneyF $b.SpentPerPerson}}</span>
+      <span class="budget__value">{{bmoney $b.SpentPerPerson $b.Currency}}</span>
     </div>
     {{end}}
     {{if gt $b.Nights 0}}
     <div class="budget__stat budget__stat--sm">
       <span class="budget__label">{{t "budget.spent_per_night"}}</span>
-      <span class="budget__value">{{moneyF $b.SpentPerNight}}</span>
+      <span class="budget__value">{{bmoney $b.SpentPerNight $b.Currency}}</span>
     </div>
     {{end}}
   </div>
@@ -62,7 +62,7 @@
     <li class="budget-cat">
       <div class="budget-cat__head">
         <span class="budget-cat__name">{{if .Icon}}{{.Icon}} {{end}}{{if .Name}}{{.Name}}{{else}}{{t "budget.uncategorized"}}{{end}}</span>
-        <span class="budget-cat__amount">{{moneyF .Amount}} <span class="muted small">· {{.Percent}}%</span></span>
+        <span class="budget-cat__amount">{{bmoney .Amount $b.Currency}} <span class="muted small">· {{.Percent}}%</span></span>
       </div>
       <div class="budget-cat__bar"><div class="budget-cat__fill" style="width:{{.Percent}}%"></div></div>
     </li>
@@ -75,7 +75,7 @@
     <li class="budget-exp">
       <span class="budget-exp__title">{{if .Icon}}{{.Icon}} {{end}}{{.Title}}</span>
       {{if .DayLabel}}<span class="budget-exp__day">{{.DayLabel}}</span>{{end}}
-      <span class="budget-exp__amount">{{moneyF .Amount}}</span>
+      <span class="budget-exp__amount">{{bmoney .Amount $b.Currency}}</span>
     </li>
     {{end}}
   </ul>

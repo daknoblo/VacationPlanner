@@ -771,6 +771,18 @@
     }
   });
 
+  // Mirror typing between the notes editors (Overview + General) so both always
+  // show the same content. Setting .value does not fire input, so this neither
+  // loops nor triggers the other editor's auto-save.
+  document.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el || !el.matches || !el.matches("[data-notes-sync]")) return;
+    var all = document.querySelectorAll("[data-notes-sync]");
+    for (var i = 0; i < all.length; i++) {
+      if (all[i] !== el && all[i].value !== el.value) { all[i].value = el.value; }
+    }
+  });
+
   function init() {
     if (typeof L !== "undefined" && L.Icon && L.Icon.Default) {
       // Use the vendored marker images directly. Deleting the Default

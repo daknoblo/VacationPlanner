@@ -50,6 +50,8 @@ var funcMap = template.FuncMap{
 	"coord":       coordValue,
 	"money":       money,
 	"moneyF":      moneyF,
+	"bmoney":      bmoney,
+	"bmoneyp":     bmoneyP,
 	"dict":        dict,
 	"add":         addInt,
 	"sub":         subInt,
@@ -290,6 +292,31 @@ func money(f *float64) string {
 // moneyF formats a monetary amount with two decimals.
 func moneyF(f float64) string {
 	return strconv.FormatFloat(f, 'f', 2, 64)
+}
+
+// trimAmount formats an amount with up to two decimals, dropping a trailing
+// ".00" (and any trailing zero) so whole values render without decimals.
+func trimAmount(f float64) string {
+	s := strconv.FormatFloat(f, 'f', 2, 64)
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
+	return s
+}
+
+// bmoney formats an amount for the budget view: trimmed decimals plus the
+// currency symbol (e.g. "2000 €", "182.50 €").
+func bmoney(f float64, currency string) string {
+	return trimAmount(f) + "\u00a0" + currency
+}
+
+// bmoneyP is the nil-safe *float64 variant of bmoney.
+func bmoneyP(f *float64, currency string) string {
+	if f == nil {
+		return ""
+	}
+	return bmoney(*f, currency)
 }
 
 // addInt adds two integers (used for 1-based day numbering in templates).

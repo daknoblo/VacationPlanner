@@ -110,6 +110,7 @@ func countdownLabel(loc *i18n.Localizer, now, start, end time.Time) string {
 // budgetView is the computed budget breakdown shown on the Budget tab.
 type budgetView struct {
 	HasBudget      bool
+	Currency       string
 	Total          *float64
 	Spent          float64
 	Remaining      float64
@@ -148,8 +149,8 @@ type budgetExpense struct {
 
 // newBudgetView computes the budget breakdown and spending statistics for a
 // vacation from its items. icons maps lower-cased category names to emoji.
-func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string) budgetView {
-	b := budgetView{People: v.People, Nights: v.Nights()}
+func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency string) budgetView {
+	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
 
 	catAmount := map[string]float64{}
 	var catOrder []string
@@ -260,11 +261,13 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	weekStart, tz := s.regionSettings(r.Context())
 	mondayStart := weekStart != "sunday"
 	activities, ideas := overviewLists(loc, tz, v)
+	currency := s.currencySymbol(r.Context())
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
-		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context())),
+		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency),
+		"Currency":        currency,
 		"Categories":      categories,
 		"HomeAddress":     s.homeAddress(r.Context()),
 		"ActivityList":    activities,
@@ -628,7 +631,7 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context())))
+	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context())))
 }
 
 // handleOverviewFragment re-renders the overview activity list.

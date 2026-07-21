@@ -70,7 +70,7 @@
           <input id="m-end" name="end_date" type="date" required data-date-to value="{{dateInput $v.EndDate}}">
         </div>
         <div class="field">
-          <label for="m-budget">{{t "field.budget"}}</label>
+          <label for="m-budget">{{t "field.budget"}} ({{$.Data.Currency}})</label>
           <input id="m-budget" name="budget" type="number" min="0" step="0.01" inputmode="decimal" value="{{coord $v.Budget}}" placeholder="{{t "placeholder.budget"}}">
         </div>
         <div class="field">
@@ -79,7 +79,7 @@
         </div>
         <div class="field field--wide">
           <label for="m-notes">{{t "field.notes"}}</label>
-          <textarea id="m-notes" name="notes" rows="9" maxlength="5000">{{$v.Notes}}</textarea>
+          <textarea id="m-notes" name="notes" rows="9" maxlength="5000" data-notes-sync>{{$v.Notes}}</textarea>
         </div>
         <div class="field field--wide">
           <div id="meta-error" class="form-error"></div>
@@ -113,6 +113,7 @@
            hx-swap="innerHTML">
         {{template "ideas_backlog" .Data.Ideas}}
       </div>
+      <div class="tp-divider" role="separator"></div>
       <div class="tabs" data-tabs data-day-view>
       <div class="tabs__bar" role="tablist">
         <div class="tabs__row tabs__row--days" data-day-tabs>
@@ -199,7 +200,7 @@
                 hx-target="#overview-notes-error"
                 hx-swap="innerHTML">
             <input type="hidden" name="csrf_token" value="{{$csrf}}">
-            <textarea name="notes" rows="10" maxlength="5000" placeholder="{{t "placeholder.notes"}}">{{$v.Notes}}</textarea>
+            <textarea id="ov-notes" name="notes" rows="10" maxlength="5000" placeholder="{{t "placeholder.notes"}}" data-notes-sync>{{$v.Notes}}</textarea>
             <div id="overview-notes-error" class="form-error"></div>
             <p class="muted small">{{t "form.autosave"}}</p>
           </form>
