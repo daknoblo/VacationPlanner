@@ -10,7 +10,7 @@
     {{if .Description}}<p class="small">{{.Description}}</p>{{end}}
     {{if .Reason}}<p class="muted small">💡 {{.Reason}}</p>{{end}}
     <form hx-post="/vacations/{{$.VacationID}}/items"
-          hx-target="#items-list"
+          hx-target="#ideen-list"
           hx-swap="beforeend">
       <input type="hidden" name="title" value="{{.Name}}">
       <input type="hidden" name="category" value="{{.Category}}">

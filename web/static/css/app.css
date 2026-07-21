@@ -359,6 +359,24 @@ code {
 .item-row__desc { margin: 0.35rem 0 0; }
 .item-form { margin-top: 0.5rem; }
 
+/* Overview activity list */
+.activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.activity-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.activity-item:hover { border-color: var(--primary); }
+.activity-item.is-active { border-color: var(--primary); background: #eff6ff; }
+.activity-item.is-nogeo { cursor: default; opacity: 0.7; }
+.activity-item__when { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--primary); font-size: 0.85rem; min-width: 8.5rem; }
+.activity-item__title { flex: 1 1 auto; }
+
 /* Day summary (route diagram) */
 .day-summary-wrap { margin-bottom: 1.25rem; }
 .day-summary-wrap > h3 { margin: 0 0 0.5rem; }

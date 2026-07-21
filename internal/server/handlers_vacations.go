@@ -98,14 +98,52 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 			spent += *it.Cost
 		}
 	}
+	activities, ideas := overviewLists(v)
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
-		"Vacation":    v,
-		"AIEnabled":   s.ai.Enabled(),
-		"Budget":      newBudgetView(v, spent),
-		"Categories":  categories,
-		"HomeAddress": s.homeAddress(r.Context()),
+		"Vacation":     v,
+		"AIEnabled":    s.ai.Enabled(),
+		"Budget":       newBudgetView(v, spent),
+		"Categories":   categories,
+		"HomeAddress":  s.homeAddress(r.Context()),
+		"ActivityList": activities,
+		"Ideas":        ideas,
 	})
+}
+
+// overviewActivity is a scheduled entry shown in the Overview activity list.
+type overviewActivity struct {
+	WhenLabel string
+	Title     string
+	Category  string
+	Latitude  *float64
+	Longitude *float64
+	HasCoords bool
+}
+
+// overviewLists splits items into a chronological activity list (those with a
+// day) and the unscheduled "ideas" bucket. v.Items is already ordered by day
+// then start time, so the activity list comes out chronological.
+func overviewLists(v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
+	for _, it := range v.Items {
+		if it.Day == nil {
+			ideas = append(ideas, it)
+			continue
+		}
+		when := fmtDate(*it.Day)
+		if it.Timed() {
+			when += " · " + it.StartLabel()
+		}
+		activities = append(activities, overviewActivity{
+			WhenLabel: when,
+			Title:     it.Title,
+			Category:  it.Category,
+			Latitude:  it.Latitude,
+			Longitude: it.Longitude,
+			HasCoords: it.HasCoords(),
+		})
+	}
+	return activities, ideas
 }
 
 func (s *Server) handleCreateVacation(w http.ResponseWriter, r *http.Request) {

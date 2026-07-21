@@ -21,13 +21,10 @@
       <button type="button" class="tabs__tab is-active" data-tab="overview">{{t "tab.overview"}}</button>
       <button type="button" class="tabs__tab" data-tab="general">{{t "tab.general"}}</button>
       <button type="button" class="tabs__tab" data-tab="travel">{{t "tab.travel"}}</button>
+      <button type="button" class="tabs__tab" data-tab="tagesplan">{{t "tab.tagesplan"}}</button>
+      <button type="button" class="tabs__tab" data-tab="ideen">{{t "tab.ideen"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
     </div>
-    {{if $v.Days}}
-    <div class="tabs__row tabs__row--days" data-day-tabs>
-      {{template "day_tabs" (dict "Days" $v.Days)}}
-    </div>
-    {{end}}
   </div>
 
   <div id="item-error" class="form-error" role="alert"></div>
@@ -82,7 +79,105 @@
         </div>
       </form>
     </div>
+  </section>
 
+  <section class="tab-panel" data-tab-panel="travel">
+    <div class="panel">
+      <h2>{{t "tab.arrival"}}</h2>
+      <ul id="arrival-list" class="list">
+        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "arrival"}}{{template "travel_item" .}}{{end}}{{end}}
+      </ul>
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list" "Home" $.Data.HomeAddress)}}
+    </div>
+    <div class="panel">
+      <h2>{{t "tab.departure"}}</h2>
+      <ul id="departure-list" class="list">
+        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "departure"}}{{template "travel_item" .}}{{end}}{{end}}
+      </ul>
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list" "Home" $.Data.HomeAddress)}}
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab-panel="tagesplan">
+    {{if $v.Days}}
+    <div class="tabs" data-tabs>
+      <div class="tabs__bar" role="tablist">
+        <div class="tabs__row tabs__row--days" data-day-tabs>
+          {{template "day_tabs" (dict "Days" $v.Days)}}
+        </div>
+      </div>
+      {{range $i, $d := $v.Days}}
+      <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">
+        <div class="panel">
+          <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+
+          <div class="day-summary-wrap">
+            <h3>{{t "day.summary.heading"}}</h3>
+            <div class="day-summary" data-day-summary
+                 hx-get="/vacations/{{$v.ID}}/api/day-summary?day={{dateInput $d}}"
+                 hx-trigger="loadsummary"
+                 hx-target="this" hx-swap="innerHTML">
+              <p class="muted small">{{t "day.summary.loading"}}</p>
+            </div>
+          </div>
+
+          <div class="planner" data-planner>
+            <div class="planner__hours">
+              {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
+            </div>
+            <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid>
+              {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
+            </div>
+          </div>
+
+          <div class="day-items">
+            <h3>{{t "item.section"}}</h3>
+            <ul id="day-list-{{dateInput $d}}" class="list items">
+              {{range $v.Items}}{{if .OnDay $d}}{{template "item_row" .}}{{end}}{{end}}
+            </ul>
+            {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" (dateInput $d) "List" (printf "#day-list-%s" (dateInput $d)) "Timed" true "Placeholder" (printf (t "placeholder.item.example") $v.Destination))}}
+          </div>
+        </div>
+      </section>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="panel"><p class="muted">{{t "tagesplan.nodays"}}</p></div>
+    {{end}}
+  </section>
+
+  <section class="tab-panel is-active" data-tab-panel="overview">
+    <div class="detail">
+      <div class="detail__main">
+        <section class="panel">
+          <h2>{{t "overview.activities"}}</h2>
+          {{if .Data.ActivityList}}
+          <ul id="overview-activities" class="activity-list">
+            {{range .Data.ActivityList}}
+            <li class="activity-item{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
+              <span class="activity-item__when">{{.WhenLabel}}</span>
+              <span class="activity-item__title">{{.Title}}{{if .Category}} <span class="badge">{{.Category}}</span>{{end}}</span>
+            </li>
+            {{end}}
+          </ul>
+          {{else}}
+          <p class="muted">{{t "overview.empty"}}</p>
+          {{end}}
+        </section>
+      </div>
+
+      <aside class="detail__map">
+        <div id="map"
+             data-vacation-id="{{$v.ID}}"
+             data-lat="{{coord $v.Latitude}}"
+             data-lng="{{coord $v.Longitude}}"
+             data-attribution="{{t "map.attribution"}}"></div>
+        <p class="muted small">{{t "overview.map_hint"}}</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab-panel="ideen">
     <section class="panel panel--ai">
       <h2>{{t "section.ai"}}</h2>
       {{if .Data.AIEnabled}}
@@ -108,81 +203,14 @@
       {{end}}
       <div id="ai-results" class="ai-results"></div>
     </section>
-  </section>
-
-  <section class="tab-panel" data-tab-panel="travel">
-    <div class="panel">
-      <h2>{{t "tab.arrival"}}</h2>
-      <ul id="arrival-list" class="list">
-        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "arrival"}}{{template "travel_item" .}}{{end}}{{end}}
+    <section class="panel">
+      <h2>{{t "ideen.heading"}}</h2>
+      <p class="muted small">{{t "ideen.hint"}}</p>
+      <ul id="ideen-list" class="list items">
+        {{range .Data.Ideas}}{{template "item_row" .}}{{end}}
       </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list" "Home" $.Data.HomeAddress)}}
-    </div>
-    <div class="panel">
-      <h2>{{t "tab.departure"}}</h2>
-      <ul id="departure-list" class="list">
-        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "departure"}}{{template "travel_item" .}}{{end}}{{end}}
-      </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list" "Home" $.Data.HomeAddress)}}
-    </div>
-  </section>
-
-  {{range $i, $d := $v.Days}}
-  <section class="tab-panel" data-tab-panel="day-{{$i}}">
-    <div class="panel">
-      <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
-
-      <div class="day-summary-wrap">
-        <h3>{{t "day.summary.heading"}}</h3>
-        <div class="day-summary" data-day-summary
-             hx-get="/vacations/{{$v.ID}}/api/day-summary?day={{dateInput $d}}"
-             hx-trigger="loadsummary"
-             hx-target="this" hx-swap="innerHTML">
-          <p class="muted small">{{t "day.summary.loading"}}</p>
-        </div>
-      </div>
-
-      <div class="planner" data-planner>
-        <div class="planner__hours">
-          {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
-        </div>
-        <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid>
-          {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
-        </div>
-      </div>
-
-      <div class="day-items">
-        <h3>{{t "item.section"}}</h3>
-        <ul id="day-list-{{dateInput $d}}" class="list items">
-          {{range $v.Items}}{{if .OnDay $d}}{{template "item_row" .}}{{end}}{{end}}
-        </ul>
-        {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" (dateInput $d) "List" (printf "#day-list-%s" (dateInput $d)) "Timed" true)}}
-      </div>
-    </div>
-  </section>
-  {{end}}
-
-  <section class="tab-panel is-active" data-tab-panel="overview">
-    <div class="detail">
-      <div class="detail__main">
-        <section class="panel">
-          <h2>{{t "item.section"}}</h2>
-          <ul id="items-list" class="list items">
-            {{range $v.Items}}{{template "item_row" .}}{{end}}
-          </ul>
-          {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" "" "List" "#items-list" "Timed" false)}}
-        </section>
-      </div>
-
-      <aside class="detail__map">
-        <div id="map"
-             data-vacation-id="{{$v.ID}}"
-             data-lat="{{coord $v.Latitude}}"
-             data-lng="{{coord $v.Longitude}}"
-             data-attribution="{{t "map.attribution"}}"></div>
-        <p class="muted small">{{t "map.tip"}}</p>
-      </aside>
-    </div>
+      {{template "item_form" (dict "V" $v "CSRF" $csrf "Cats" $.Data.Categories "Day" "" "List" "#ideen-list" "Timed" false "Placeholder" (printf (t "placeholder.item.example") $v.Destination))}}
+    </section>
   </section>
 
   <section class="tab-panel" data-tab-panel="budget">
