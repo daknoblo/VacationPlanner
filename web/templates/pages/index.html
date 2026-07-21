@@ -5,7 +5,7 @@
 </section>
 
 <section class="panel">
-  <details class="new-vacation" {{if not .Data.Vacations}}open{{end}}>
+  <details class="new-vacation" {{if not .Data.Cards}}open{{end}}>
     <summary class="btn btn--primary">{{t "index.new"}}</summary>
     <form class="form grid"
           hx-post="/vacations"
@@ -57,9 +57,9 @@
   </details>
 </section>
 
-{{if .Data.Vacations}}
+{{if .Data.Cards}}
 <section class="cards">
-  {{range .Data.Vacations}}{{template "vacation_card" .}}{{end}}
+  {{range .Data.Cards}}{{template "vacation_card" .}}{{end}}
 </section>
 {{else}}
 <section class="empty">

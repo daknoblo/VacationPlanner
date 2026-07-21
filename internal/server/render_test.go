@@ -64,8 +64,8 @@ func TestRenderPages(t *testing.T) {
 	v := sampleVacation()
 
 	loc := i18n.NewLocalizer(i18n.LangEN)
-	arrivalEditor := travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DepartDate: "2026-08-01", DepartTime: "09:30", DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}
-	departureEditor := travelEditorView{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String(), DepartDate: "2026-08-10"}
+	arrivalEditor := travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, DepartDate: "2026-08-01", DepartTime: "09:30", DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}}}
+	departureEditor := travelBlockView{Kind: models.TravelDeparture, VID: v.ID.String(), Steps: []travelEditorView{{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String(), Kind: models.TravelDeparture, Number: 1, StepOrder: 0, DepartDate: "2026-08-10"}}}
 	calTravel := map[string][]calTravelBlock{"2026-08-01": {{StartMin: 570, EndMin: 720, Title: "Arrival · BER → LIS", Label: "09:30–12:00"}}}
 	weekCal := buildWeekCalendar(loc, time.UTC, true, v)
 	weekHeaders := calWeekdayHeaders(loc, true)
@@ -102,10 +102,12 @@ func TestRenderFragments(t *testing.T) {
 		name string
 		data any
 	}{
-		{"vacation_card", v},
+		{"vacation_card", dashboardCard{Vacation: *v, HasBudget: true, Percent: 42, Countdown: "in 17 days"}},
 		{"item_row", v.Items[0]},
 		{"travel_item", v.TravelSegments[0]},
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
+		{"travel_step", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, Multi: true, Home: "Hamburg"}},
+		{"travel_block", travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Multi: true, Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, Multi: true}}}},
 		{"detail_head", map[string]any{"V": v, "OOB": true}},
 		{"budget_panel", newBudgetView(v, v.Items, nil)},
 		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Weekday: "Saturday", Title: "Test", Category: "POI"}}},

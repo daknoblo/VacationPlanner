@@ -247,10 +247,10 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO travel_segments
-			(id, vacation_id, kind, mode, from_location, to_location, from_lat, from_lng,
+			(id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
 			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.VacationID, string(t.Kind), t.Mode, t.FromLocation, t.ToLocation,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.VacationID, string(t.Kind), t.StepOrder, t.Mode, t.FromLocation, t.ToLocation,
 		t.FromLat, t.FromLng, t.ToLat, t.ToLng, dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt),
 		t.DistanceM, t.DurationS, t.Notes, dbTime(t.CreatedAt))
 	if err != nil {
@@ -259,13 +259,14 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 	return nil
 }
 
-// UpsertTravelSegment keeps a single segment per (vacation, kind): it updates the
-// existing arrival/departure row in place when present, otherwise inserts a new one.
+// UpsertTravelSegment keeps a single row per (vacation, kind, step_order): it
+// updates the matching leg in place when present, otherwise inserts a new one.
+// This lets a step editor auto-save without carrying a fragile row id.
 func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error {
 	var existingID uuid.UUID
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id FROM travel_segments WHERE vacation_id = ? AND kind = ? ORDER BY created_at ASC LIMIT 1`,
-		t.VacationID, string(t.Kind))
+		`SELECT id FROM travel_segments WHERE vacation_id = ? AND kind = ? AND step_order = ? ORDER BY created_at ASC LIMIT 1`,
+		t.VacationID, string(t.Kind), t.StepOrder)
 	err := row.Scan(&existingID)
 	switch {
 	case err == nil:
@@ -291,9 +292,9 @@ func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegmen
 
 func (s *SQLite) ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, kind, mode, from_location, to_location, from_lat, from_lng,
+		SELECT id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
 		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at
-		FROM travel_segments WHERE vacation_id = ? ORDER BY kind ASC, created_at ASC`, vacationID)
+		FROM travel_segments WHERE vacation_id = ? ORDER BY kind ASC, step_order ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing travel segments: %w", err)
 	}
@@ -499,7 +500,7 @@ func scanItem(sc rowScanner, it *models.Item) error {
 func scanTravel(sc rowScanner, t *models.TravelSegment) error {
 	var kind, created string
 	var depart, arrive sql.NullString
-	if err := sc.Scan(&t.ID, &t.VacationID, &kind, &t.Mode, &t.FromLocation,
+	if err := sc.Scan(&t.ID, &t.VacationID, &kind, &t.StepOrder, &t.Mode, &t.FromLocation,
 		&t.ToLocation, &t.FromLat, &t.FromLng, &t.ToLat, &t.ToLng, &depart, &arrive,
 		&t.DistanceM, &t.DurationS, &t.Notes, &created); err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,10 +15,23 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
-// travelEditorView is the data for one inline arrival/departure editor.
+// travelBlockView is one kind's full multi-stop editor: the multi-stop toggle
+// plus the ordered list of step editors.
+type travelBlockView struct {
+	Kind  models.TravelKind
+	VID   string
+	Multi bool
+	Steps []travelEditorView
+}
+
+// travelEditorView is the data for one inline arrival/departure step editor.
 type travelEditorView struct {
 	Seg         *models.TravelSegment
 	VID         string
+	Kind        models.TravelKind
+	Number      int  // 1-based position shown to the user
+	StepOrder   int  // stable key within the kind
+	Multi       bool // block has more than one step (shows connectors + remove)
 	Home        string
 	DepartDate  string // date input value (YYYY-MM-DD), defaulted to the trip start/end
 	DepartTime  string // time input value (HH:MM), empty until the user sets it
@@ -27,15 +41,50 @@ type travelEditorView struct {
 	Approx      bool   // duration is a straight-line estimate (not routed)
 }
 
-// newTravelEditorView builds the editor view for a segment, formatting the
-// computed distance, duration and arrival, and defaulting the departure date to
-// the trip's start (arrival) or end (departure) when none is set yet.
-func (s *Server) newTravelEditorView(ctx context.Context, tz *time.Location, v *models.Vacation, seg *models.TravelSegment, approx bool) travelEditorView {
+// stepsForKind returns the vacation's travel legs of a kind, ordered by step_order.
+func stepsForKind(v *models.Vacation, kind models.TravelKind) []models.TravelSegment {
+	var out []models.TravelSegment
+	for _, ts := range v.TravelSegments {
+		if ts.Kind == kind {
+			out = append(out, ts)
+		}
+	}
+	return out
+}
+
+// travelBlock builds the multi-stop editor for one kind. When no leg exists yet
+// it renders a single blank step pre-filled with sensible endpoint defaults.
+func (s *Server) travelBlock(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelBlockView {
+	steps := stepsForKind(v, kind)
+	multi := len(steps) > 1
+	bv := travelBlockView{Kind: kind, VID: v.ID.String(), Multi: multi}
+	if len(steps) == 0 {
+		seg := emptyTravelSegment(v.ID, kind)
+		s.applyEndpointDefaults(ctx, v, seg)
+		bv.Steps = []travelEditorView{s.newTravelStepView(ctx, tz, v, seg, 1, multi)}
+		return bv
+	}
+	for i := range steps {
+		clone := steps[i]
+		bv.Steps = append(bv.Steps, s.newTravelStepView(ctx, tz, v, &clone, i+1, multi))
+	}
+	return bv
+}
+
+// newTravelStepView builds the view for one step, formatting the computed
+// distance, duration and arrival and defaulting the departure date to the trip's
+// start (arrival) or end (departure) when none is set yet.
+func (s *Server) newTravelStepView(ctx context.Context, tz *time.Location, v *models.Vacation, seg *models.TravelSegment, number int, multi bool) travelEditorView {
+	_, routed := routeProfileForMode(seg.Mode)
 	ev := travelEditorView{
-		Seg:    seg,
-		VID:    seg.VacationID.String(),
-		Home:   s.homeAddress(ctx),
-		Approx: approx,
+		Seg:       seg,
+		VID:       seg.VacationID.String(),
+		Kind:      seg.Kind,
+		Number:    number,
+		StepOrder: seg.StepOrder,
+		Multi:     multi,
+		Home:      s.homeAddress(ctx),
+		Approx:    !routed || !s.routing.Enabled(),
 	}
 	if seg.DistanceM != nil {
 		ev.DistLabel = formatDistance(*seg.DistanceM)
@@ -60,10 +109,18 @@ func (s *Server) newTravelEditorView(ctx context.Context, tz *time.Location, v *
 	return ev
 }
 
-// emptyTravelSegment returns a blank segment for a kind so the editor can render
-// when no arrival/departure has been saved yet.
+// emptyTravelSegment returns a blank first-step segment for a kind so the editor
+// can render when no arrival/departure has been saved yet.
 func emptyTravelSegment(vacationID uuid.UUID, kind models.TravelKind) *models.TravelSegment {
 	return &models.TravelSegment{VacationID: vacationID, Kind: kind}
+}
+
+// formInt reads an optional non-negative integer form value.
+func formInt(r *http.Request, name string, def int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(formStr(r, name))); err == nil && n >= 0 {
+		return n
+	}
+	return def
 }
 
 func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +147,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	errTarget := "#travel-error-" + string(kind)
+	stepOrder := formInt(r, "step_order", 0)
 	mode := formStr(r, "mode")
 	from := formStr(r, "from_location")
 	to := formStr(r, "to_location")
@@ -109,6 +167,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 	seg := &models.TravelSegment{
 		VacationID:   vacationID,
 		Kind:         kind,
+		StepOrder:    stepOrder,
 		Mode:         mode,
 		FromLocation: from,
 		ToLocation:   to,
@@ -119,19 +178,151 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		DepartAt:     departAt,
 		Notes:        notes,
 	}
-	approx := s.computeTravel(r.Context(), seg)
+	s.computeTravel(r.Context(), seg)
 	if err := s.store.UpsertTravelSegment(r.Context(), seg); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 
-	s.fragment(w, r, "travel_out", s.newTravelEditorView(r.Context(), tz, v, seg, approx))
+	s.fragment(w, r, "travel_out", s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false))
+}
+
+// handleAddTravelStep appends an empty leg to a kind and re-renders its block.
+func (s *Server) handleAddTravelStep(w http.ResponseWriter, r *http.Request) {
+	vacationID, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	kind := models.TravelKind(r.URL.Query().Get("kind"))
+	if !kind.Valid() {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.loadVacationFull(r.Context(), vacationID)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.appendTravelStep(r.Context(), v, kind); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderTravelBlock(w, r, vacationID, kind)
+}
+
+// appendTravelStep creates a new leg after the last one, chaining its start
+// point from the previous leg's destination.
+func (s *Server) appendTravelStep(ctx context.Context, v *models.Vacation, kind models.TravelKind) error {
+	steps := stepsForKind(v, kind)
+	seg := &models.TravelSegment{VacationID: v.ID, Kind: kind}
+	if len(steps) > 0 {
+		last := steps[len(steps)-1]
+		seg.StepOrder = last.StepOrder + 1
+		seg.FromLocation, seg.FromLat, seg.FromLng = last.ToLocation, last.ToLat, last.ToLng
+	}
+	return s.store.CreateTravelSegment(ctx, seg)
+}
+
+// handleToggleTravelMulti enables or disables multi-stop for a kind. Enabling
+// ensures a first leg exists and adds a second; disabling drops the extra legs.
+func (s *Server) handleToggleTravelMulti(w http.ResponseWriter, r *http.Request) {
+	vacationID, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	kind := models.TravelKind(r.URL.Query().Get("kind"))
+	if !kind.Valid() {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.loadVacationFull(r.Context(), vacationID)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	steps := stepsForKind(v, kind)
+	// Toggle based on the current server state so the result never depends on
+	// how the browser serialises the (un)checked box.
+	enable := len(steps) <= 1
+	if enable {
+		if len(steps) == 0 {
+			seg0 := emptyTravelSegment(vacationID, kind)
+			s.applyEndpointDefaults(r.Context(), v, seg0)
+			s.computeTravel(r.Context(), seg0)
+			if err := s.store.CreateTravelSegment(r.Context(), seg0); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			if v, err = s.loadVacationFull(r.Context(), vacationID); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+		}
+		if err := s.appendTravelStep(r.Context(), v, kind); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	} else {
+		for i := 1; i < len(steps); i++ {
+			if err := s.store.DeleteTravelSegment(r.Context(), steps[i].ID); err != nil && !isNotFound(err) {
+				s.serverError(w, r, err)
+				return
+			}
+		}
+	}
+	s.renderTravelBlock(w, r, vacationID, kind)
+}
+
+// handleRemoveTravelStep deletes one leg and re-renders the kind's block.
+func (s *Server) handleRemoveTravelStep(w http.ResponseWriter, r *http.Request) {
+	vacationID, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	travelID, err := urlUUID(r, "travelID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	kind := models.TravelKind(r.URL.Query().Get("kind"))
+	if !kind.Valid() {
+		s.notFound(w, r)
+		return
+	}
+	if err := s.store.DeleteTravelSegment(r.Context(), travelID); err != nil && !isNotFound(err) {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderTravelBlock(w, r, vacationID, kind)
+}
+
+// renderTravelBlock reloads the vacation and renders one kind's editor block.
+func (s *Server) renderTravelBlock(w http.ResponseWriter, r *http.Request, vacationID uuid.UUID, kind models.TravelKind) {
+	v, err := s.loadVacationFull(r.Context(), vacationID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	_, tz := s.regionSettings(r.Context())
+	s.fragment(w, r, "travel_block", s.travelBlock(r.Context(), tz, v, kind))
 }
 
 // computeTravel resolves the segment endpoints (geocoding free text when no
 // coordinates were supplied) and fills distance, duration and the auto-computed
-// arrival time. It reports whether the duration is a straight-line estimate.
-func (s *Server) computeTravel(ctx context.Context, seg *models.TravelSegment) (approx bool) {
+// arrival time. Whether the duration is a straight-line estimate is derived
+// separately from the mode when building the step view.
+func (s *Server) computeTravel(ctx context.Context, seg *models.TravelSegment) {
 	from := s.resolvePoint(ctx, seg.FromLat, seg.FromLng, seg.FromLocation)
 	to := s.resolvePoint(ctx, seg.ToLat, seg.ToLng, seg.ToLocation)
 	if from != nil {
@@ -142,14 +333,13 @@ func (s *Server) computeTravel(ctx context.Context, seg *models.TravelSegment) (
 	}
 	seg.DistanceM, seg.DurationS = nil, nil
 	if from == nil || to == nil {
-		return false
+		return
 	}
 
 	var distM, durS float64
-	approx = true
 	if profile, ok := routeProfileForMode(seg.Mode); ok && s.routing.Enabled() {
 		if res, rerr := s.routing.Route(ctx, s.routeBaseURL(ctx), profile, []route.Point{*from, *to}); rerr == nil {
-			distM, durS, approx = res.TotalDistanceM, res.TotalDurationS, false
+			distM, durS = res.TotalDistanceM, res.TotalDurationS
 		} else {
 			s.log.Warn("travel route failed", "err", rerr)
 		}
@@ -165,7 +355,6 @@ func (s *Server) computeTravel(ctx context.Context, seg *models.TravelSegment) (
 		arr := seg.DepartAt.Add(time.Duration(d) * time.Second)
 		seg.ArriveAt = &arr
 	}
-	return approx
 }
 
 // resolvePoint returns coordinates for an endpoint, preferring the supplied

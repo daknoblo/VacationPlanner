@@ -3,9 +3,12 @@
   <a class="card__body" href="/vacations/{{.ID}}">
     <img class="card__img" src="/api/destination-image?q={{.Destination}}" alt="" loading="lazy" width="400" height="160">
     <div class="card__content">
-      <h3>{{.Title}}</h3>
+      <div class="card__head">
+        <h3>{{.Title}}</h3>
+        {{if .HasBudget}}{{template "budget_pie" .}}{{end}}
+      </div>
       <p class="muted card__dest">{{.Destination}}</p>
-      <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</p>
+      <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}{{if .Countdown}} <span class="card__countdown">· {{.Countdown}}</span>{{end}}</p>
       <div class="card__badges">
         <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
         <span class="badge">{{.People}} {{t "field.people"}}</span>
@@ -18,4 +21,15 @@
           title="{{t "action.delete"}}"
           aria-label="{{t "action.delete"}}">✕</button>
 </article>
+{{end}}
+
+{{define "budget_pie"}}
+<span class="budget-pie{{if .Over}} is-over{{end}}" title="{{t "budget.spent"}}: {{moneyF .Spent}} / {{money .Budget}} ({{.Percent}}%)">
+  <svg viewBox="0 0 36 36" width="42" height="42" aria-hidden="true">
+    <circle class="budget-pie__bg" cx="18" cy="18" r="15.915" fill="none" stroke-width="3.6"></circle>
+    <circle class="budget-pie__fg" cx="18" cy="18" r="15.915" fill="none" stroke-width="3.6"
+            stroke-dasharray="{{.Percent}} {{sub 100 .Percent}}" stroke-dashoffset="25"></circle>
+    <text class="budget-pie__pct" x="18" y="18" text-anchor="middle" dominant-baseline="central">{{.Percent}}%</text>
+  </svg>
+</span>
 {{end}}

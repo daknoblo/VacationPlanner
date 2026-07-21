@@ -1,68 +1,102 @@
-{{define "travel_editor"}}
-<form class="form grid travel-editor" data-travel-editor
+{{define "travel_block"}}
+<div id="travel-block-{{.Kind}}" class="travel-block{{if .Multi}} is-multi{{end}}">
+  <label class="travel-multistop">
+    <input type="checkbox" name="on" value="1"{{if .Multi}} checked{{end}}
+           hx-post="/vacations/{{.VID}}/travel/multistop?kind={{.Kind}}"
+           hx-target="#travel-block-{{.Kind}}"
+           hx-swap="outerHTML">
+    <span>{{t "travel.multistop"}}</span>
+  </label>
+  <div class="travel-steps">
+    {{range .Steps}}{{template "travel_step" .}}{{end}}
+  </div>
+  {{if .Multi}}
+  <button type="button" class="btn btn--sm travel-addstep"
+          hx-post="/vacations/{{.VID}}/travel/step?kind={{.Kind}}"
+          hx-target="#travel-block-{{.Kind}}"
+          hx-swap="outerHTML">＋ {{t "travel.add_step"}}</button>
+  {{end}}
+  <div id="travel-error-{{.Kind}}" class="form-error"></div>
+</div>
+{{end}}
+
+{{define "travel_step"}}
+<form class="form travel-step" data-travel-editor
       hx-post="/vacations/{{.VID}}/travel"
       hx-trigger="change delay:300ms"
-      hx-target="#travel-out-{{.Seg.Kind}}"
+      hx-target="#travel-out-{{.Kind}}-{{.StepOrder}}"
       hx-swap="innerHTML">
-  <input type="hidden" name="kind" value="{{.Seg.Kind}}">
+  <input type="hidden" name="kind" value="{{.Kind}}">
+  <input type="hidden" name="step_order" value="{{.StepOrder}}">
   <input type="hidden" name="from_lat" value="{{coord .Seg.FromLat}}">
   <input type="hidden" name="from_lng" value="{{coord .Seg.FromLng}}">
   <input type="hidden" name="to_lat" value="{{coord .Seg.ToLat}}">
   <input type="hidden" name="to_lng" value="{{coord .Seg.ToLng}}">
 
-  <div class="field">
-    <label>{{t "travel.from"}}</label>
-    <div class="location-picker__field">
-      <input name="from_location" maxlength="200" autocomplete="off" value="{{.Seg.FromLocation}}"
-             data-geo-lite data-geo-lat="from_lat" data-geo-lng="from_lng"
-             placeholder="{{t "placeholder.travel.from"}}">
-      <div class="suggest" data-geo-lite-list hidden></div>
+  {{if .Multi}}<span class="travel-step__badge" aria-hidden="true">{{.Number}}</span>{{end}}
+
+  <div class="travel-step__grid">
+    <div class="field field--from">
+      <label>{{t "travel.from"}}</label>
+      <div class="location-picker__field">
+        <input name="from_location" maxlength="200" autocomplete="off" value="{{.Seg.FromLocation}}"
+               data-geo-lite data-geo-lat="from_lat" data-geo-lng="from_lng"
+               placeholder="{{t "placeholder.travel.from"}}">
+        <div class="suggest" data-geo-lite-list hidden></div>
+      </div>
+      {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="from_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
     </div>
-    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="from_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
-  </div>
 
-  <div class="field">
-    <label>{{t "travel.to"}}</label>
-    <div class="location-picker__field">
-      <input name="to_location" maxlength="200" autocomplete="off" value="{{.Seg.ToLocation}}"
-             data-geo-lite data-geo-lat="to_lat" data-geo-lng="to_lng"
-             placeholder="{{t "placeholder.travel.to"}}">
-      <div class="suggest" data-geo-lite-list hidden></div>
+    <div class="field field--to">
+      <label>{{t "travel.to"}}</label>
+      <div class="location-picker__field">
+        <input name="to_location" maxlength="200" autocomplete="off" value="{{.Seg.ToLocation}}"
+               data-geo-lite data-geo-lat="to_lat" data-geo-lng="to_lng"
+               placeholder="{{t "placeholder.travel.to"}}">
+        <div class="suggest" data-geo-lite-list hidden></div>
+      </div>
+      {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="to_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
     </div>
-    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="to_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
-  </div>
 
-  <div class="field">
-    <label>{{t "travel.mode"}}</label>
-    <select name="mode">
-      <option value=""{{if eq .Seg.Mode ""}} selected{{end}}>–</option>
-      <option value="flight"{{if eq .Seg.Mode "flight"}} selected{{end}}>{{t "travel.mode.flight"}}</option>
-      <option value="train"{{if eq .Seg.Mode "train"}} selected{{end}}>{{t "travel.mode.train"}}</option>
-      <option value="car"{{if eq .Seg.Mode "car"}} selected{{end}}>{{t "travel.mode.car"}}</option>
-      <option value="bus"{{if eq .Seg.Mode "bus"}} selected{{end}}>{{t "travel.mode.bus"}}</option>
-      <option value="ferry"{{if eq .Seg.Mode "ferry"}} selected{{end}}>{{t "travel.mode.ferry"}}</option>
-    </select>
-  </div>
+    <div class="field field--mode">
+      <label>{{t "travel.mode"}}</label>
+      <select name="mode">
+        <option value=""{{if eq .Seg.Mode ""}} selected{{end}}>–</option>
+        <option value="flight"{{if eq .Seg.Mode "flight"}} selected{{end}}>{{t "travel.mode.flight"}}</option>
+        <option value="train"{{if eq .Seg.Mode "train"}} selected{{end}}>{{t "travel.mode.train"}}</option>
+        <option value="car"{{if eq .Seg.Mode "car"}} selected{{end}}>{{t "travel.mode.car"}}</option>
+        <option value="bus"{{if eq .Seg.Mode "bus"}} selected{{end}}>{{t "travel.mode.bus"}}</option>
+        <option value="ferry"{{if eq .Seg.Mode "ferry"}} selected{{end}}>{{t "travel.mode.ferry"}}</option>
+      </select>
+    </div>
 
-  <div class="field">
-    <label>{{t "travel.depart"}}</label>
-    <div class="travel-when">
-      <input name="depart_date" type="date" value="{{.DepartDate}}" aria-label="{{t "travel.depart"}}">
-      <input name="depart_time" type="time" value="{{.DepartTime}}" aria-label="{{t "travel.time"}}">
+    <div class="field field--when">
+      <label>{{t "travel.depart"}}</label>
+      <div class="travel-when">
+        <input name="depart_date" type="date" value="{{.DepartDate}}" aria-label="{{t "travel.depart"}}">
+        <input name="depart_time" type="time" value="{{.DepartTime}}" aria-label="{{t "travel.time"}}">
+      </div>
+    </div>
+
+    <div class="field field--out">
+      <label>{{t "travel.distance"}}</label>
+      <div id="travel-out-{{.Kind}}-{{.StepOrder}}" class="travel-out">{{template "travel_out" .}}</div>
+    </div>
+
+    <div class="field field--note">
+      <label>{{t "travel.note"}}</label>
+      <input name="notes" maxlength="2000" value="{{.Seg.Notes}}" placeholder="{{t "placeholder.travel.note"}}">
     </div>
   </div>
 
-  <div class="field field--wide">
-    <label>{{t "travel.distance"}}</label>
-    <div id="travel-out-{{.Seg.Kind}}" class="travel-out">{{template "travel_out" .}}</div>
-  </div>
-
-  <div class="field field--wide">
-    <label>{{t "travel.note"}}</label>
-    <input name="notes" maxlength="2000" value="{{.Seg.Notes}}" placeholder="{{t "placeholder.travel.note"}}">
-  </div>
-
-  <div id="travel-error-{{.Seg.Kind}}" class="form-error field--wide"></div>
+  {{if .Multi}}
+  <button type="button" class="travel-step__remove"
+          title="{{t "travel.remove_step"}}" aria-label="{{t "travel.remove_step"}}"
+          hx-delete="/vacations/{{.VID}}/travel/{{.Seg.ID}}?kind={{.Kind}}"
+          hx-target="#travel-block-{{.Kind}}"
+          hx-swap="outerHTML"
+          hx-confirm="{{t "travel.remove_step_confirm"}}">✕</button>
+  {{end}}
 </form>
 {{end}}
 

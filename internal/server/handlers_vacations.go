@@ -14,15 +14,97 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
+// dashboardCard augments a vacation with the computed figures shown on its
+// dashboard card: the planned spend (for the budget pie) and a countdown label.
+type dashboardCard struct {
+	models.Vacation
+	Spent     float64
+	HasBudget bool
+	Percent   int
+	Over      bool
+	Countdown string
+}
+
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	vacations, err := s.store.ListVacations(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.page(w, r, "index", i18n.FromContext(r.Context()).T("page.vacations.title"), map[string]any{
-		"Vacations": vacations,
+	loc := i18n.FromContext(r.Context())
+	_, tz := s.regionSettings(r.Context())
+	now := time.Now().In(tz)
+
+	cards := make([]dashboardCard, 0, len(vacations))
+	for i := range vacations {
+		v := vacations[i]
+		card := dashboardCard{Vacation: v}
+		items, ierr := s.store.ListItems(r.Context(), v.ID)
+		if ierr != nil {
+			s.serverError(w, r, ierr)
+			return
+		}
+		for _, it := range items {
+			if it.Cost != nil {
+				card.Spent += *it.Cost
+			}
+		}
+		if v.Budget != nil && *v.Budget > 0 {
+			card.HasBudget = true
+			card.Over = card.Spent > *v.Budget
+			pct := int(math.Round(card.Spent / *v.Budget * 100))
+			if pct < 0 {
+				pct = 0
+			}
+			if pct > 100 {
+				pct = 100
+			}
+			card.Percent = pct
+		}
+		card.Countdown = countdownLabel(loc, now, v.StartDate, v.EndDate)
+		cards = append(cards, card)
+	}
+
+	s.page(w, r, "index", loc.T("page.vacations.title"), map[string]any{
+		"Cards": cards,
 	})
+}
+
+// countdownLabel returns a short human label for the time until the trip starts,
+// e.g. "in 17 days" or "in 2½ months"; once it has begun or ended it reports the
+// trip as ongoing or past.
+func countdownLabel(loc *i18n.Localizer, now, start, end time.Time) string {
+	dateOnly := func(t time.Time) time.Time {
+		y, m, d := t.Date()
+		return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	}
+	today := dateOnly(now)
+	s := dateOnly(start)
+	e := dateOnly(end)
+	switch {
+	case today.After(e):
+		return loc.T("countdown.past")
+	case !today.Before(s):
+		return loc.T("countdown.ongoing")
+	}
+	days := int(math.Round(s.Sub(today).Hours() / 24))
+	switch {
+	case days <= 0:
+		return loc.T("countdown.ongoing")
+	case days == 1:
+		return loc.T("countdown.tomorrow")
+	case days < 45:
+		return loc.T("countdown.in_days", days)
+	default:
+		months := float64(days) / 30.436875
+		half := math.Round(months*2) / 2
+		whole := int(half)
+		label := strconv.Itoa(whole)
+		if half-float64(whole) >= 0.25 {
+			label += "½"
+		}
+		return loc.T("countdown.in_months", label)
+	}
 }
 
 // budgetView is the computed budget breakdown shown on the Budget tab.
@@ -191,24 +273,9 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),
 		"HourRows":        calHourRows(),
-		"ArrivalTravel":   s.travelEditor(r.Context(), tz, v, models.TravelArrival),
-		"DepartureTravel": s.travelEditor(r.Context(), tz, v, models.TravelDeparture),
+		"ArrivalTravel":   s.travelBlock(r.Context(), tz, v, models.TravelArrival),
+		"DepartureTravel": s.travelBlock(r.Context(), tz, v, models.TravelDeparture),
 	})
-}
-
-// travelEditor builds the inline editor view for one travel kind, pre-filling
-// sensible endpoints when a location is still empty: the arrival goes
-// home → destination, and the departure mirrors the arrival in reverse
-// (destination → home when no arrival is defined yet).
-func (s *Server) travelEditor(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelEditorView {
-	seg := emptyTravelSegment(v.ID, kind)
-	if found := findTravelSegment(v, kind); found != nil {
-		clone := *found
-		seg = &clone
-	}
-	s.applyEndpointDefaults(ctx, v, seg)
-	_, routed := routeProfileForMode(seg.Mode)
-	return s.newTravelEditorView(ctx, tz, v, seg, !routed || !s.routing.Enabled())
 }
 
 // findTravelSegment returns the vacation's segment of the given kind, or nil.
@@ -714,6 +781,37 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 	}
 	hxTrigger(w, events)
 	s.fragment(w, r, "detail_head", map[string]any{"V": updated, "OOB": true})
+}
+
+// handleUpdateNotes saves just the trip notes (used by the quick notes editor on
+// the overview tab) without touching the other trip fields.
+func (s *Server) handleUpdateNotes(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+	notes := formStr(r, "notes")
+	if !maxLen(notes, 5000) {
+		s.formError(w, r, "#overview-notes-error", loc.T("error.notes_toolong"))
+		return
+	}
+	v.Notes = notes
+	if err := s.store.UpdateVacation(r.Context(), v); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleDeleteVacation(w http.ResponseWriter, r *http.Request) {

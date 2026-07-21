@@ -80,6 +80,7 @@ type TravelSegment struct {
 	ID           uuid.UUID
 	VacationID   uuid.UUID
 	Kind         TravelKind
+	StepOrder    int    // position within a multi-stop arrival/departure (0-based)
 	Mode         string // e.g. flight, train, car, ferry
 	FromLocation string
 	ToLocation   string

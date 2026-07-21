@@ -683,6 +683,11 @@ code {
   .detail__map { position: sticky; top: 90px; }
 }
 
+/* Overview quick notes (under the map) */
+.overview-notes { margin-top: 1rem; }
+.overview-notes h3 { margin: 0 0 0.5rem; }
+.overview-notes textarea { min-height: 11rem; }
+
 /* Map */
 #map {
   height: 460px;
@@ -703,22 +708,60 @@ code {
 .field--wide { grid-column: 1 / -1; }
 .field.row { flex-direction: row; align-items: center; gap: 0.75rem; }
 
-/* Travel editor (inline auto-save arrival/departure) */
+/* Travel editor (inline auto-save arrival/departure, multi-stop) */
+.travel-multistop { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; font-weight: 600; cursor: pointer; }
+.travel-multistop input { width: auto; }
+.travel-steps { display: flex; flex-direction: column; }
+.travel-step { position: relative; }
+.travel-step__grid { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: flex-end; }
+.travel-step__grid .field { flex: 1 1 150px; min-width: 0; }
+.travel-step__grid .field--mode { flex: 1 1 115px; }
+.travel-step__grid .field--when { flex: 1 1 210px; }
+.travel-step__grid .field--out { flex: 2 1 200px; }
+.travel-step__grid .field--note { flex: 1 1 100%; }
 .travel-computed {
   margin: 0;
   padding: 0.6rem 0.7rem;
   border: 1px dashed var(--line);
   border-radius: 10px;
   background: #f8fafc;
-  min-height: 2.7rem;
+  min-height: 2.6rem;
   display: flex;
   align-items: center;
   font-variant-numeric: tabular-nums;
 }
-.travel-editor input[readonly] { background: #f8fafc; color: #475569; }
-.travel-when { display: flex; gap: 0.5rem; }
-.travel-when input[type="date"] { flex: 1 1 60%; }
-.travel-when input[type="time"] { flex: 1 1 40%; }
+.travel-when { display: flex; gap: 0.4rem; }
+.travel-when input[type="date"] { flex: 1 1 58%; }
+.travel-when input[type="time"] { flex: 1 1 42%; }
+
+/* Multi-stop: a connected block of numbered legs */
+.travel-block.is-multi .travel-step {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 0.95rem 2.7rem;
+}
+.travel-block.is-multi .travel-step + .travel-step { border-top: none; }
+.travel-block.is-multi .travel-step:first-child { border-radius: 12px 12px 0 0; }
+.travel-block.is-multi .travel-step:last-child { border-radius: 0 0 12px 12px; }
+.travel-step__badge {
+  position: absolute; left: 0.7rem; top: 1.85rem;
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--primary); color: #fff; font-size: 0.78rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; z-index: 1;
+}
+.travel-block.is-multi .travel-step::before {
+  content: ""; position: absolute; left: calc(0.7rem + 0.75rem - 1px);
+  top: 0; bottom: 0; width: 2px; background: var(--line);
+}
+.travel-block.is-multi .travel-step:first-child::before { top: 2.6rem; }
+.travel-block.is-multi .travel-step:last-child::before { bottom: auto; top: 0; height: 2.6rem; }
+.travel-step__remove {
+  position: absolute; top: 0.6rem; right: 0.6rem;
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 0.9rem; line-height: 1; padding: 0.2rem 0.4rem; border-radius: 6px;
+}
+.travel-step__remove:hover { background: #fef2f2; color: var(--danger); }
+.travel-addstep { margin-top: 0.8rem; }
 label { font-size: 0.85rem; font-weight: 600; color: #334155; }
 input, textarea, select {
   font: inherit;
@@ -788,9 +831,18 @@ textarea { resize: vertical; }
 }
 .card__content { display: flex; flex-direction: column; flex: 1 1 auto; padding: 1.1rem; }
 .card__content h3 { margin: 0 0 0.35rem; }
+.card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.35rem; }
+.card__head h3 { margin: 0; flex: 1 1 auto; min-width: 0; }
 .card__dest { margin: 0 0 0.5rem; }
 .card__dates { margin-top: auto; margin-bottom: 0; font-weight: 600; }
+.card__countdown { font-weight: 500; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .card__badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.budget-pie { flex: 0 0 auto; display: inline-flex; }
+.budget-pie svg { display: block; }
+.budget-pie__bg { stroke: var(--line); }
+.budget-pie__fg { stroke: var(--primary); stroke-linecap: round; }
+.budget-pie.is-over .budget-pie__fg { stroke: var(--danger); }
+.budget-pie__pct { font-size: 10px; font-weight: 700; fill: var(--ink); }
 .card__delete {
   position: absolute;
   top: 0.5rem;

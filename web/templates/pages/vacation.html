@@ -92,11 +92,11 @@
   <section class="tab-panel" data-tab-panel="travel">
     <div class="panel">
       <h2>{{t "tab.arrival"}}</h2>
-      {{template "travel_editor" $.Data.ArrivalTravel}}
+      {{template "travel_block" $.Data.ArrivalTravel}}
     </div>
     <div class="panel">
       <h2>{{t "tab.departure"}}</h2>
-      {{template "travel_editor" $.Data.DepartureTravel}}
+      {{template "travel_block" $.Data.DepartureTravel}}
     </div>
   </section>
 
@@ -192,6 +192,18 @@
              data-lng="{{coord $v.Longitude}}"
              data-attribution="{{t "map.attribution"}}"></div>
         <p class="muted small">{{t "overview.map_hint"}}</p>
+        <div class="overview-notes">
+          <h3>{{t "field.notes"}}</h3>
+          <form hx-post="/vacations/{{$v.ID}}/notes"
+                hx-trigger="change delay:400ms"
+                hx-target="#overview-notes-error"
+                hx-swap="innerHTML">
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+            <textarea name="notes" rows="10" maxlength="5000" placeholder="{{t "placeholder.notes"}}">{{$v.Notes}}</textarea>
+            <div id="overview-notes-error" class="form-error"></div>
+            <p class="muted small">{{t "form.autosave"}}</p>
+          </form>
+        </div>
       </aside>
     </div>
   </section>
