@@ -1,0 +1,29 @@
+{{define "backup_list"}}
+<div id="backup-list" class="backup-list">
+  {{if .Backups}}
+  <ul class="list">
+    {{range .Backups}}
+    <li class="backup-item">
+      <div class="backup-item__meta">
+        <strong>{{.Name}}</strong>
+        <span class="muted small">{{.SizeLabel}} · {{.TimeLabel}}</span>
+      </div>
+      <div class="backup-item__actions">
+        <a class="btn btn--sm" href="/settings/backups/{{.Name}}/download">{{t "settings.backup.download"}}</a>
+        <button class="btn btn--sm" type="button"
+                hx-post="/settings/backups/{{.Name}}/restore"
+                hx-confirm="{{t "settings.backup.restore_confirm"}}">{{t "settings.backup.restore"}}</button>
+        <button class="btn btn--sm btn--danger btn--ghost" type="button"
+                hx-delete="/settings/backups/{{.Name}}"
+                hx-target="#backup-list" hx-swap="outerHTML"
+                hx-confirm="{{t "settings.backup.delete_confirm"}}"
+                aria-label="{{t "action.delete"}}">✕</button>
+      </div>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted small">{{t "settings.backup.none"}}</p>
+  {{end}}
+</div>
+{{end}}

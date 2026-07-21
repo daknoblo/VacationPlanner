@@ -98,4 +98,46 @@
     </div>
   </form>
 </section>
+
+<section class="panel">
+  <h2>{{t "settings.stats.heading"}}</h2>
+  <ul class="stats">
+    <li><span class="stats__num">{{.Data.Stats.Vacations}}</span> {{t "settings.stats.vacations"}}</li>
+    <li><span class="stats__num">{{.Data.Stats.Days}}</span> {{t "settings.stats.days"}}</li>
+    <li><span class="stats__num">{{.Data.Stats.Sights}}</span> {{t "settings.stats.sights"}}</li>
+    <li><span class="stats__num">{{.Data.Stats.Activities}}</span> {{t "settings.stats.activities"}}</li>
+    <li><span class="stats__num">{{.Data.Stats.Travel}}</span> {{t "settings.stats.travel"}}</li>
+    <li><span class="stats__num">{{.Data.DBSize}}</span> {{t "settings.stats.db_size"}}</li>
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{t "settings.backup.heading"}}</h2>
+  <p class="muted small">{{t "settings.backup.hint"}}</p>
+  <form hx-post="/settings/backups" hx-target="#backup-list" hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button class="btn btn--primary" type="submit">{{t "settings.backup.create"}}</button>
+  </form>
+
+  {{template "backup_list" .Data}}
+
+  <h3 class="settings-subheading">{{t "settings.backup.restore_heading"}}</h3>
+  <p class="muted small">{{t "settings.backup.restore_hint"}}</p>
+  <form class="form"
+        method="post" action="/settings/backups/restore"
+        enctype="multipart/form-data"
+        hx-post="/settings/backups/restore"
+        hx-encoding="multipart/form-data"
+        hx-target="#restore-error" hx-swap="innerHTML"
+        hx-confirm="{{t "settings.backup.restore_confirm"}}">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field field--wide">
+      <input type="file" name="backup" accept=".db" required>
+    </div>
+    <div class="field field--wide">
+      <div id="restore-error" class="form-error"></div>
+      <button class="btn btn--danger" type="submit">{{t "settings.backup.restore"}}</button>
+    </div>
+  </form>
+</section>
 {{end}}

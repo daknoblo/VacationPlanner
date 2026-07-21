@@ -77,8 +77,9 @@
     map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? 12 : 4);
 
     var attribution = el.dataset.attribution || "\u00A9 OpenStreetMap contributors";
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
+      referrerPolicy: "strict-origin-when-cross-origin",
       attribution: attribution
     }).addTo(map);
 
@@ -161,8 +162,9 @@
     var hasPoint = !isNaN(lat) && !isNaN(lng);
 
     var lmap = L.map(mapEl).setView(hasPoint ? [lat, lng] : [25, 5], hasPoint ? 6 : 2);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
+      referrerPolicy: "strict-origin-when-cross-origin",
       attribution: "\u00A9 OpenStreetMap contributors"
     }).addTo(lmap);
     locationMaps.push(lmap);

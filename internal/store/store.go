@@ -42,4 +42,8 @@ type Store interface {
 
 	GetSettings(ctx context.Context) (map[string]string, error)
 	PutSetting(ctx context.Context, key, value string) error
+
+	Stats(ctx context.Context) (Stats, error)
+	BackupTo(ctx context.Context, dest string) error
+	Restore(ctx context.Context, srcPath string) error
 }

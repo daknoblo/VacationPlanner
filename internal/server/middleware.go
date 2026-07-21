@@ -22,7 +22,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		"object-src 'none'; " +
 		"script-src 'self'; " +
 		"style-src 'self' 'unsafe-inline'; " +
-		"img-src 'self' data: https://*.tile.openstreetmap.org; " +
+		"img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; " +
 		"connect-src 'self'; " +
 		"font-src 'self'"
 
@@ -31,7 +31,9 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "no-referrer")
+		// OpenStreetMap's tile servers require a Referer (they answer 403 otherwise);
+		// send only the origin cross-origin to keep this privacy-friendly.
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 		h.Set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()")
@@ -45,7 +47,13 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 // bodyLimit caps the size of request bodies to protect against abuse.
 func (s *Server) bodyLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxRequestBytes)
+		limit := s.cfg.MaxRequestBytes
+		// Database restore uploads a full SQLite file, which legitimately exceeds
+		// the default request body limit.
+		if r.Method == http.MethodPost && r.URL.Path == "/settings/backups/restore" {
+			limit = maxRestoreUploadBytes
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r)
 	})
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,16 +23,17 @@ const (
 // SQLite is a SQLite-backed implementation of Store using the pure-Go
 // modernc.org/sqlite driver (works with CGO_ENABLED=0 / distroless).
 type SQLite struct {
-	db *sql.DB
+	db   *sql.DB
+	path string
+	mu   sync.Mutex // serializes Restore (which swaps the db handle)
 }
 
 // Compile-time assertion that SQLite satisfies Store.
 var _ Store = (*SQLite)(nil)
 
-// NewSQLite opens (creating if needed) the database at path and verifies
-// connectivity. Foreign keys, WAL mode and a busy timeout are enabled per
-// connection via DSN pragmas.
-func NewSQLite(ctx context.Context, path string) (*SQLite, error) {
+// openDB opens the SQLite database at path with the standard DSN pragmas and
+// verifies connectivity.
+func openDB(ctx context.Context, path string) (*sql.DB, error) {
 	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)" +
 		"&_pragma=foreign_keys(1)&_pragma=synchronous(NORMAL)"
 
@@ -49,7 +51,18 @@ func NewSQLite(ctx context.Context, path string) (*SQLite, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("store: pinging sqlite: %w", err)
 	}
-	return &SQLite{db: db}, nil
+	return db, nil
+}
+
+// NewSQLite opens (creating if needed) the database at path and verifies
+// connectivity. Foreign keys, WAL mode and a busy timeout are enabled per
+// connection via DSN pragmas.
+func NewSQLite(ctx context.Context, path string) (*SQLite, error) {
+	db, err := openDB(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return &SQLite{db: db, path: path}, nil
 }
 
 // Ping verifies the database connection is alive.

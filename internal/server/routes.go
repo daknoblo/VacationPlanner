@@ -42,6 +42,14 @@ func (s *Server) routes() {
 	r.Post("/settings/ai", s.handleUpdateAISettings)
 	r.Post("/settings/geo", s.handleUpdateGeoSettings)
 
+	r.Route("/settings/backups", func(r chi.Router) {
+		r.Post("/", s.handleCreateBackup)
+		r.Post("/restore", s.handleRestoreBackup)
+		r.Get("/{name}/download", s.handleDownloadBackup)
+		r.Post("/{name}/restore", s.handleRestoreBackupNamed)
+		r.Delete("/{name}", s.handleDeleteBackup)
+	})
+
 	r.Get("/api/geocode", s.handleGeocode)
 	r.Get("/api/activities/suggest", s.handleActivitySuggest)
 	r.Get("/api/destination-image", s.handleDestinationImage)

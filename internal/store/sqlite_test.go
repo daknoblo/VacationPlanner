@@ -249,3 +249,55 @@ func TestSettings(t *testing.T) {
 		t.Fatalf("unexpected base_url: %q", m["ai.base_url"])
 	}
 }
+
+func TestStatsBackupRestore(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{
+		Title: "Trip", Destination: "X",
+		StartDate: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:   time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC), // 3 inclusive days
+		People:    2,
+	}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+	if err := st.CreateSight(ctx, &models.Sight{VacationID: v.ID, Name: "A"}); err != nil {
+		t.Fatalf("CreateSight: %v", err)
+	}
+
+	stats, err := st.Stats(ctx)
+	if err != nil {
+		t.Fatalf("Stats: %v", err)
+	}
+	if stats.Vacations != 1 || stats.Days != 3 || stats.Sights != 1 {
+		t.Fatalf("unexpected stats: %+v", stats)
+	}
+
+	backup := filepath.Join(t.TempDir(), "backup.db")
+	if err := st.BackupTo(ctx, backup); err != nil {
+		t.Fatalf("BackupTo: %v", err)
+	}
+	if !ValidSQLiteFile(backup) {
+		t.Fatal("backup is not a valid SQLite file")
+	}
+
+	if err := st.DeleteVacation(ctx, v.ID); err != nil {
+		t.Fatalf("DeleteVacation: %v", err)
+	}
+	if list, _ := st.ListVacations(ctx); len(list) != 0 {
+		t.Fatalf("expected empty after delete, got %d", len(list))
+	}
+
+	if err := st.Restore(ctx, backup); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	list, err := st.ListVacations(ctx)
+	if err != nil || len(list) != 1 || list[0].Title != "Trip" {
+		t.Fatalf("restore failed: err=%v list=%+v", err, list)
+	}
+	if _, err := st.GetSettings(ctx); err != nil {
+		t.Fatalf("GetSettings after restore: %v", err)
+	}
+}
