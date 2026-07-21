@@ -62,8 +62,8 @@ func TestRenderPages(t *testing.T) {
 
 	v := sampleVacation()
 
-	arrivalEditor := travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min"}
-	departureEditor := travelEditorView{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String()}
+	arrivalEditor := travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DepartDate: "2026-08-01", DepartTime: "09:30", DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}
+	departureEditor := travelEditorView{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String(), DepartDate: "2026-08-10"}
 	calTravel := map[string][]calTravelBlock{"2026-08-01": {{StartMin: 570, EndMin: 720, Title: "Arrival · BER → LIS", Label: "09:30–12:00"}}}
 
 	cases := []struct {
@@ -101,6 +101,7 @@ func TestRenderFragments(t *testing.T) {
 		{"vacation_card", v},
 		{"item_row", v.Items[0]},
 		{"travel_item", v.TravelSegments[0]},
+		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
 		{"form_error", "etwas ist schiefgelaufen"},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),

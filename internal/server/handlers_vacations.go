@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
@@ -116,26 +114,26 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"ActivityList":    activities,
 		"Ideas":           ideas,
 		"CalTravel":       travelCalBlocks(loc, tz, v),
-		"ArrivalTravel":   s.travelEditor(r.Context(), v.ID, models.TravelArrival, v.TravelSegments),
-		"DepartureTravel": s.travelEditor(r.Context(), v.ID, models.TravelDeparture, v.TravelSegments),
+		"ArrivalTravel":   s.travelEditor(r.Context(), tz, v, models.TravelArrival),
+		"DepartureTravel": s.travelEditor(r.Context(), tz, v, models.TravelDeparture),
 	})
 }
 
 // travelEditor builds the inline editor view for one travel kind from the
 // vacation's segments, synthesizing an empty segment when none exists yet.
-func (s *Server) travelEditor(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, segs []models.TravelSegment) travelEditorView {
+func (s *Server) travelEditor(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelEditorView {
 	var seg *models.TravelSegment
-	for i := range segs {
-		if segs[i].Kind == kind {
-			seg = &segs[i]
+	for i := range v.TravelSegments {
+		if v.TravelSegments[i].Kind == kind {
+			seg = &v.TravelSegments[i]
 			break
 		}
 	}
 	if seg == nil {
-		seg = emptyTravelSegment(vacationID, kind)
+		seg = emptyTravelSegment(v.ID, kind)
 	}
 	_, routed := routeProfileForMode(seg.Mode)
-	return s.newTravelEditorView(ctx, seg, !routed || !s.routing.Enabled())
+	return s.newTravelEditorView(ctx, tz, v, seg, !routed || !s.routing.Enabled())
 }
 
 // overviewActivity is a scheduled entry shown in the Overview activity list.
@@ -308,8 +306,10 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The dates/title/destination ripple through the header, overview, day plan
+	// and travel defaults, so refresh the page to reflect them everywhere.
 	if isHTMX(r) {
-		hxTrigger(w, "saved, itemsChanged")
+		w.Header().Set("HX-Refresh", "true")
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -118,12 +118,16 @@ func parseDatePtr(r *http.Request, key string) (*time.Time, error) {
 	return &t, nil
 }
 
-func parseDateTimePtr(r *http.Request, key string) (*time.Time, error) {
-	raw := formStr(r, key)
-	if raw == "" {
+// parseDateTimeParts combines a date field (YYYY-MM-DD) and an optional time
+// field (HH:MM) into a timestamp in the given timezone. It returns nil when
+// either part is missing, so a departure is only scheduled once a time is set.
+func parseDateTimeParts(r *http.Request, dateKey, timeKey string, tz *time.Location) (*time.Time, error) {
+	date := formStr(r, dateKey)
+	clock := formStr(r, timeKey)
+	if date == "" || clock == "" {
 		return nil, nil
 	}
-	t, err := time.ParseInLocation("2006-01-02T15:04", raw, time.Local)
+	t, err := time.ParseInLocation("2006-01-02T15:04", date+"T"+clock, tz)
 	if err != nil {
 		return nil, err
 	}

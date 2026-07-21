@@ -2,8 +2,8 @@
 <form class="form grid travel-editor" data-travel-editor
       hx-post="/vacations/{{.VID}}/travel"
       hx-trigger="change delay:300ms"
-      hx-target="this"
-      hx-swap="outerHTML">
+      hx-target="#travel-out-{{.Seg.Kind}}"
+      hx-swap="innerHTML">
   <input type="hidden" name="kind" value="{{.Seg.Kind}}">
   <input type="hidden" name="from_lat" value="{{coord .Seg.FromLat}}">
   <input type="hidden" name="from_lng" value="{{coord .Seg.FromLng}}">
@@ -45,20 +45,16 @@
   </div>
 
   <div class="field">
-    <label>{{t "travel.distance"}}</label>
-    <p class="travel-computed">
-      {{if .DistLabel}}📏 {{.DistLabel}}{{if .DurLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurLabel}}{{end}}{{else}}<span class="muted small">{{t "travel.distance.hint"}}</span>{{end}}
-    </p>
-  </div>
-
-  <div class="field">
     <label>{{t "travel.depart"}}</label>
-    <input name="depart_at" type="datetime-local" value="{{dtInput .Seg.DepartAt}}">
+    <div class="travel-when">
+      <input name="depart_date" type="date" value="{{.DepartDate}}" aria-label="{{t "travel.depart"}}">
+      <input name="depart_time" type="time" value="{{.DepartTime}}" aria-label="{{t "travel.time"}}">
+    </div>
   </div>
 
-  <div class="field">
-    <label>{{t "travel.arrive"}}</label>
-    <input type="text" readonly value="{{fmtDateTime .Seg.ArriveAt}}" placeholder="{{t "travel.arrive.auto"}}">
+  <div class="field field--wide">
+    <label>{{t "travel.distance"}}</label>
+    <div id="travel-out-{{.Seg.Kind}}" class="travel-out">{{template "travel_out" .}}</div>
   </div>
 
   <div class="field field--wide">
@@ -68,5 +64,13 @@
 
   <div id="travel-error-{{.Seg.Kind}}" class="form-error field--wide"></div>
 </form>
+{{end}}
+
+{{define "travel_out"}}
+<p class="travel-computed">
+  {{- if .DistLabel}}📏 {{.DistLabel}}{{if .DurLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurLabel}}{{end}}{{end -}}
+  {{- if .ArriveLabel}}{{if .DistLabel}} · {{end}}🛬 {{t "travel.arrive"}}: {{.ArriveLabel}}{{end -}}
+  {{- if and (not .DistLabel) (not .ArriveLabel)}}<span class="muted small">{{t "travel.distance.hint"}}</span>{{end -}}
+</p>
 {{end}}
 

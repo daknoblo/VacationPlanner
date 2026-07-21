@@ -625,6 +625,9 @@ code {
   font-variant-numeric: tabular-nums;
 }
 .travel-editor input[readonly] { background: #f8fafc; color: #475569; }
+.travel-when { display: flex; gap: 0.5rem; }
+.travel-when input[type="date"] { flex: 1 1 60%; }
+.travel-when input[type="time"] { flex: 1 1 40%; }
 label { font-size: 0.85rem; font-weight: 600; color: #334155; }
 input, textarea, select {
   font: inherit;

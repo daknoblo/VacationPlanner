@@ -16,30 +16,48 @@ import (
 
 // travelEditorView is the data for one inline arrival/departure editor.
 type travelEditorView struct {
-	Seg       *models.TravelSegment
-	VID       string
-	Home      string
-	DistLabel string // formatted distance, e.g. "210 km" (empty when unknown)
-	DurLabel  string // formatted duration, e.g. "2 h 10 min" (empty when unknown)
-	Approx    bool   // duration is a straight-line estimate (not routed)
+	Seg         *models.TravelSegment
+	VID         string
+	Home        string
+	DepartDate  string // date input value (YYYY-MM-DD), defaulted to the trip start/end
+	DepartTime  string // time input value (HH:MM), empty until the user sets it
+	DistLabel   string // formatted distance, e.g. "210 km" (empty when unknown)
+	DurLabel    string // formatted duration, e.g. "2 h 10 min" (empty when unknown)
+	ArriveLabel string // formatted computed arrival (empty when unknown)
+	Approx      bool   // duration is a straight-line estimate (not routed)
 }
 
 // newTravelEditorView builds the editor view for a segment, formatting the
-// computed distance and duration for display.
-func (s *Server) newTravelEditorView(ctx context.Context, seg *models.TravelSegment, approx bool) travelEditorView {
-	v := travelEditorView{
+// computed distance, duration and arrival, and defaulting the departure date to
+// the trip's start (arrival) or end (departure) when none is set yet.
+func (s *Server) newTravelEditorView(ctx context.Context, tz *time.Location, v *models.Vacation, seg *models.TravelSegment, approx bool) travelEditorView {
+	ev := travelEditorView{
 		Seg:    seg,
 		VID:    seg.VacationID.String(),
 		Home:   s.homeAddress(ctx),
 		Approx: approx,
 	}
 	if seg.DistanceM != nil {
-		v.DistLabel = formatDistance(*seg.DistanceM)
+		ev.DistLabel = formatDistance(*seg.DistanceM)
 	}
 	if seg.DurationS != nil {
-		v.DurLabel = formatDuration(float64(*seg.DurationS))
+		ev.DurLabel = formatDuration(float64(*seg.DurationS))
 	}
-	return v
+	if seg.DepartAt != nil {
+		dep := seg.DepartAt.In(tz)
+		ev.DepartDate = dep.Format("2006-01-02")
+		ev.DepartTime = dep.Format("15:04")
+	} else {
+		def := v.StartDate
+		if seg.Kind == models.TravelDeparture {
+			def = v.EndDate
+		}
+		ev.DepartDate = def.Format("2006-01-02")
+	}
+	if seg.ArriveAt != nil {
+		ev.ArriveLabel = seg.ArriveAt.In(tz).Format("02.01.2006 15:04")
+	}
+	return ev
 }
 
 // emptyTravelSegment returns a blank segment for a kind so the editor can render
@@ -54,7 +72,8 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if _, err := s.store.GetVacation(r.Context(), vacationID); err != nil {
+	v, err := s.store.GetVacation(r.Context(), vacationID)
+	if err != nil {
 		if isNotFound(err) {
 			s.notFound(w, r)
 			return
@@ -64,6 +83,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loc := i18n.FromContext(r.Context())
+	_, tz := s.regionSettings(r.Context())
 	kind := models.TravelKind(formStr(r, "kind"))
 	if !kind.Valid() {
 		s.formError(w, r, "#travel-error-arrival", loc.T("error.travel_kind_required"))
@@ -78,7 +98,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, errTarget, loc.T("error.input_toolong"))
 		return
 	}
-	departAt, err := parseDateTimePtr(r, "depart_at")
+	departAt, err := parseDateTimeParts(r, "depart_date", "depart_time", tz)
 	if err != nil {
 		s.formError(w, r, errTarget, loc.T("error.depart_invalid"))
 		return
@@ -105,7 +125,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.fragment(w, r, "travel_editor", s.newTravelEditorView(r.Context(), seg, approx))
+	s.fragment(w, r, "travel_out", s.newTravelEditorView(r.Context(), tz, v, seg, approx))
 }
 
 // computeTravel resolves the segment endpoints (geocoding free text when no
