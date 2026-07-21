@@ -126,21 +126,63 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// travelEditor builds the inline editor view for one travel kind from the
-// vacation's segments, synthesizing an empty segment when none exists yet.
+// travelEditor builds the inline editor view for one travel kind, pre-filling
+// sensible endpoints when a location is still empty: the arrival goes
+// home → destination, and the departure mirrors the arrival in reverse
+// (destination → home when no arrival is defined yet).
 func (s *Server) travelEditor(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelEditorView {
-	var seg *models.TravelSegment
-	for i := range v.TravelSegments {
-		if v.TravelSegments[i].Kind == kind {
-			seg = &v.TravelSegments[i]
-			break
-		}
+	seg := emptyTravelSegment(v.ID, kind)
+	if found := findTravelSegment(v, kind); found != nil {
+		clone := *found
+		seg = &clone
 	}
-	if seg == nil {
-		seg = emptyTravelSegment(v.ID, kind)
-	}
+	s.applyEndpointDefaults(ctx, v, seg)
 	_, routed := routeProfileForMode(seg.Mode)
 	return s.newTravelEditorView(ctx, tz, v, seg, !routed || !s.routing.Enabled())
+}
+
+// findTravelSegment returns the vacation's segment of the given kind, or nil.
+func findTravelSegment(v *models.Vacation, kind models.TravelKind) *models.TravelSegment {
+	for i := range v.TravelSegments {
+		if v.TravelSegments[i].Kind == kind {
+			return &v.TravelSegments[i]
+		}
+	}
+	return nil
+}
+
+// applyEndpointDefaults fills empty From/To locations (and their coordinates):
+// the arrival defaults to home → destination, and the departure to the reverse
+// of the arrival (falling back to destination → home when the arrival is empty).
+func (s *Server) applyEndpointDefaults(ctx context.Context, v *models.Vacation, seg *models.TravelSegment) {
+	home := s.homeAddress(ctx)
+	var fromLoc, toLoc string
+	var fromLat, fromLng, toLat, toLng *float64
+
+	switch seg.Kind {
+	case models.TravelArrival:
+		fromLoc = home
+		toLoc, toLat, toLng = v.Destination, v.Latitude, v.Longitude
+	case models.TravelDeparture:
+		arr := findTravelSegment(v, models.TravelArrival)
+		if arr != nil && arr.ToLocation != "" {
+			fromLoc, fromLat, fromLng = arr.ToLocation, arr.ToLat, arr.ToLng
+		} else {
+			fromLoc, fromLat, fromLng = v.Destination, v.Latitude, v.Longitude
+		}
+		if arr != nil && arr.FromLocation != "" {
+			toLoc, toLat, toLng = arr.FromLocation, arr.FromLat, arr.FromLng
+		} else {
+			toLoc = home
+		}
+	}
+
+	if seg.FromLocation == "" {
+		seg.FromLocation, seg.FromLat, seg.FromLng = fromLoc, fromLat, fromLng
+	}
+	if seg.ToLocation == "" {
+		seg.ToLocation, seg.ToLat, seg.ToLng = toLoc, toLat, toLng
+	}
 }
 
 // overviewActivity is a scheduled entry shown in the Overview activity list.
