@@ -51,6 +51,16 @@
           <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
           <p class="muted small">{{t "field.location.hint"}}</p>
         </div>
+        <div class="field field--wide">
+          <label>{{t "dest.heading"}}</label>
+          <div id="dest-info" class="dest-info-wrap"
+               hx-get="/vacations/{{$v.ID}}/api/destination-info"
+               hx-trigger="load, infoChanged from:body"
+               hx-target="this"
+               hx-swap="innerHTML">
+            <p class="muted small">{{t "dest.loading"}}</p>
+          </div>
+        </div>
         <div class="field">
           <label for="m-start">{{t "field.from"}}</label>
           <input id="m-start" name="start_date" type="date" required data-date-from value="{{dateInput $v.StartDate}}">
@@ -97,17 +107,17 @@
         <button type="button" class="viewtoggle__btn is-active" data-view="day">{{t "tagesplan.view.day"}}</button>
         <button type="button" class="viewtoggle__btn" data-view="week">{{t "tagesplan.view.week"}}</button>
       </div>
-      <div class="tabs" data-tabs data-day-view>
-      <div class="tabs__bar" role="tablist">
-        <div class="tabs__row tabs__row--days" data-day-tabs>
-          {{template "day_tabs" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders)}}
-        </div>
-      </div>
       <div id="ideas-backlog" class="ideas-backlog"
            hx-get="/vacations/{{$v.ID}}/api/ideas"
            hx-trigger="itemsChanged from:body"
            hx-swap="innerHTML">
         {{template "ideas_backlog" .Data.Ideas}}
+      </div>
+      <div class="tabs" data-tabs data-day-view>
+      <div class="tabs__bar" role="tablist">
+        <div class="tabs__row tabs__row--days" data-day-tabs>
+          {{template "day_tabs" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders)}}
+        </div>
       </div>
       {{range $i, $d := $v.Days}}
       <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">

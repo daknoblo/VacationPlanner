@@ -258,12 +258,18 @@ func (s *Server) applyEndpointDefaults(ctx context.Context, v *models.Vacation, 
 // overviewActivity is a scheduled entry shown in the Overview activity list.
 type overviewActivity struct {
 	WhenLabel string
+	Weekday   string
 	Title     string
 	Category  string
 	Latitude  *float64
 	Longitude *float64
 	HasCoords bool
 	sortKey   time.Time
+}
+
+// weekdayLabel returns the localized weekday name for a date.
+func weekdayLabel(loc *i18n.Localizer, t time.Time) string {
+	return loc.T("weekday." + strings.ToLower(t.Weekday().String()))
 }
 
 // calTravelBlock is a read-only travel leg rendered on the day/week calendar.
@@ -470,17 +476,21 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 		ts := v.TravelSegments[i]
 		var when string
 		var key time.Time
+		var wd time.Time
 		switch {
 		case ts.DepartAt != nil:
 			dep := ts.DepartAt.In(tz)
 			when = fmtDate(dep) + " · " + dep.Format("15:04")
 			key = *ts.DepartAt
+			wd = dep
 		case ts.Kind == models.TravelArrival:
 			when = fmtDate(v.StartDate)
 			key = v.StartDate
+			wd = v.StartDate
 		default:
 			when = fmtDate(v.EndDate)
 			key = v.EndDate.Add(24*time.Hour - time.Minute)
+			wd = v.EndDate
 		}
 		lat, lng := ts.ToLat, ts.ToLng
 		if lat == nil {
@@ -488,6 +498,7 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 		}
 		activities = append(activities, overviewActivity{
 			WhenLabel: when,
+			Weekday:   weekdayLabel(loc, wd),
 			Title:     travelLabel(loc, ts),
 			Category:  modeLabel(loc, ts.Mode),
 			Latitude:  lat,
@@ -509,6 +520,7 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 		}
 		activities = append(activities, overviewActivity{
 			WhenLabel: when,
+			Weekday:   weekdayLabel(loc, *it.Day),
 			Title:     it.Title,
 			Category:  it.Category,
 			Latitude:  it.Latitude,
@@ -599,6 +611,42 @@ func (s *Server) handleIdeasFragment(w http.ResponseWriter, r *http.Request) {
 	s.fragment(w, r, "ideas_backlog", ideas)
 }
 
+// destinationInfoView is the Wikipedia intro shown under the map on the General tab.
+type destinationInfoView struct {
+	Destination string
+	Description string
+	Extract     string
+	URL         string
+}
+
+// handleDestinationInfo renders a short Wikipedia intro for the destination.
+func (s *Server) handleDestinationInfo(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	view := destinationInfoView{Destination: v.Destination}
+	if v.Destination != "" {
+		lang := i18n.FromContext(r.Context()).Code()
+		if sum, ok := s.destImg.Summary(r.Context(), v.Destination, lang); ok {
+			view.Description = sum.Description
+			view.Extract = sum.Extract
+			view.URL = sum.URL
+		}
+	}
+	s.fragment(w, r, "destination_info", view)
+}
+
 func (s *Server) handleCreateVacation(w http.ResponseWriter, r *http.Request) {
 	v, err := s.vacationFromForm(r)
 	if err != nil {
@@ -660,7 +708,11 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	hxTrigger(w, "saved")
+	events := "saved"
+	if !strings.EqualFold(strings.TrimSpace(existing.Destination), strings.TrimSpace(updated.Destination)) {
+		events += ", infoChanged"
+	}
+	hxTrigger(w, events)
 	s.fragment(w, r, "detail_head", map[string]any{"V": updated, "OOB": true})
 }
 

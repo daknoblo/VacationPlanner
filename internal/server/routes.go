@@ -73,6 +73,7 @@ func (s *Server) routes() {
 			r.Get("/api/budget", s.handleBudgetFragment)
 			r.Get("/api/overview", s.handleOverviewFragment)
 			r.Get("/api/ideas", s.handleIdeasFragment)
+			r.Get("/api/destination-info", s.handleDestinationInfo)
 			r.Post("/items", s.handleCreateItem)
 			r.Post("/travel", s.handleSaveTravel)
 			r.Post("/ai/recommendations", s.handleAIRecommend)
@@ -80,7 +81,10 @@ func (s *Server) routes() {
 	})
 
 	r.Route("/items/{itemID}", func(r chi.Router) {
+		r.Get("/", s.handleItemRow)
+		r.Get("/edit", s.handleEditItemForm)
 		r.Post("/", s.handleUpdateItem)
+		r.Post("/edit", s.handleEditItem)
 		r.Post("/schedule", s.handleScheduleItem)
 		r.Post("/visited", s.handleToggleVisited)
 		r.Delete("/", s.handleDeleteItem)

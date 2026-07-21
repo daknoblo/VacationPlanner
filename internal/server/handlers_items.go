@@ -180,8 +180,115 @@ func (s *Server) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleScheduleItem assigns a day and time to an item (used when dragging an
-// idea from the backlog onto a day's grid) and returns the planner block.
+// handleItemRow re-renders a single item row, used to cancel inline editing.
+func (s *Server) handleItemRow(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	item, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	s.fragment(w, r, "item_row", item)
+}
+
+// handleEditItemForm renders the inline edit form for an item.
+func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	item, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	categories, _ := s.store.ListCategories(r.Context())
+	s.fragment(w, r, "item_edit", map[string]any{
+		"Item": item,
+		"Cats": categories,
+		"CSRF": s.ensureCSRFToken(w, r),
+	})
+}
+
+// handleEditItem applies inline edits (title, category, schedule, cost,
+// description) to an existing item and returns the refreshed row.
+func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	existing, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+
+	title := strings.TrimSpace(formStr(r, "title"))
+	if title == "" || !maxLen(title, 200) {
+		s.formError(w, r, "#item-error", loc.T("error.item_title_required"))
+		return
+	}
+	category := strings.TrimSpace(formStr(r, "category"))
+	description := strings.TrimSpace(formStr(r, "description"))
+	if !maxLen(category, 100) || !maxLen(description, 2000) {
+		s.formError(w, r, "#item-error", loc.T("error.input_toolong"))
+		return
+	}
+	day, err := parseDatePtr(r, "day")
+	if err != nil {
+		s.formError(w, r, "#item-error", loc.T("error.planned_invalid"))
+		return
+	}
+	cost, err := parseCostPtr(r, "cost", loc)
+	if err != nil {
+		s.formError(w, r, "#item-error", err.Error())
+		return
+	}
+
+	existing.Title = title
+	existing.Category = category
+	existing.Description = description
+	existing.Day = day
+	existing.Cost = cost
+
+	startStr := strings.TrimSpace(formStr(r, "start"))
+	endStr := strings.TrimSpace(formStr(r, "end"))
+	if startStr != "" || endStr != "" {
+		existing.StartMin = parseMinutes(startStr, 540)
+		existing.EndMin = parseMinutes(endStr, existing.StartMin+60)
+		if existing.EndMin <= existing.StartMin {
+			existing.EndMin = existing.StartMin + 30
+		}
+	} else {
+		existing.StartMin, existing.EndMin = 0, 0
+	}
+
+	if err := s.store.UpdateItem(r.Context(), existing); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	hxTrigger(w, "itemsChanged")
+	s.fragment(w, r, "item_row", existing)
+}
 func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 	id, err := urlUUID(r, "itemID")
 	if err != nil {

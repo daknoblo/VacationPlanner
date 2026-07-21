@@ -30,6 +30,9 @@ type Client struct {
 
 	mu    sync.Mutex
 	cache map[string]entry
+
+	sumMu    sync.Mutex
+	sumCache map[string]sumEntry
 }
 
 type entry struct {
@@ -38,13 +41,99 @@ type entry struct {
 	exp   time.Time
 }
 
+// Summary is the Wikipedia intro text and link for a destination.
+type Summary struct {
+	Title       string
+	Description string
+	Extract     string
+	URL         string
+}
+
+type sumEntry struct {
+	s   Summary
+	exp time.Time
+}
+
 // New builds a destination image client.
 func New() *Client {
 	return &Client{
 		http:      &http.Client{Timeout: 8 * time.Second},
 		userAgent: "VacationPlanner/1.0 (+https://github.com/daknoblo/vacationplanner)",
 		cache:     make(map[string]entry),
+		sumCache:  make(map[string]sumEntry),
 	}
+}
+
+// Summary returns the Wikipedia intro summary for a destination. ok is false
+// when no article/extract was found.
+func (c *Client) Summary(ctx context.Context, destination, lang string) (Summary, bool) {
+	title := firstSegment(destination)
+	if title == "" {
+		return Summary{}, false
+	}
+	lang = normalizeLang(lang)
+	key := lang + "|" + strings.ToLower(title)
+
+	c.sumMu.Lock()
+	if e, hit := c.sumCache[key]; hit && time.Now().Before(e.exp) {
+		c.sumMu.Unlock()
+		return e.s, e.s.Extract != ""
+	}
+	c.sumMu.Unlock()
+
+	sum, ok := c.fetchSummary(ctx, title, lang)
+	ttl := cacheTTL
+	if !ok {
+		ttl = negativeTTL
+	}
+	c.sumMu.Lock()
+	if len(c.sumCache) >= cacheMaxSize {
+		c.sumCache = make(map[string]sumEntry)
+	}
+	c.sumCache[key] = sumEntry{s: sum, exp: time.Now().Add(ttl)}
+	c.sumMu.Unlock()
+	return sum, ok
+}
+
+func (c *Client) fetchSummary(ctx context.Context, title, lang string) (Summary, bool) {
+	summaryURL := fmt.Sprintf("https://%s.wikipedia.org/api/rest_v1/page/summary/%s",
+		lang, url.PathEscape(title))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, summaryURL, nil)
+	if err != nil {
+		return Summary{}, false
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Summary{}, false
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return Summary{}, false
+	}
+
+	var payload struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Extract     string `json:"extract"`
+		ContentURLs struct {
+			Desktop struct {
+				Page string `json:"page"`
+			} `json:"desktop"`
+		} `json:"content_urls"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&payload); err != nil {
+		return Summary{}, false
+	}
+	extract := strings.TrimSpace(payload.Extract)
+	return Summary{
+		Title:       strings.TrimSpace(payload.Title),
+		Description: strings.TrimSpace(payload.Description),
+		Extract:     extract,
+		URL:         payload.ContentURLs.Desktop.Page,
+	}, extract != ""
 }
 
 // Fetch returns image bytes and content type for a destination using Wikipedia

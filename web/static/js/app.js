@@ -567,6 +567,84 @@
     });
   }
 
+  // ---- Drag ideas onto week-view day columns to schedule them ----
+  // Mirrors the server's calMinPx piecewise mapping (0–6h compressed).
+  function calMinToPx(min) {
+    if (min < 0) min = 0; if (min > 1440) min = 1440;
+    if (min <= 360) return Math.round(min * 16 / 60);
+    return 96 + Math.round((min - 360) * 40 / 60);
+  }
+  function calPxToMin(px) {
+    if (px <= 0) return 0;
+    if (px <= 96) return px * 60 / 16;
+    return 360 + (px - 96) * 60 / 40;
+  }
+
+  function initWeekDrops() {
+    var cols = document.querySelectorAll("[data-weekcol]");
+    for (var i = 0; i < cols.length; i++) { initWeekDrop(cols[i]); }
+  }
+
+  function initWeekDrop(col) {
+    if (col.dataset.weekDropBound) return;
+    col.dataset.weekDropBound = "1";
+    col.addEventListener("dragover", function (e) {
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      e.preventDefault();
+      col.classList.add("is-droptarget");
+    });
+    col.addEventListener("dragleave", function () { col.classList.remove("is-droptarget"); });
+    col.addEventListener("drop", function (e) {
+      e.preventDefault();
+      col.classList.remove("is-droptarget");
+      var id = e.dataTransfer ? e.dataTransfer.getData("text/plain") : "";
+      if (!id) return;
+      var day = col.getAttribute("data-day");
+      if (!day) return;
+      var rect = col.getBoundingClientRect();
+      var minutes = Math.round(calPxToMin(e.clientY - rect.top) / PLANNER_SNAP) * PLANNER_SNAP;
+      minutes = plClamp(minutes, 0, 1440 - 60);
+      var chip = document.querySelector('.idea-chip[data-id="' + id + '"]');
+      var title = chip ? (chip.getAttribute("data-title") || "") : "";
+      var body = new URLSearchParams();
+      body.set("day", day);
+      body.set("start", plLabel(minutes));
+      body.set("end", plLabel(minutes + 60));
+      fetch("/items/" + encodeURIComponent(id) + "/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF-Token": getCookie("csrf_token")
+        },
+        body: body.toString()
+      }).then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+        .then(function () {
+          appendWeekBlock(col, minutes, minutes + 60, title);
+          if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
+          document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
+        })
+        .catch(function () { /* ignore */ });
+    });
+  }
+
+  function appendWeekBlock(col, start, end, title) {
+    var top = calMinToPx(start), bottom = calMinToPx(end);
+    var block = document.createElement("div");
+    block.className = "weekcal-block";
+    block.style.top = top + "px";
+    block.style.height = (bottom - top) + "px";
+    block.setAttribute("title", title);
+    var timeEl = document.createElement("span");
+    timeEl.className = "weekcal-block__time";
+    timeEl.textContent = plLabel(start) + "\u2013" + plLabel(end);
+    var titleEl = document.createElement("span");
+    titleEl.className = "weekcal-block__title";
+    titleEl.textContent = title;
+    block.appendChild(timeEl);
+    block.appendChild(titleEl);
+    col.appendChild(block);
+  }
+
   function initPlanner(grid) {
     var drag = null;
 
@@ -719,6 +797,7 @@
     initGeoLiteInputs();
     initPlanners();
     initGridDrops();
+    initWeekDrops();
     initTabs();
     initViewToggle();
     initDateRanges();

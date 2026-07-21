@@ -1,0 +1,14 @@
+{{define "destination_info"}}
+{{if .Extract}}
+<div class="dest-info">
+  <img class="dest-info__img" src="/api/destination-image?q={{.Destination}}" alt="" loading="lazy" width="320" height="150">
+  <div class="dest-info__body">
+    {{if .Description}}<p class="dest-info__desc">{{.Description}}</p>{{end}}
+    <p class="dest-info__extract">{{.Extract}}</p>
+    {{if .URL}}<a class="dest-info__link" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{t "dest.more"}} ↗</a>{{end}}
+  </div>
+</div>
+{{else}}
+<p class="muted small">{{t "dest.none"}}</p>
+{{end}}
+{{end}}

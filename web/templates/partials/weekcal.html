@@ -13,7 +13,7 @@
         <span class="weekcal__dow">{{$hd.Label}}</span>
         {{if $col}}<button type="button" class="weekcal__date" data-goto-day="{{$col.DayIndex}}" title="{{t "tagesplan.view.day"}}">{{fmtDate $col.Date}}</button>{{end}}
       </div>
-      <div class="weekcal__col">
+      <div class="weekcal__col"{{if $col}} data-weekcol data-day="{{dateInput $col.Date}}"{{end}}>
         {{range $.HourRows}}<div class="weekcal__slot" style="height:{{.Px}}px"></div>{{end}}
         {{if $col}}{{range $col.Blocks}}
         <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"

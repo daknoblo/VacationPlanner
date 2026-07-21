@@ -3,8 +3,14 @@
 <ul id="overview-activities" class="activity-list">
   {{range .}}
   <li class="activity-item{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
-    <span class="activity-item__when">{{.WhenLabel}}</span>
-    <span class="activity-item__title">{{.Title}}{{if .Category}} <span class="badge">{{.Category}}</span>{{end}}</span>
+    <div class="activity-item__when">
+      <span class="activity-item__date">{{.WhenLabel}}</span>
+      {{if .Weekday}}<span class="activity-item__wd">{{.Weekday}}</span>{{end}}
+    </div>
+    <div class="activity-item__body">
+      {{if .Category}}<span class="activity-item__type">{{.Category}}</span>{{end}}
+      <span class="activity-item__title">{{.Title}}</span>
+    </div>
   </li>
   {{end}}
 </ul>

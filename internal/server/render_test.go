@@ -108,8 +108,10 @@ func TestRenderFragments(t *testing.T) {
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
 		{"detail_head", map[string]any{"V": v, "OOB": true}},
 		{"budget_panel", newBudgetView(v, v.Items, nil)},
-		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Title: "Test", Category: "POI"}}},
+		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Weekday: "Saturday", Title: "Test", Category: "POI"}}},
 		{"ideas_backlog", []models.Item{v.Items[0]}},
+		{"item_edit", map[string]any{"Item": v.Items[0], "Cats": []models.Category{{Name: "POI", Icon: "📍"}}, "CSRF": "tok"}},
+		{"destination_info", destinationInfoView{Destination: "Lisbon", Description: "capital of Portugal", Extract: "Lisbon is the capital of Portugal.", URL: "https://en.wikipedia.org/wiki/Lisbon"}},
 		{"form_error", "etwas ist schiefgelaufen"},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),

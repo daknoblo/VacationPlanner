@@ -12,6 +12,10 @@
               hx-post="/items/{{.ID}}/visited"
               hx-target="closest .item-row"
               hx-swap="outerHTML">{{if .Visited}}↩︎{{else}}✓{{end}}</button>
+      <button class="btn btn--sm" title="{{t "action.edit"}}"
+              hx-get="/items/{{.ID}}/edit"
+              hx-target="closest .item-row"
+              hx-swap="outerHTML">✎</button>
       <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
               hx-delete="/items/{{.ID}}"
               hx-target="closest .item-row"
@@ -72,7 +76,7 @@
   </div>
   {{else}}
   <div class="field">
-    <label>{{t "sight.planned"}} <span class="muted">({{fmtDate .V.StartDate}} – {{fmtDate .V.EndDate}})</span></label>
+    <label>{{t "sight.planned"}} <span class="muted">{{t "label.optional"}}</span> <span class="muted">({{fmtDate .V.StartDate}} – {{fmtDate .V.EndDate}})</span></label>
     <input name="day" type="date">
     <p class="muted small">{{t "ideen.schedule_hint"}}</p>
   </div>
@@ -89,4 +93,53 @@
     <button class="btn btn--primary" type="submit">{{t "item.add"}}</button>
   </div>
 </form>
+{{end}}
+
+{{define "item_edit"}}
+<li class="item-row is-editing" id="item-{{.Item.ID}}" data-id="{{.Item.ID}}">
+  <form class="form grid item-form item-edit"
+        hx-post="/items/{{.Item.ID}}/edit"
+        hx-target="closest .item-row"
+        hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div class="field">
+      <label>{{t "sight.category"}}</label>
+      <select name="category">
+        <option value=""{{if not .Item.Category}} selected{{end}}>—</option>
+        {{range .Cats}}<option value="{{.Name}}"{{if eq .Name $.Item.Category}} selected{{end}}>{{if .Icon}}{{.Icon}} {{end}}{{.Name}}</option>{{end}}
+      </select>
+    </div>
+    <div class="field field--wide">
+      <label>{{t "field.title"}}</label>
+      <input name="title" required maxlength="200" value="{{.Item.Title}}">
+    </div>
+    <div class="field">
+      <label>{{t "sight.planned"}} <span class="muted">{{t "label.optional"}}</span></label>
+      <input name="day" type="date" value="{{datePtrIn .Item.Day}}">
+    </div>
+    <div class="field">
+      <label>{{t "activity.start"}} <span class="muted">{{t "label.optional"}}</span></label>
+      <input name="start" type="time" value="{{if .Item.Timed}}{{.Item.StartLabel}}{{end}}">
+    </div>
+    <div class="field">
+      <label>{{t "activity.end"}}</label>
+      <input name="end" type="time" value="{{if .Item.Timed}}{{.Item.EndLabel}}{{end}}">
+    </div>
+    <div class="field">
+      <label>{{t "item.cost"}}</label>
+      <input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="{{money .Item.Cost}}" placeholder="0.00">
+    </div>
+    <div class="field field--wide">
+      <label>{{t "sight.description"}}</label>
+      <textarea name="description" rows="2" maxlength="2000">{{.Item.Description}}</textarea>
+    </div>
+    <div class="field field--wide item-edit__actions">
+      <button class="btn btn--primary btn--sm" type="submit">{{t "action.save"}}</button>
+      <button class="btn btn--sm" type="button"
+              hx-get="/items/{{.Item.ID}}"
+              hx-target="closest .item-row"
+              hx-swap="outerHTML">{{t "action.cancel"}}</button>
+    </div>
+  </form>
+</li>
 {{end}}
