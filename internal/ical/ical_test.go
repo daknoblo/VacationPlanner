@@ -89,7 +89,7 @@ func TestLineFolding(t *testing.T) {
 		}
 	}
 	// Folded continuation lines begin with a single space.
-	if !strings.Contains(out, "\r\n "+"") {
+	if !strings.Contains(out, "\r\n ") {
 		t.Error("expected folded continuation lines")
 	}
 }
