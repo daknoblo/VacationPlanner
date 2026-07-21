@@ -1,0 +1,28 @@
+{{define "weekcal"}}
+<div class="weekcal" data-weekview hidden>
+  <div class="weekcal__axis">
+    <div class="weekcal__axishead"></div>
+    {{range $h := seq 24}}<div class="weekcal__hour"><span>{{$h}}:00</span></div>{{end}}
+  </div>
+  <div class="weekcal__days">
+    {{range $i, $d := .Days}}
+    <div class="weekcal__day">
+      <button type="button" class="weekcal__dayhead" data-goto-day="{{$i}}" title="{{t "tagesplan.view.day"}}">
+        <span class="weekcal__dow">{{t (printf "weekday.%s" (weekday $d))}}</span>
+        <span class="weekcal__date">{{fmtDate $d}}</span>
+      </button>
+      <div class="weekcal__col">
+        {{range $.Items}}{{if and (.OnDay $d) .Timed}}
+        <div class="weekcal-block"
+             style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));"
+             title="{{.Title}} ({{.StartLabel}}–{{.EndLabel}})">
+          <span class="weekcal-block__time">{{.StartLabel}}</span>
+          <span class="weekcal-block__title">{{.Title}}</span>
+        </div>
+        {{end}}{{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}

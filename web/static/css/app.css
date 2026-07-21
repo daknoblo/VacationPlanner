@@ -472,6 +472,85 @@ code {
 .planner-block__title { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .planner-block__del { border: none; background: transparent; color: #fff; cursor: pointer; opacity: 0.85; padding: 0 2px; font-size: 0.8rem; line-height: 1; }
 .planner-block__resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
+
+/* Tagesplan day/week view toggle */
+.viewtoggle { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 0.85rem; }
+.viewtoggle__btn { border: none; background: #fff; color: var(--ink); padding: 0.4rem 0.95rem; cursor: pointer; font: inherit; font-weight: 600; }
+.viewtoggle__btn + .viewtoggle__btn { border-left: 1px solid var(--line); }
+.viewtoggle__btn.is-active { background: var(--primary); color: #fff; }
+
+/* Week calendar */
+.weekcal {
+  --ppm: 0.8px;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: auto;
+  background: var(--panel);
+  max-height: 72vh;
+}
+.weekcal__axis {
+  flex: 0 0 52px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+.weekcal__axishead { height: 46px; border-bottom: 1px solid var(--line); }
+.weekcal__hour {
+  height: calc(60 * var(--ppm));
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 2px 4px;
+  box-sizing: border-box;
+  border-top: 1px solid var(--line);
+}
+.weekcal__hour:first-child { border-top: none; }
+.weekcal__days { display: flex; }
+.weekcal__day { flex: 0 0 148px; border-right: 1px solid var(--line); }
+.weekcal__day:last-child { border-right: none; }
+.weekcal__dayhead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+}
+.weekcal__dayhead:hover { background: #eef2ff; }
+.weekcal__dow { font-weight: 700; font-size: 0.8rem; color: var(--ink); }
+.weekcal__date { font-size: 0.72rem; color: var(--muted); }
+.weekcal__col {
+  position: relative;
+  height: calc(1440 * var(--ppm));
+  background-image: repeating-linear-gradient(to bottom, var(--line) 0, var(--line) 1px, transparent 1px, transparent calc(60 * var(--ppm)));
+}
+.weekcal-block {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  min-height: 14px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 5px;
+  padding: 2px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: 0.72rem;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
+}
+.weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.65rem; display: block; }
+.weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .activity-form { margin-bottom: 1.5rem; }
 
 @media print {

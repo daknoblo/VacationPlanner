@@ -94,7 +94,12 @@
 
   <section class="tab-panel" data-tab-panel="tagesplan">
     {{if $v.Days}}
-    <div class="tabs" data-tabs>
+    <div class="tagesplan" data-tagesplan>
+      <div class="viewtoggle" data-viewtoggle>
+        <button type="button" class="viewtoggle__btn is-active" data-view="day">{{t "tagesplan.view.day"}}</button>
+        <button type="button" class="viewtoggle__btn" data-view="week">{{t "tagesplan.view.week"}}</button>
+      </div>
+      <div class="tabs" data-tabs data-day-view>
       <div class="tabs__bar" role="tablist">
         <div class="tabs__row tabs__row--days" data-day-tabs>
           {{template "day_tabs" (dict "Days" $v.Days)}}
@@ -134,6 +139,8 @@
         </div>
       </section>
       {{end}}
+      </div>
+      {{template "weekcal" $v}}
     </div>
     {{else}}
     <div class="panel"><p class="muted">{{t "tagesplan.nodays"}}</p></div>

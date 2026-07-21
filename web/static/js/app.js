@@ -303,6 +303,43 @@
     }
   });
 
+  // ---- Tagesplan day/week view toggle ----
+  function initViewToggle() {
+    var toggles = document.querySelectorAll("[data-viewtoggle]");
+    for (var i = 0; i < toggles.length; i++) { bindViewToggle(toggles[i]); }
+  }
+
+  function bindViewToggle(toggle) {
+    var container = toggle.closest("[data-tagesplan]");
+    if (!container) return;
+    var dayView = container.querySelector("[data-day-view]");
+    var weekView = container.querySelector("[data-weekview]");
+    var btns = toggle.querySelectorAll("[data-view]");
+    function setView(view) {
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle("is-active", btns[i].getAttribute("data-view") === view);
+      }
+      if (dayView) dayView.hidden = (view === "week");
+      if (weekView) weekView.hidden = (view !== "week");
+    }
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].addEventListener("click", function () { setView(this.getAttribute("data-view")); });
+    }
+  }
+
+  // Clicking a day column header in week view jumps to that day in day view.
+  document.addEventListener("click", function (e) {
+    var head = e.target && e.target.closest ? e.target.closest("[data-goto-day]") : null;
+    if (!head) return;
+    var container = head.closest("[data-tagesplan]");
+    if (!container) return;
+    var idx = head.getAttribute("data-goto-day");
+    var dayBtn = container.querySelector('[data-viewtoggle] [data-view="day"]');
+    if (dayBtn) dayBtn.click();
+    var dayTab = container.querySelector('.tabs__tab[data-tab="day-' + idx + '"]');
+    if (dayTab) dayTab.click();
+  });
+
   // ---- Icon picker (category symbols) ----
   document.addEventListener("click", function (e) {
     var btn = e.target && e.target.closest ? e.target.closest("[data-icon-picker] .icon-picker__btn") : null;
@@ -620,6 +657,7 @@
     initGeoLiteInputs();
     initPlanners();
     initTabs();
+    initViewToggle();
     initDateRanges();
   }
 
