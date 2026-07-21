@@ -6,15 +6,27 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 
 ## Features
 
-- **Manage vacations** – multiple planned trips with a date range (from/to), destination and notes.
+- **Manage vacations** – multiple planned trips with a date range (from/to), destination, notes,
+  and an optional **budget** and **number of people**.
 - **Arrival & departure** – travel segments with transport mode, origin/destination and depart/arrive times.
 - **Sights** – points of interest with category, description, date, notes and a "visited" flag.
+- **Day planner** – a two-row tab bar (General / Arrival / Departure / Overview / Budget, plus one
+  tab per day). Plan **activities** on an hour grid per day; drag/resize to reschedule.
+- **Budget tab** – track the vacation budget against planned costs.
+- **Custom categories** – manage the item categories offered on the sight/activity forms under
+  **Settings** (seeded with Activity / Food / Point of Interest).
 - **Interactive map** – Leaflet + OpenStreetMap. Markers for every sight; clicking the map fills the
   coordinates for a new entry.
+- **Destination autocomplete** – server-proxied geocoding (Photon by default, Nominatim-compatible)
+  provides as-you-type destination suggestions with coordinates.
 - **AI recommendations** – via any **OpenAI-compatible** endpoint (OpenAI, Azure OpenAI, Ollama,
-  LocalAI, vLLM …). Suggestions can be added as sights with a single click.
+  LocalAI, vLLM …). Suggestions can be added as sights with a single click; AI can also suggest
+  activities.
+- **Export** – a print-friendly itinerary and a **server-generated PDF** (per day or the whole trip).
+- **Backup & restore** – create, download, restore and delete SQLite database backups from **Settings**.
 - **Multi-language UI** – English and German, switchable under **Settings** (persisted in a cookie,
   with an `Accept-Language` fallback). Adding a language is a single catalog entry.
+- **Regional settings** – configurable timezone and week start (the IANA database is embedded).
 - **Notes** – free-form notes at the vacation, travel and sight level.
 - **Secure by default** – CSRF protection, strict security headers incl. CSP, rate limiting,
   request limits, non-root distroless container.
@@ -29,6 +41,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 | Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |
 | i18n      | Tiny dependency-free catalog (`internal/i18n`), English fallback     |
 | AI        | OpenAI-compatible `/chat/completions` (configurable)                 |
+| Geocoding | Server-proxied Photon (default) / Nominatim-compatible (`internal/geo`) |
+| PDF       | Pure-Go `go-pdf/fpdf` with embedded Go UTF-8 fonts (`internal/pdf`)  |
 | Container | Multi-stage → `gcr.io/distroless/static-debian12:nonroot`, multi-arch |
 | Quality   | golangci-lint (v2), gosec, govulncheck, CodeQL, Trivy                |
 
@@ -87,6 +101,7 @@ model are configured at runtime under **Settings** (stored in the database), not
 | `APP_ENV`        | `development`   | `production` enables JSON logs, HSTS, secure cookies.                    |
 | `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |
 | `DB_PATH`        | `vacation.db`   | SQLite database file path (created if missing).                         |
+| `GEOCODER_API_KEY` | –             | Optional API key for a keyed Photon/Nominatim-compatible geocoder (stays server-side). The base URL lives in **Settings**. |
 
 ### AI endpoint
 
@@ -150,10 +165,13 @@ cmd/server/            main + health-probe subcommand
 internal/
   ai/                  OpenAI-compatible client
   config/              env configuration & logger
+  destimg/             destination image lookup/proxy
+  geo/                 server-proxied geocoding (Photon/Nominatim)
   i18n/                translation catalog (en/de) + resolver
   models/              domain types
+  pdf/                 server-generated PDF itinerary
   server/              routing, middleware, CSRF, rendering, handlers
-  store/               SQLite store + embedded migrations
+  store/               SQLite store, backups + embedded migrations
 web/
   templates/           layout, pages, partials
   static/              CSS, JS, vendored Leaflet/HTMX
