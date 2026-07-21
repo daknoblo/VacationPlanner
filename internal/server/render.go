@@ -52,7 +52,10 @@ var funcMap = template.FuncMap{
 	"dict":        dict,
 	"add":         addInt,
 	"sub":         subInt,
+	"mod":         modInt,
+	"div":         divInt,
 	"seq":         seq,
+	"weekday":     weekdayKey,
 	"sameDay":     sameDay,
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
@@ -190,6 +193,12 @@ func fmtDate(t time.Time) string {
 	return t.Format("02.01.2006")
 }
 
+// weekdayKey returns the lower-case English weekday name (e.g. "monday") for use
+// as an i18n key for localized weekday labels.
+func weekdayKey(t time.Time) string {
+	return strings.ToLower(t.Weekday().String())
+}
+
 func fmtDatePtr(t *time.Time) string {
 	if t == nil {
 		return ""
@@ -270,6 +279,22 @@ func addInt(a, b int) int { return a + b }
 
 // subInt subtracts two integers (used for activity block heights).
 func subInt(a, b int) int { return a - b }
+
+// modInt returns a mod b (0 when b == 0); used to group day tabs into weeks.
+func modInt(a, b int) int {
+	if b == 0 {
+		return 0
+	}
+	return a % b
+}
+
+// divInt returns a / b (0 when b == 0); used for week numbering.
+func divInt(a, b int) int {
+	if b == 0 {
+		return 0
+	}
+	return a / b
+}
 
 // seq returns the integers 0..n-1 (used to render the planner's hour rows).
 func seq(n int) []int {

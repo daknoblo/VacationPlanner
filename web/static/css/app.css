@@ -229,6 +229,36 @@ code {
   border-color: var(--primary);
   background: #fff;
 }
+.days-week {
+  flex-basis: 100%;
+  width: 100%;
+  margin: 0.4rem 0 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.days-panel .days-week { grid-column: 1 / -1; margin-top: 0.2rem; }
+.tabs__tab--day .tabs__wd { line-height: 1.15; }
+
+/* Home quick-fill chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--ink);
+  width: fit-content;
+}
+.chip:hover { border-color: var(--primary); color: var(--primary); }
 
 /* Budget */
 .budget__summary {

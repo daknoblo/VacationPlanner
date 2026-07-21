@@ -20,10 +20,12 @@
   <div class="field">
     <label>{{t "travel.from"}}</label>
     <input name="from_location" maxlength="200" placeholder="{{t "placeholder.travel.from"}}">
+    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="from_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
   </div>
   <div class="field">
     <label>{{t "travel.to"}}</label>
     <input name="to_location" maxlength="200" placeholder="{{t "placeholder.travel.to"}}">
+    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="to_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
   </div>
   <div class="field">
     <label>{{t "travel.depart"}}</label>

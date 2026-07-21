@@ -521,6 +521,47 @@
   document.body.addEventListener("htmx:afterSwap", function (e) { renderMermaid(e.target); });
   document.body.addEventListener("itemsChanged", nudgeDaySummary);
 
+  // ---- Date range: choosing "From" constrains and opens "To" ----
+  function pairedDateTo(fromEl) {
+    var form = fromEl.closest("form");
+    return form ? form.querySelector("[data-date-to]") : null;
+  }
+
+  function initDateRanges() {
+    var froms = document.querySelectorAll("[data-date-from]");
+    for (var i = 0; i < froms.length; i++) {
+      var to = pairedDateTo(froms[i]);
+      if (to && froms[i].value) { to.min = froms[i].value; }
+    }
+  }
+
+  document.addEventListener("change", function (e) {
+    var from = e.target && e.target.closest ? e.target.closest("[data-date-from]") : null;
+    if (!from || !from.value) return;
+    var to = pairedDateTo(from);
+    if (!to) return;
+    to.min = from.value;
+    if (!to.value || to.value < from.value) { to.value = from.value; }
+    try { to.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+    if (typeof to.showPicker === "function") {
+      try { to.showPicker(); } catch (err) { /* requires user activation */ }
+    }
+  });
+
+  // ---- Quick-fill "Home" for the travel from/to fields ----
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest("[data-fill-home]") : null;
+    if (!btn) return;
+    var form = btn.closest("form");
+    if (!form) return;
+    var input = form.querySelector('[name="' + btn.getAttribute("data-fill-target") + '"]');
+    if (input) {
+      input.value = btn.getAttribute("data-fill-value") || "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
+  });
+
   function init() {
     if (typeof window.mermaid !== "undefined") {
       window.mermaid.initialize({
@@ -536,6 +577,7 @@
     initGeoLiteInputs();
     initPlanners();
     initTabs();
+    initDateRanges();
   }
 
   if (document.readyState !== "loading") {

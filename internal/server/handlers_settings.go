@@ -20,6 +20,7 @@ const (
 	settingAIAPIVersion = "ai.api_version"
 	settingWeekStart    = "region.week_start"
 	settingTimezone     = "region.timezone"
+	settingHomeAddress  = "home.address"
 )
 
 // commonTimezones is a curated list of IANA zones offered in Settings.
@@ -95,18 +96,17 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	stats, _ := s.store.Stats(r.Context())
 	categories, _ := s.store.ListCategories(r.Context())
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
-		"Languages":           i18n.Supported(),
-		"Current":             loc.Lang(),
-		"AIBaseURL":           settings[settingAIBaseURL],
-		"AIModel":             settings[settingAIModel],
-		"AIAPIVersion":        settings[settingAIAPIVersion],
-		"AIDefaultBaseURL":    ai.DefaultBaseURL,
-		"AIDefaultModel":      ai.DefaultModel,
-		"AIKeyConfigured":     s.ai.Enabled(),
-		"WeekStart":           weekStart,
-		"Timezone":            timezone,
-		"Timezones":           commonTimezones,
-		"GeoBaseURL":          settings[settingGeoBaseURL],
+		"Languages":        i18n.Supported(),
+		"Current":          loc.Lang(),
+		"AIBaseURL":        settings[settingAIBaseURL],
+		"AIModel":          settings[settingAIModel],
+		"AIAPIVersion":     settings[settingAIAPIVersion],
+		"AIDefaultBaseURL": ai.DefaultBaseURL,
+		"AIDefaultModel":   ai.DefaultModel,
+		"AIKeyConfigured":  s.ai.Enabled(),
+		"WeekStart":        weekStart,
+		"Timezone":         timezone,
+		"Timezones":        commonTimezones, "HomeAddress": settings[settingHomeAddress], "GeoBaseURL": settings[settingGeoBaseURL],
 		"GeoDefaultBaseURL":   geo.DefaultBaseURL,
 		"GeoKeyConfigured":    s.cfg.GeocoderAPIKey != "",
 		"RouteBaseURL":        settings[settingRouteBaseURL],
@@ -176,6 +176,31 @@ func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := s.store.PutSetting(r.Context(), settingAIAPIVersion, apiVersion); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.settingSaved(w, r)
+}
+
+// homeAddress returns the configured home address (empty if unset).
+func (s *Server) homeAddress(ctx context.Context) string {
+	settings, err := s.store.GetSettings(ctx)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(settings[settingHomeAddress])
+}
+
+// handleUpdateHomeSettings persists the user's home address, offered as a quick
+// fill when planning arrival/departure.
+func (s *Server) handleUpdateHomeSettings(w http.ResponseWriter, r *http.Request) {
+	loc := i18n.FromContext(r.Context())
+	addr := formStr(r, "address")
+	if !maxLen(addr, 200) {
+		s.formError(w, r, "#home-settings-error", loc.T("error.input_toolong"))
+		return
+	}
+	if err := s.store.PutSetting(r.Context(), settingHomeAddress, addr); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

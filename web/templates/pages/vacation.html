@@ -18,28 +18,24 @@
 <div class="tabs" data-tabs>
   <div class="tabs__bar" role="tablist">
     <div class="tabs__row tabs__row--main">
-      <button type="button" class="tabs__tab is-active" data-tab="general">{{t "tab.general"}}</button>
+      <button type="button" class="tabs__tab is-active" data-tab="overview">{{t "tab.overview"}}</button>
+      <button type="button" class="tabs__tab" data-tab="general">{{t "tab.general"}}</button>
       <button type="button" class="tabs__tab" data-tab="arrival">{{t "tab.arrival"}}</button>
       <button type="button" class="tabs__tab" data-tab="departure">{{t "tab.departure"}}</button>
-      <button type="button" class="tabs__tab" data-tab="overview">{{t "tab.overview"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
     </div>
     {{if $v.Days}}
     <div class="tabs__row tabs__row--days" data-day-tabs {{if gt (len $v.Days) 14}}data-days-collapsible{{end}}>
       {{if gt (len $v.Days) 14}}
       <button type="button" class="days-toggle" data-days-toggle aria-expanded="false" aria-controls="days-panel">
-        <span class="days-toggle__label" data-days-current>{{t "tab.day"}} 1 · {{fmtDate (index $v.Days 0)}}</span>
+        <span class="days-toggle__label" data-days-current>{{t (printf "weekday.%s" (weekday (index $v.Days 0)))}} · {{fmtDate (index $v.Days 0)}}</span>
         <span class="days-toggle__caret" aria-hidden="true">▾</span>
       </button>
       <div id="days-panel" class="days-panel" data-days-panel hidden>
-        {{range $i, $d := $v.Days}}
-        <button type="button" class="tabs__tab tabs__tab--day" data-tab="day-{{$i}}" data-day-index="{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
-        {{end}}
+        {{template "day_tabs" (dict "Days" $v.Days)}}
       </div>
       {{else}}
-      {{range $i, $d := $v.Days}}
-      <button type="button" class="tabs__tab tabs__tab--day" data-tab="day-{{$i}}" data-day-index="{{$i}}">{{t "tab.day"}} {{add $i 1}}<span class="tabs__sub">{{fmtDate $d}}</span></button>
-      {{end}}
+      {{template "day_tabs" (dict "Days" $v.Days)}}
       {{end}}
     </div>
     {{end}}
@@ -47,7 +43,7 @@
 
   <div id="item-error" class="form-error" role="alert"></div>
 
-  <section class="tab-panel is-active" data-tab-panel="general">
+  <section class="tab-panel" data-tab-panel="general">
     <div class="panel">
       <h2>{{t "section.traveldata"}}</h2>
       <form class="form grid"
@@ -73,11 +69,11 @@
         </div>
         <div class="field">
           <label for="m-start">{{t "field.from"}}</label>
-          <input id="m-start" name="start_date" type="date" required value="{{dateInput $v.StartDate}}">
+          <input id="m-start" name="start_date" type="date" required data-date-from value="{{dateInput $v.StartDate}}">
         </div>
         <div class="field">
           <label for="m-end">{{t "field.to"}}</label>
-          <input id="m-end" name="end_date" type="date" required value="{{dateInput $v.EndDate}}">
+          <input id="m-end" name="end_date" type="date" required data-date-to value="{{dateInput $v.EndDate}}">
         </div>
         <div class="field">
           <label for="m-budget">{{t "field.budget"}}</label>
@@ -131,7 +127,7 @@
       <ul id="arrival-list" class="list">
         {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "arrival"}}{{template "travel_item" .}}{{end}}{{end}}
       </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list")}}
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list" "Home" $.Data.HomeAddress)}}
     </div>
   </section>
 
@@ -141,7 +137,7 @@
       <ul id="departure-list" class="list">
         {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "departure"}}{{template "travel_item" .}}{{end}}{{end}}
       </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list")}}
+      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list" "Home" $.Data.HomeAddress)}}
     </div>
   </section>
 
@@ -180,7 +176,7 @@
   </section>
   {{end}}
 
-  <section class="tab-panel" data-tab-panel="overview">
+  <section class="tab-panel is-active" data-tab-panel="overview">
     <div class="detail">
       <div class="detail__main">
         <section class="panel">

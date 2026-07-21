@@ -100,10 +100,11 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
-		"Vacation":   v,
-		"AIEnabled":  s.ai.Enabled(),
-		"Budget":     newBudgetView(v, spent),
-		"Categories": categories,
+		"Vacation":    v,
+		"AIEnabled":   s.ai.Enabled(),
+		"Budget":      newBudgetView(v, spent),
+		"Categories":  categories,
+		"HomeAddress": s.homeAddress(r.Context()),
 	})
 }
 
