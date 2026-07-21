@@ -35,7 +35,6 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Features
 
-- [ ] **Export** — iCal feed for travel segments (a printable and PDF itinerary already ship).
 - [ ] **Search & filter** — filter vacations by date range / destination; filter
       sights by category or visited state.
 - [ ] **Attachments** — optional images/links per sight.
@@ -56,6 +55,8 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Export — iCal (`.ics`) feed for travel segments plus an all-day trip event
+      (`GET /vacations/{id}/export.ics`, pure-Go `internal/ical`).
 - [x] Day-planner tab UX — two-row tab bar (General / Arrival / Departure / Overview /
       Budget + a collapsible day selector).
 - [x] Budget tab — per-vacation budget and number of people.

@@ -69,6 +69,7 @@ func (s *Server) routes() {
 			r.Delete("/", s.handleDeleteVacation)
 			r.Get("/export", s.handleExport)
 			r.Get("/export.pdf", s.handleExportPDF)
+			r.Get("/export.ics", s.handleExportICS)
 			r.Get("/api/items", s.handleItemsJSON)
 			r.Get("/api/day-summary", s.handleDaySummary)
 			r.Get("/api/budget", s.handleBudgetFragment)
