@@ -1,13 +1,21 @@
 {{define "vacation_card"}}
 <article class="card">
   <a class="card__body" href="/vacations/{{.ID}}">
-    <h3>{{.Title}}</h3>
-    <p class="muted">📍 {{.Destination}}</p>
-    <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</p>
-    <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
+    <img class="card__img" src="/api/destination-image?q={{.Destination}}" alt="" loading="lazy" width="400" height="160">
+    <div class="card__content">
+      <h3>{{.Title}}</h3>
+      <p class="muted card__dest">{{.Destination}}</p>
+      <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</p>
+      <div class="card__badges">
+        <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
+        <span class="badge">{{.People}} {{t "field.people"}}</span>
+      </div>
+    </div>
   </a>
-  <button class="btn btn--danger btn--ghost card__delete"
+  <button class="card__delete" type="button"
           hx-delete="/vacations/{{.ID}}"
-          hx-confirm="{{t "vacation.card.confirm_delete"}}">{{t "action.delete"}}</button>
+          hx-confirm="{{t "vacation.card.confirm_delete"}}"
+          title="{{t "action.delete"}}"
+          aria-label="{{t "action.delete"}}">✕</button>
 </article>
 {{end}}

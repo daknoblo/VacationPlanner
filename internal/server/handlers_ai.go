@@ -57,8 +57,8 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		Existing:    existing,
 	}
 
-	baseURL, model := s.aiSettings(r.Context())
-	suggestions, err := s.ai.Recommend(r.Context(), baseURL, model, input)
+	baseURL, model, apiVersion := s.aiSettings(r.Context())
+	suggestions, err := s.ai.Recommend(r.Context(), baseURL, model, apiVersion, input)
 	switch {
 	case errors.Is(err, ai.ErrDisabled):
 		view.Error = loc.T("ai.not_configured")

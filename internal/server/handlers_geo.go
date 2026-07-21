@@ -66,5 +66,5 @@ func (s *Server) handleUpdateGeoSettings(w http.ResponseWriter, r *http.Request)
 		s.serverError(w, r, err)
 		return
 	}
-	s.redirectSettings(w, r)
+	s.settingSaved(w, r)
 }

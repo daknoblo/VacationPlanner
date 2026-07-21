@@ -149,8 +149,8 @@ func (s *Server) handleActivitySuggest(w http.ResponseWriter, r *http.Request) {
 	dest := strings.TrimSpace(r.URL.Query().Get("dest"))
 	results := []ai.ActivitySuggestion{}
 	if len([]rune(q)) >= 2 && s.ai.Enabled() {
-		baseURL, model := s.aiSettings(r.Context())
-		if found, err := s.ai.SuggestActivities(r.Context(), baseURL, model, dest, q); err == nil {
+		baseURL, model, apiVersion := s.aiSettings(r.Context())
+		if found, err := s.ai.SuggestActivities(r.Context(), baseURL, model, apiVersion, dest, q); err == nil {
 			results = found
 		} else {
 			s.log.Warn("activity suggest failed", "err", err)

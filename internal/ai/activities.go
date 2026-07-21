@@ -1,12 +1,9 @@
 package ai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 )
 
@@ -25,67 +22,21 @@ const activitySystemPrompt = `You are a concise travel assistant. Given a destin
 	`Keep each description to one short, informative sentence.`
 
 // SuggestActivities asks the model for activities matching a partial query in
-// the context of a destination. baseURL and model may be empty (defaults used).
-func (c *Client) SuggestActivities(ctx context.Context, baseURL, model, destination, query string) ([]ActivitySuggestion, error) {
+// the context of a destination. baseURL, model and apiVersion may be empty.
+func (c *Client) SuggestActivities(ctx context.Context, baseURL, model, apiVersion, destination, query string) ([]ActivitySuggestion, error) {
 	if !c.Enabled() {
 		return nil, ErrDisabled
 	}
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	if baseURL == "" {
-		baseURL = DefaultBaseURL
-	}
-	if strings.TrimSpace(model) == "" {
-		model = DefaultModel
-	}
-
 	user := fmt.Sprintf("Destination: %s\nActivity query: %s\nSuggest matching activities.",
 		strings.TrimSpace(destination), strings.TrimSpace(query))
-	reqBody := chatRequest{
-		Model:       model,
-		Temperature: 0.6,
-		Messages: []chatMessage{
-			{Role: "system", Content: activitySystemPrompt},
-			{Role: "user", Content: user},
-		},
-	}
-	payload, err := json.Marshal(reqBody)
+	content, err := c.doChat(ctx, baseURL, model, apiVersion, []chatMessage{
+		{Role: "system", Content: activitySystemPrompt},
+		{Role: "user", Content: user},
+	}, 0.6)
 	if err != nil {
-		return nil, fmt.Errorf("ai: encoding request: %w", err)
+		return nil, err
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		baseURL+"/chat/completions", bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("ai: building request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ai: calling endpoint: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return nil, fmt.Errorf("ai: reading response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ai: endpoint returned status %d", resp.StatusCode)
-	}
-
-	var parsed chatResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("ai: decoding response: %w", err)
-	}
-	if parsed.Error != nil {
-		return nil, fmt.Errorf("ai: endpoint error: %s", parsed.Error.Message)
-	}
-	if len(parsed.Choices) == 0 {
-		return nil, fmt.Errorf("ai: endpoint returned no choices")
-	}
-	return parseActivities(parsed.Choices[0].Message.Content)
+	return parseActivities(content)
 }
 
 func parseActivities(content string) ([]ActivitySuggestion, error) {

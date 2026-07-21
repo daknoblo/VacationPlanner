@@ -18,14 +18,6 @@
         {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}/export"{{if eq .Page "export"}} class="is-active"{{end}}>{{t "nav.export"}}</a>{{else}}<span class="is-disabled">{{t "nav.export"}}</span>{{end}}
         <a href="/settings"{{if eq .Page "settings"}} class="is-active"{{end}}>{{t "nav.settings"}}</a>
       </nav>
-      {{if .NavVacations}}
-      <div class="topbar__switcher">
-        <select data-nav-switch aria-label="{{t "nav.switch"}}">
-          <option value="">{{t "nav.switch"}}</option>
-          {{range .NavVacations}}<option value="/vacations/{{.ID}}"{{if eq .ID $.CurrentID}} selected{{end}}>{{.Title}}</option>{{end}}
-        </select>
-      </div>
-      {{end}}
     </div>
   </header>
 

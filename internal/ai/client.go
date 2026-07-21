@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -84,13 +85,27 @@ const systemPrompt = `You are a concise travel assistant. ` +
 	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"..."}]}. ` +
 	`Provide between 3 and 6 suggestions. Keep description and reason to one short sentence each.`
 
-// Recommend asks the model for points of interest for the given trip. baseURL
-// and model may be empty, in which case the package defaults are used.
-func (c *Client) Recommend(ctx context.Context, baseURL, model string, in RecommendInput) ([]Suggestion, error) {
+// Recommend asks the model for points of interest for the given trip. baseURL,
+// model and apiVersion may be empty, in which case the package defaults / a
+// plain (non-Azure) request are used.
+func (c *Client) Recommend(ctx context.Context, baseURL, model, apiVersion string, in RecommendInput) ([]Suggestion, error) {
 	if !c.Enabled() {
 		return nil, ErrDisabled
 	}
+	content, err := c.doChat(ctx, baseURL, model, apiVersion, []chatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: buildUserPrompt(in)},
+	}, 0.7)
+	if err != nil {
+		return nil, err
+	}
+	return parseSuggestions(content)
+}
 
+// doChat performs a chat-completion request and returns the assistant message
+// content. When apiVersion is set it targets an Azure OpenAI-style endpoint
+// (?api-version=... plus the api-key header) alongside the Bearer token.
+func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, messages []chatMessage, temperature float64) (string, error) {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
@@ -99,54 +114,50 @@ func (c *Client) Recommend(ctx context.Context, baseURL, model string, in Recomm
 		model = DefaultModel
 	}
 
-	reqBody := chatRequest{
-		Model:       model,
-		Temperature: 0.7,
-		Messages: []chatMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: buildUserPrompt(in)},
-		},
-	}
-	payload, err := json.Marshal(reqBody)
+	payload, err := json.Marshal(chatRequest{Model: model, Temperature: temperature, Messages: messages})
 	if err != nil {
-		return nil, fmt.Errorf("ai: encoding request: %w", err)
+		return "", fmt.Errorf("ai: encoding request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		baseURL+"/chat/completions", bytes.NewReader(payload))
+	endpoint := baseURL + "/chat/completions"
+	if v := strings.TrimSpace(apiVersion); v != "" {
+		endpoint += "?api-version=" + url.QueryEscape(v)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return nil, fmt.Errorf("ai: building request: %w", err)
+		return "", fmt.Errorf("ai: building request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	if strings.TrimSpace(apiVersion) != "" {
+		req.Header.Set("api-key", c.apiKey) // Azure OpenAI style
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("ai: calling endpoint: %w", err)
+		return "", fmt.Errorf("ai: calling endpoint: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return nil, fmt.Errorf("ai: reading response: %w", err)
+		return "", fmt.Errorf("ai: reading response: %w", err)
 	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ai: endpoint returned status %d", resp.StatusCode)
+		return "", fmt.Errorf("ai: endpoint returned status %d", resp.StatusCode)
 	}
 
 	var parsed chatResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("ai: decoding response: %w", err)
+		return "", fmt.Errorf("ai: decoding response: %w", err)
 	}
 	if parsed.Error != nil {
-		return nil, fmt.Errorf("ai: endpoint error: %s", parsed.Error.Message)
+		return "", fmt.Errorf("ai: endpoint error: %s", parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 {
-		return nil, fmt.Errorf("ai: endpoint returned no choices")
+		return "", fmt.Errorf("ai: endpoint returned no choices")
 	}
-
-	return parseSuggestions(parsed.Choices[0].Message.Content)
+	return parsed.Choices[0].Message.Content, nil
 }
 
 func buildUserPrompt(in RecommendInput) string {

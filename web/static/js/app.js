@@ -238,14 +238,6 @@
     }
   });
 
-  // Header switcher: navigate to the chosen vacation.
-  document.addEventListener("change", function (e) {
-    var el = e.target;
-    if (el && el.matches && el.matches("select[data-nav-switch]") && el.value) {
-      window.location.href = el.value;
-    }
-  });
-
   // Print button (export view).
   document.addEventListener("click", function (e) {
     var el = e.target;
