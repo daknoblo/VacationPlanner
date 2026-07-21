@@ -126,6 +126,16 @@
             </div>
             <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid>
               {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
+              {{range index $.Data.CalTravel (dateInput $d)}}
+              <div class="planner-block planner-block--travel" data-static
+                   style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));"
+                   title="{{.Title}} ({{.Label}})">
+                <div class="planner-block__inner">
+                  <span class="planner-block__time">{{.Label}}</span>
+                  <span class="planner-block__title">✈ {{.Title}}</span>
+                </div>
+              </div>
+              {{end}}
             </div>
           </div>
 
@@ -140,7 +150,7 @@
       </section>
       {{end}}
       </div>
-      {{template "weekcal" $v}}
+      {{template "weekcal" (dict "V" $v "CalTravel" $.Data.CalTravel)}}
     </div>
     {{else}}
     <div class="panel"><p class="muted">{{t "tagesplan.nodays"}}</p></div>

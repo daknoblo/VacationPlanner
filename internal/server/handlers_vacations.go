@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -95,13 +97,15 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	categories, _ := s.store.ListCategories(r.Context())
+	loc := i18n.FromContext(r.Context())
+	_, tz := s.regionSettings(r.Context())
 	var spent float64
 	for _, it := range v.Items {
 		if it.Cost != nil {
 			spent += *it.Cost
 		}
 	}
-	activities, ideas := overviewLists(v)
+	activities, ideas := overviewLists(loc, tz, v)
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
@@ -111,6 +115,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"HomeAddress":     s.homeAddress(r.Context()),
 		"ActivityList":    activities,
 		"Ideas":           ideas,
+		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"ArrivalTravel":   s.travelEditor(r.Context(), v.ID, models.TravelArrival, v.TravelSegments),
 		"DepartureTravel": s.travelEditor(r.Context(), v.ID, models.TravelDeparture, v.TravelSegments),
 	})
@@ -141,20 +146,102 @@ type overviewActivity struct {
 	Latitude  *float64
 	Longitude *float64
 	HasCoords bool
+	sortKey   time.Time
+}
+
+// calTravelBlock is a read-only travel leg rendered on the day/week calendar.
+type calTravelBlock struct {
+	StartMin int
+	EndMin   int
+	Title    string
+	Label    string
+}
+
+// travelLabel builds a human label for a travel segment, e.g. "Arrival · BER → LIS".
+func travelLabel(loc *i18n.Localizer, t models.TravelSegment) string {
+	label := loc.T("travel.kind." + string(t.Kind))
+	switch {
+	case t.FromLocation != "" && t.ToLocation != "":
+		label += " · " + t.FromLocation + " → " + t.ToLocation
+	case t.ToLocation != "":
+		label += " · " + t.ToLocation
+	case t.FromLocation != "":
+		label += " · " + t.FromLocation
+	}
+	return label
+}
+
+// modeLabel returns the localized travel mode name (empty when no mode is set).
+func modeLabel(loc *i18n.Localizer, mode string) string {
+	if mode == "" {
+		return ""
+	}
+	return loc.T("travel.mode." + mode)
+}
+
+// travelCalBlocks groups travel legs by their departure day (in the display
+// timezone) so the calendar can render them as read-only blocks.
+func travelCalBlocks(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) map[string][]calTravelBlock {
+	out := make(map[string][]calTravelBlock)
+	for _, ts := range v.TravelSegments {
+		if ts.DepartAt == nil {
+			continue
+		}
+		dep := ts.DepartAt.In(tz)
+		day := dep.Format("2006-01-02")
+		startMin := dep.Hour()*60 + dep.Minute()
+		endMin := startMin + 60
+		label := dep.Format("15:04")
+		if ts.ArriveAt != nil {
+			arr := ts.ArriveAt.In(tz)
+			label += "–" + arr.Format("15:04")
+			if arr.Format("2006-01-02") == day && arr.Hour()*60+arr.Minute() > startMin {
+				endMin = arr.Hour()*60 + arr.Minute()
+			} else if ts.ArriveAt.After(*ts.DepartAt) {
+				endMin = 1440
+			}
+		}
+		if endMin > 1440 {
+			endMin = 1440
+		}
+		out[day] = append(out[day], calTravelBlock{StartMin: startMin, EndMin: endMin, Title: travelLabel(loc, ts), Label: label})
+	}
+	return out
 }
 
 // overviewLists splits items into a chronological activity list (those with a
-// day) and the unscheduled "ideas" bucket. v.Items is already ordered by day
-// then start time, so the activity list comes out chronological.
-func overviewLists(v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
+// day) and the unscheduled "ideas" bucket, and merges travel legs (by departure
+// time) into the activity list. The result is sorted chronologically.
+func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
+	for _, ts := range v.TravelSegments {
+		if ts.DepartAt == nil {
+			continue
+		}
+		dep := ts.DepartAt.In(tz)
+		lat, lng := ts.ToLat, ts.ToLng
+		if lat == nil {
+			lat, lng = ts.FromLat, ts.FromLng
+		}
+		activities = append(activities, overviewActivity{
+			WhenLabel: fmtDate(dep) + " · " + dep.Format("15:04"),
+			Title:     travelLabel(loc, ts),
+			Category:  modeLabel(loc, ts.Mode),
+			Latitude:  lat,
+			Longitude: lng,
+			HasCoords: lat != nil && lng != nil,
+			sortKey:   *ts.DepartAt,
+		})
+	}
 	for _, it := range v.Items {
 		if it.Day == nil {
 			ideas = append(ideas, it)
 			continue
 		}
 		when := fmtDate(*it.Day)
+		key := *it.Day
 		if it.Timed() {
 			when += " · " + it.StartLabel()
+			key = it.Day.Add(time.Duration(it.StartMin) * time.Minute)
 		}
 		activities = append(activities, overviewActivity{
 			WhenLabel: when,
@@ -163,8 +250,12 @@ func overviewLists(v *models.Vacation) (activities []overviewActivity, ideas []m
 			Latitude:  it.Latitude,
 			Longitude: it.Longitude,
 			HasCoords: it.HasCoords(),
+			sortKey:   key,
 		})
 	}
+	sort.SliceStable(activities, func(i, j int) bool {
+		return activities[i].sortKey.Before(activities[j].sortKey)
+	})
 	return activities, ideas
 }
 

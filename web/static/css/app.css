@@ -467,6 +467,7 @@ code {
   touch-action: none;
 }
 .planner-block.is-dragging { cursor: grabbing; opacity: 0.9; z-index: 5; }
+.planner-block--travel { background: #0ea5e9; cursor: default; }
 .planner-block__inner { display: flex; align-items: baseline; gap: 0.4rem; }
 .planner-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.7rem; opacity: 0.9; }
 .planner-block__title { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -551,6 +552,7 @@ code {
 }
 .weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.65rem; display: block; }
 .weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.weekcal-block--travel { background: #0ea5e9; }
 .activity-form { margin-bottom: 1.5rem; }
 
 @media print {

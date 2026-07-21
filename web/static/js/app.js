@@ -538,6 +538,7 @@
       var block = e.target.closest ? e.target.closest(".planner-block") : null;
       if (!block || !grid.contains(block)) return;
       if (e.target.closest(".planner-block__del")) return;
+      if (block.hasAttribute("data-static")) return;
       e.preventDefault();
       var resize = !!e.target.closest("[data-planner-resize]");
       var start = parseInt(block.getAttribute("data-start"), 10) || 0;
