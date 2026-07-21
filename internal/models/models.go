@@ -83,11 +83,23 @@ type TravelSegment struct {
 	Mode         string // e.g. flight, train, car, ferry
 	FromLocation string
 	ToLocation   string
+	FromLat      *float64
+	FromLng      *float64
+	ToLat        *float64
+	ToLng        *float64
 	DepartAt     *time.Time
 	ArriveAt     *time.Time
+	DistanceM    *float64
+	DurationS    *int
 	Notes        string
 	CreatedAt    time.Time
 }
+
+// FromHasCoords reports whether the departure point has map coordinates.
+func (t TravelSegment) FromHasCoords() bool { return t.FromLat != nil && t.FromLng != nil }
+
+// ToHasCoords reports whether the arrival point has map coordinates.
+func (t TravelSegment) ToHasCoords() bool { return t.ToLat != nil && t.ToLng != nil }
 
 // Item is a single planned entry for a vacation — a sight, activity, meal or any
 // user-defined category. It optionally has a day, a time range, map coordinates

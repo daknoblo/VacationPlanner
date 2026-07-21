@@ -71,7 +71,7 @@ func (s *Server) routes() {
 			r.Get("/api/items", s.handleItemsJSON)
 			r.Get("/api/day-summary", s.handleDaySummary)
 			r.Post("/items", s.handleCreateItem)
-			r.Post("/travel", s.handleCreateTravel)
+			r.Post("/travel", s.handleSaveTravel)
 			r.Post("/ai/recommendations", s.handleAIRecommend)
 		})
 	})

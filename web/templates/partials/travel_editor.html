@@ -1,0 +1,72 @@
+{{define "travel_editor"}}
+<form class="form grid travel-editor" data-travel-editor
+      hx-post="/vacations/{{.VID}}/travel"
+      hx-trigger="change delay:300ms"
+      hx-target="this"
+      hx-swap="outerHTML">
+  <input type="hidden" name="kind" value="{{.Seg.Kind}}">
+  <input type="hidden" name="from_lat" value="{{coord .Seg.FromLat}}">
+  <input type="hidden" name="from_lng" value="{{coord .Seg.FromLng}}">
+  <input type="hidden" name="to_lat" value="{{coord .Seg.ToLat}}">
+  <input type="hidden" name="to_lng" value="{{coord .Seg.ToLng}}">
+
+  <div class="field">
+    <label>{{t "travel.from"}}</label>
+    <div class="location-picker__field">
+      <input name="from_location" maxlength="200" autocomplete="off" value="{{.Seg.FromLocation}}"
+             data-geo-lite data-geo-lat="from_lat" data-geo-lng="from_lng"
+             placeholder="{{t "placeholder.travel.from"}}">
+      <div class="suggest" data-geo-lite-list hidden></div>
+    </div>
+    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="from_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
+  </div>
+
+  <div class="field">
+    <label>{{t "travel.to"}}</label>
+    <div class="location-picker__field">
+      <input name="to_location" maxlength="200" autocomplete="off" value="{{.Seg.ToLocation}}"
+             data-geo-lite data-geo-lat="to_lat" data-geo-lng="to_lng"
+             placeholder="{{t "placeholder.travel.to"}}">
+      <div class="suggest" data-geo-lite-list hidden></div>
+    </div>
+    {{if .Home}}<button type="button" class="chip chip--home" data-fill-home data-fill-target="to_location" data-fill-value="{{.Home}}">🏠 {{t "travel.home"}}</button>{{end}}
+  </div>
+
+  <div class="field">
+    <label>{{t "travel.mode"}}</label>
+    <select name="mode">
+      <option value=""{{if eq .Seg.Mode ""}} selected{{end}}>–</option>
+      <option value="flight"{{if eq .Seg.Mode "flight"}} selected{{end}}>{{t "travel.mode.flight"}}</option>
+      <option value="train"{{if eq .Seg.Mode "train"}} selected{{end}}>{{t "travel.mode.train"}}</option>
+      <option value="car"{{if eq .Seg.Mode "car"}} selected{{end}}>{{t "travel.mode.car"}}</option>
+      <option value="bus"{{if eq .Seg.Mode "bus"}} selected{{end}}>{{t "travel.mode.bus"}}</option>
+      <option value="ferry"{{if eq .Seg.Mode "ferry"}} selected{{end}}>{{t "travel.mode.ferry"}}</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>{{t "travel.distance"}}</label>
+    <p class="travel-computed">
+      {{if .DistLabel}}📏 {{.DistLabel}}{{if .DurLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurLabel}}{{end}}{{else}}<span class="muted small">{{t "travel.distance.hint"}}</span>{{end}}
+    </p>
+  </div>
+
+  <div class="field">
+    <label>{{t "travel.depart"}}</label>
+    <input name="depart_at" type="datetime-local" value="{{dtInput .Seg.DepartAt}}">
+  </div>
+
+  <div class="field">
+    <label>{{t "travel.arrive"}}</label>
+    <input type="text" readonly value="{{fmtDateTime .Seg.ArriveAt}}" placeholder="{{t "travel.arrive.auto"}}">
+  </div>
+
+  <div class="field field--wide">
+    <label>{{t "travel.note"}}</label>
+    <input name="notes" maxlength="2000" value="{{.Seg.Notes}}" placeholder="{{t "placeholder.travel.note"}}">
+  </div>
+
+  <div id="travel-error-{{.Seg.Kind}}" class="form-error field--wide"></div>
+</form>
+{{end}}
+

@@ -62,14 +62,17 @@ func TestRenderPages(t *testing.T) {
 
 	v := sampleVacation()
 
+	arrivalEditor := travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min"}
+	departureEditor := travelEditorView{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String()}
+
 	cases := []struct {
 		name string
 		data viewData
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor}}},
 	}
 	loc := i18n.NewLocalizer(i18n.LangEN)
 	for _, c := range cases {

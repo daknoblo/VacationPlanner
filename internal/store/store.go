@@ -31,6 +31,7 @@ type Store interface {
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 
 	CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error
+	UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error
 	ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error)
 	DeleteTravelSegment(ctx context.Context, id uuid.UUID) error
 

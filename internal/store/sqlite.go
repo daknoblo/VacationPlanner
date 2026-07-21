@@ -247,19 +247,52 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO travel_segments
-			(id, vacation_id, kind, mode, from_location, to_location, depart_at, arrive_at, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, vacation_id, kind, mode, from_location, to_location, from_lat, from_lng,
+			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.VacationID, string(t.Kind), t.Mode, t.FromLocation, t.ToLocation,
-		dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.Notes, dbTime(t.CreatedAt))
+		t.FromLat, t.FromLng, t.ToLat, t.ToLng, dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt),
+		t.DistanceM, t.DurationS, t.Notes, dbTime(t.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating travel segment: %w", err)
 	}
 	return nil
 }
 
+// UpsertTravelSegment keeps a single segment per (vacation, kind): it updates the
+// existing arrival/departure row in place when present, otherwise inserts a new one.
+func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error {
+	var existingID uuid.UUID
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id FROM travel_segments WHERE vacation_id = ? AND kind = ? ORDER BY created_at ASC LIMIT 1`,
+		t.VacationID, string(t.Kind))
+	err := row.Scan(&existingID)
+	switch {
+	case err == nil:
+		t.ID = existingID
+		_, uerr := s.db.ExecContext(ctx, `
+			UPDATE travel_segments SET
+				mode = ?, from_location = ?, to_location = ?, from_lat = ?, from_lng = ?,
+				to_lat = ?, to_lng = ?, depart_at = ?, arrive_at = ?, distance_m = ?,
+				duration_s = ?, notes = ?
+			WHERE id = ?`,
+			t.Mode, t.FromLocation, t.ToLocation, t.FromLat, t.FromLng, t.ToLat, t.ToLng,
+			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Notes, t.ID)
+		if uerr != nil {
+			return fmt.Errorf("store: updating travel segment: %w", uerr)
+		}
+		return nil
+	case errors.Is(err, sql.ErrNoRows):
+		return s.CreateTravelSegment(ctx, t)
+	default:
+		return fmt.Errorf("store: checking travel segment: %w", err)
+	}
+}
+
 func (s *SQLite) ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, kind, mode, from_location, to_location, depart_at, arrive_at, notes, created_at
+		SELECT id, vacation_id, kind, mode, from_location, to_location, from_lat, from_lng,
+		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at
 		FROM travel_segments WHERE vacation_id = ? ORDER BY kind ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing travel segments: %w", err)
@@ -467,7 +500,8 @@ func scanTravel(sc rowScanner, t *models.TravelSegment) error {
 	var kind, created string
 	var depart, arrive sql.NullString
 	if err := sc.Scan(&t.ID, &t.VacationID, &kind, &t.Mode, &t.FromLocation,
-		&t.ToLocation, &depart, &arrive, &t.Notes, &created); err != nil {
+		&t.ToLocation, &t.FromLat, &t.FromLng, &t.ToLat, &t.ToLng, &depart, &arrive,
+		&t.DistanceM, &t.DurationS, &t.Notes, &created); err != nil {
 		return err
 	}
 	t.Kind = models.TravelKind(kind)

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strconv"
+
+	"github.com/google/uuid"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
@@ -101,14 +104,33 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	activities, ideas := overviewLists(v)
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
-		"Vacation":     v,
-		"AIEnabled":    s.ai.Enabled(),
-		"Budget":       newBudgetView(v, spent),
-		"Categories":   categories,
-		"HomeAddress":  s.homeAddress(r.Context()),
-		"ActivityList": activities,
-		"Ideas":        ideas,
+		"Vacation":        v,
+		"AIEnabled":       s.ai.Enabled(),
+		"Budget":          newBudgetView(v, spent),
+		"Categories":      categories,
+		"HomeAddress":     s.homeAddress(r.Context()),
+		"ActivityList":    activities,
+		"Ideas":           ideas,
+		"ArrivalTravel":   s.travelEditor(r.Context(), v.ID, models.TravelArrival, v.TravelSegments),
+		"DepartureTravel": s.travelEditor(r.Context(), v.ID, models.TravelDeparture, v.TravelSegments),
 	})
+}
+
+// travelEditor builds the inline editor view for one travel kind from the
+// vacation's segments, synthesizing an empty segment when none exists yet.
+func (s *Server) travelEditor(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, segs []models.TravelSegment) travelEditorView {
+	var seg *models.TravelSegment
+	for i := range segs {
+		if segs[i].Kind == kind {
+			seg = &segs[i]
+			break
+		}
+	}
+	if seg == nil {
+		seg = emptyTravelSegment(vacationID, kind)
+	}
+	_, routed := routeProfileForMode(seg.Mode)
+	return s.newTravelEditorView(ctx, seg, !routed || !s.routing.Enabled())
 }
 
 // overviewActivity is a scheduled entry shown in the Overview activity list.

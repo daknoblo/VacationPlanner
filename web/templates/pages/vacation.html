@@ -84,17 +84,11 @@
   <section class="tab-panel" data-tab-panel="travel">
     <div class="panel">
       <h2>{{t "tab.arrival"}}</h2>
-      <ul id="arrival-list" class="list">
-        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "arrival"}}{{template "travel_item" .}}{{end}}{{end}}
-      </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "arrival" "List" "#arrival-list" "Home" $.Data.HomeAddress)}}
+      {{template "travel_editor" $.Data.ArrivalTravel}}
     </div>
     <div class="panel">
       <h2>{{t "tab.departure"}}</h2>
-      <ul id="departure-list" class="list">
-        {{range $v.TravelSegments}}{{if eq (printf "%s" .Kind) "departure"}}{{template "travel_item" .}}{{end}}{{end}}
-      </ul>
-      {{template "travel_form" (dict "V" $v "CSRF" $csrf "Kind" "departure" "List" "#departure-list" "Home" $.Data.HomeAddress)}}
+      {{template "travel_editor" $.Data.DepartureTravel}}
     </div>
   </section>
 

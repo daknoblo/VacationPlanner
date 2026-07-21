@@ -43,6 +43,18 @@
     }
   });
 
+  // Re-bind geo autocomplete on content swapped in by htmx (e.g. the travel editor).
+  document.body.addEventListener("htmx:afterSwap", function () {
+    initGeoLiteInputs();
+  });
+
+  // The travel editor auto-saves on change; suppress native form submission.
+  document.addEventListener("submit", function (e) {
+    if (e.target && e.target.matches && e.target.matches("[data-travel-editor]")) {
+      e.preventDefault();
+    }
+  });
+
   // ---- Leaflet map ----
   var map = null;
   var markerLayer = null;
@@ -64,12 +76,6 @@
   function initMap() {
     var el = document.getElementById("map");
     if (!el || typeof L === "undefined") return;
-
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "/static/vendor/leaflet/images/marker-icon-2x.png",
-      iconUrl: "/static/vendor/leaflet/images/marker-icon.png",
-      shadowUrl: "/static/vendor/leaflet/images/marker-shadow.png"
-    });
 
     var lat = parseFloat(el.dataset.lat);
     var lng = parseFloat(el.dataset.lng);
@@ -395,11 +401,15 @@
   }
 
   function initGeoLite(input) {
+    if (input.dataset.geoBound) return;
+    input.dataset.geoBound = "1";
     var wrap = input.closest(".location-picker__field") || input.parentNode;
     var list = wrap.querySelector("[data-geo-lite-list]");
     var form = input.closest("form");
-    var latIn = form ? form.querySelector("[data-geo-lite-lat]") : null;
-    var lngIn = form ? form.querySelector("[data-geo-lite-lng]") : null;
+    var latName = input.getAttribute("data-geo-lat");
+    var lngName = input.getAttribute("data-geo-lng");
+    var latIn = form ? (latName ? form.querySelector('[name="' + latName + '"]') : form.querySelector("[data-geo-lite-lat]")) : null;
+    var lngIn = form ? (lngName ? form.querySelector('[name="' + lngName + '"]') : form.querySelector("[data-geo-lite-lng]")) : null;
     var timer = null;
 
     function clearCoords() { if (latIn) latIn.value = ""; if (lngIn) lngIn.value = ""; }
@@ -579,15 +589,22 @@
     if (input) {
       input.value = btn.getAttribute("data-fill-value") || "";
       input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
       input.focus();
     }
   });
 
   function init() {
     if (typeof L !== "undefined" && L.Icon && L.Icon.Default) {
-      // Point Leaflet's default marker at the vendored images (its auto-detection
-      // resolves them relative to the page URL, which 404s).
-      L.Icon.Default.imagePath = "/static/vendor/leaflet/images/";
+      // Use the vendored marker images directly. Deleting the Default
+      // _getIconUrl override stops Leaflet from prepending its auto-detected
+      // imagePath (which would double the URL and 404).
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "/static/vendor/leaflet/images/marker-icon-2x.png",
+        iconUrl: "/static/vendor/leaflet/images/marker-icon.png",
+        shadowUrl: "/static/vendor/leaflet/images/marker-shadow.png"
+      });
     }
     if (typeof window.mermaid !== "undefined") {
       window.mermaid.initialize({
