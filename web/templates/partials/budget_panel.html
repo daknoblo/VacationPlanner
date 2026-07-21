@@ -1,7 +1,8 @@
 {{define "budget_panel"}}
 {{$b := .}}
-{{if $b.HasBudget}}
+{{if or $b.HasBudget (gt $b.ExpenseCount 0)}}
 <div class="budget">
+  {{if $b.HasBudget}}
   <div class="budget__summary">
     <div class="budget__stat">
       <span class="budget__label">{{t "budget.total"}}</span>
@@ -20,10 +21,69 @@
     <div class="budget__bar-fill{{if $b.Over}} is-over{{end}}" style="width:{{$b.PercentClamped}}%"></div>
   </div>
   <ul class="budget__meta">
+    <li>{{t "budget.used"}}: <strong>{{$b.PercentClamped}}%</strong></li>
     {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{moneyF $b.PerPerson}}</strong></li>{{end}}
     {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{moneyF $b.PerNight}}</strong></li>{{end}}
   </ul>
-  <p class="muted small">{{t "budget.hint"}}</p>
+  {{end}}
+
+  {{if gt $b.ExpenseCount 0}}
+  <h3 class="budget__heading">{{t "budget.stats"}}</h3>
+  <div class="budget__stats">
+    <div class="budget__stat budget__stat--sm">
+      <span class="budget__label">{{t "budget.expense_count"}}</span>
+      <span class="budget__value">{{$b.ExpenseCount}}</span>
+    </div>
+    <div class="budget__stat budget__stat--sm">
+      <span class="budget__label">{{t "budget.avg"}}</span>
+      <span class="budget__value">{{moneyF $b.AvgExpense}}</span>
+    </div>
+    <div class="budget__stat budget__stat--sm">
+      <span class="budget__label">{{t "budget.top"}}</span>
+      <span class="budget__value">{{moneyF $b.TopAmount}}</span>
+    </div>
+    {{if gt $b.People 0}}
+    <div class="budget__stat budget__stat--sm">
+      <span class="budget__label">{{t "budget.spent_per_person"}}</span>
+      <span class="budget__value">{{moneyF $b.SpentPerPerson}}</span>
+    </div>
+    {{end}}
+    {{if gt $b.Nights 0}}
+    <div class="budget__stat budget__stat--sm">
+      <span class="budget__label">{{t "budget.spent_per_night"}}</span>
+      <span class="budget__value">{{moneyF $b.SpentPerNight}}</span>
+    </div>
+    {{end}}
+  </div>
+
+  <h3 class="budget__heading">{{t "budget.by_category"}}</h3>
+  <ul class="budget__cats">
+    {{range $b.Categories}}
+    <li class="budget-cat">
+      <div class="budget-cat__head">
+        <span class="budget-cat__name">{{if .Icon}}{{.Icon}} {{end}}{{if .Name}}{{.Name}}{{else}}{{t "budget.uncategorized"}}{{end}}</span>
+        <span class="budget-cat__amount">{{moneyF .Amount}} <span class="muted small">· {{.Percent}}%</span></span>
+      </div>
+      <div class="budget-cat__bar"><div class="budget-cat__fill" style="width:{{.Percent}}%"></div></div>
+    </li>
+    {{end}}
+  </ul>
+
+  <h3 class="budget__heading">{{t "budget.expenses_list"}}</h3>
+  <ul class="budget__expenses">
+    {{range $b.Expenses}}
+    <li class="budget-exp">
+      <span class="budget-exp__title">{{if .Icon}}{{.Icon}} {{end}}{{.Title}}</span>
+      {{if .DayLabel}}<span class="budget-exp__day">{{.DayLabel}}</span>{{end}}
+      <span class="budget-exp__amount">{{moneyF .Amount}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted small">{{t "budget.no_expenses"}}</p>
+  {{end}}
+
+  {{if $b.HasBudget}}<p class="muted small">{{t "budget.hint"}}</p>{{end}}
 </div>
 {{else}}
 <p class="muted">{{t "budget.none"}}</p>

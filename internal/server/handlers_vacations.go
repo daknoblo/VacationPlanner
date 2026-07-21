@@ -37,36 +37,112 @@ type budgetView struct {
 	Nights         int
 	PerPerson      float64
 	PerNight       float64
+
+	// Spending statistics and breakdown.
+	ExpenseCount   int
+	AvgExpense     float64
+	TopAmount      float64
+	SpentPerPerson float64
+	SpentPerNight  float64
+	Categories     []budgetCategory
+	Expenses       []budgetExpense
 }
 
-// newBudgetView computes the budget breakdown for a vacation. spent is the sum
-// of planned item costs (0 until per-item costs are tracked).
-func newBudgetView(v *models.Vacation, spent float64) budgetView {
+// budgetCategory is the total spent within one category.
+type budgetCategory struct {
+	Name    string
+	Icon    string
+	Amount  float64
+	Percent int // share of total spending
+}
+
+// budgetExpense is a single costed item shown in the spending overview.
+type budgetExpense struct {
+	Title    string
+	Icon     string
+	DayLabel string
+	Amount   float64
+}
+
+// newBudgetView computes the budget breakdown and spending statistics for a
+// vacation from its items. icons maps lower-cased category names to emoji.
+func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string) budgetView {
 	b := budgetView{People: v.People, Nights: v.Nights()}
-	if v.Budget == nil {
-		return b
+
+	catAmount := map[string]float64{}
+	var catOrder []string
+	for _, it := range items {
+		if it.Cost == nil {
+			continue
+		}
+		amt := *it.Cost
+		b.Spent += amt
+		b.ExpenseCount++
+		if amt > b.TopAmount {
+			b.TopAmount = amt
+		}
+		if _, ok := catAmount[it.Category]; !ok {
+			catOrder = append(catOrder, it.Category)
+		}
+		catAmount[it.Category] += amt
+
+		day := ""
+		if it.Day != nil {
+			day = fmtDate(*it.Day)
+		}
+		b.Expenses = append(b.Expenses, budgetExpense{
+			Title:    it.Title,
+			Icon:     icons[strings.ToLower(it.Category)],
+			DayLabel: day,
+			Amount:   amt,
+		})
 	}
-	total := *v.Budget
-	b.HasBudget = true
-	b.Total = v.Budget
-	b.Spent = spent
-	b.Remaining = total - spent
-	b.Over = spent > total
-	if total > 0 {
-		p := int(spent / total * 100)
-		if p < 0 {
-			p = 0
-		}
-		if p > 100 {
-			p = 100
-		}
-		b.PercentClamped = p
+
+	if b.ExpenseCount > 0 {
+		b.AvgExpense = b.Spent / float64(b.ExpenseCount)
 	}
 	if v.People > 0 {
-		b.PerPerson = total / float64(v.People)
+		b.SpentPerPerson = b.Spent / float64(v.People)
 	}
 	if b.Nights > 0 {
-		b.PerNight = total / float64(b.Nights)
+		b.SpentPerNight = b.Spent / float64(b.Nights)
+	}
+
+	for _, name := range catOrder {
+		amt := catAmount[name]
+		pct := 0
+		if b.Spent > 0 {
+			pct = int(amt / b.Spent * 100)
+		}
+		b.Categories = append(b.Categories, budgetCategory{
+			Name: name, Icon: icons[strings.ToLower(name)], Amount: amt, Percent: pct,
+		})
+	}
+	sort.SliceStable(b.Categories, func(i, j int) bool { return b.Categories[i].Amount > b.Categories[j].Amount })
+	sort.SliceStable(b.Expenses, func(i, j int) bool { return b.Expenses[i].Amount > b.Expenses[j].Amount })
+
+	if v.Budget != nil {
+		total := *v.Budget
+		b.HasBudget = true
+		b.Total = v.Budget
+		b.Remaining = total - b.Spent
+		b.Over = b.Spent > total
+		if total > 0 {
+			p := int(b.Spent / total * 100)
+			if p < 0 {
+				p = 0
+			}
+			if p > 100 {
+				p = 100
+			}
+			b.PercentClamped = p
+		}
+		if v.People > 0 {
+			b.PerPerson = total / float64(v.People)
+		}
+		if b.Nights > 0 {
+			b.PerNight = total / float64(b.Nights)
+		}
 	}
 	return b
 }
@@ -101,18 +177,12 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
 	weekStart, tz := s.regionSettings(r.Context())
 	mondayStart := weekStart != "sunday"
-	var spent float64
-	for _, it := range v.Items {
-		if it.Cost != nil {
-			spent += *it.Cost
-		}
-	}
 	activities, ideas := overviewLists(loc, tz, v)
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
-		"Budget":          newBudgetView(v, spent),
+		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context())),
 		"Categories":      categories,
 		"HomeAddress":     s.homeAddress(r.Context()),
 		"ActivityList":    activities,
@@ -475,13 +545,7 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	var spent float64
-	for _, it := range items {
-		if it.Cost != nil {
-			spent += *it.Cost
-		}
-	}
-	s.fragment(w, r, "budget_panel", newBudgetView(v, spent))
+	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context())))
 }
 
 // handleOverviewFragment re-renders the overview activity list.

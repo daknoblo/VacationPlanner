@@ -322,6 +322,32 @@ code {
   gap: 1.5rem;
   flex-wrap: wrap;
 }
+.budget__heading { margin: 1.5rem 0 0.6rem; font-size: 1rem; }
+.budget__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.6rem;
+}
+.budget__stat--sm { padding: 0.55rem 0.75rem; }
+.budget__stat--sm .budget__value { font-size: 1.1rem; }
+.budget__cats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.budget-cat__head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem; }
+.budget-cat__name { font-weight: 600; }
+.budget-cat__amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.budget-cat__bar { height: 8px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.budget-cat__fill { height: 100%; background: var(--primary); }
+.budget__expenses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.budget-exp {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0.2rem;
+  border-bottom: 1px solid var(--line);
+}
+.budget-exp:last-child { border-bottom: none; }
+.budget-exp__title { flex: 1 1 auto; font-weight: 600; }
+.budget-exp__day { flex: 0 0 auto; color: var(--muted); font-size: 0.8rem; }
+.budget-exp__amount { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 700; }
 
 /* Categories (settings) */
 .cat-list { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.35rem; }

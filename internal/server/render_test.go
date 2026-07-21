@@ -15,6 +15,7 @@ import (
 func sampleVacation() *models.Vacation {
 	lat, lng := 38.7223, -9.1393
 	budget := 1500.0
+	cost := 25.0
 	depart := time.Date(2026, 8, 1, 9, 30, 0, 0, time.UTC)
 	planned := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
 	id := uuid.New()
@@ -36,7 +37,7 @@ func sampleVacation() *models.Vacation {
 		Items: []models.Item{{
 			ID: uuid.New(), VacationID: id, Title: "Torre de Belém",
 			Category: "Wahrzeichen", Description: "UNESCO-Turm", Latitude: &lat,
-			Longitude: &lng, Day: &planned, StartMin: 540, EndMin: 660, Notes: "früh hin",
+			Longitude: &lng, Day: &planned, StartMin: 540, EndMin: 660, Cost: &cost, Notes: "früh hin",
 		}},
 	}
 }
@@ -76,8 +77,8 @@ func TestRenderPages(t *testing.T) {
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, 0), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, 120), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
@@ -106,7 +107,7 @@ func TestRenderFragments(t *testing.T) {
 		{"travel_item", v.TravelSegments[0]},
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
 		{"detail_head", map[string]any{"V": v, "OOB": true}},
-		{"budget_panel", newBudgetView(v, 120)},
+		{"budget_panel", newBudgetView(v, v.Items, nil)},
 		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Title: "Test", Category: "POI"}}},
 		{"ideas_backlog", []models.Item{v.Items[0]}},
 		{"form_error", "etwas ist schiefgelaufen"},
