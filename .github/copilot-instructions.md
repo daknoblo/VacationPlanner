@@ -65,6 +65,9 @@ a reverse proxy.
 - **`Activity`** (planned on a specific day): `Day`, `Title`, `Category`, `StartMin`/`EndMin`
   (minutes from midnight, drive the day planner's hour grid), `Description`, `Location`.
   Helpers: `OnDay()`, `StartLabel()`/`EndLabel()` (`HH:MM`).
+- **`Category`** (user-managed item label): `ID` (UUID), `Name`, `Icon`, `SortOrder`,
+  `CreatedAt`. Offered on the sight/activity forms; seeded with Activity / Food /
+  Point of Interest. Deleting a category never orphans data (item labels are denormalized).
 
 ### Routes / actions (`internal/server/routes.go`)
 
@@ -83,6 +86,7 @@ a reverse proxy.
 - `GET /settings`, `POST /settings` – choose the UI language (stored in the `lang` cookie).
 - `POST /settings/ai` – configure the AI endpoint URL and model (persisted in the DB).
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
+- `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.
 
 ### Behavior

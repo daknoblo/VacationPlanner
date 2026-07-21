@@ -7,13 +7,8 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ### Day-planner overhaul (epic, 2026-07-21)
 
-- [ ] **Tab UX** — two-row tab bar: row 1 = General / Arrival / Departure / Overview /
-      Budget; row 2 = the days, with an expander when there are many days (inline when few).
-- [ ] **Custom categories** — a Settings section to manage item categories (defaults:
-      Activity / Food / Point-of-Interest), used by the day-item forms.
 - [ ] **Unified day items** — merge Sights and Activities into a single per-day `items`
       model (category, time, location/coordinates, cost); Overview map fed from items.
-- [ ] **Budget tab** — remaining = Budget − Σ item costs, with a per-category breakdown.
 - [ ] **OSM routing** — server-proxied routing client (OpenRouteService/Valhalla; API key
       via `ROUTER_API_KEY`, base URL in Settings) computing per-leg time + distance.
 - [ ] **Day summary** — a full-width Mermaid route diagram above the calendar
@@ -38,7 +33,7 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Features
 
-- [ ] **Export** — iCal feed for travel segments and/or a printable PDF itinerary.
+- [ ] **Export** — iCal feed for travel segments (a printable and PDF itinerary already ship).
 - [ ] **Search & filter** — filter vacations by date range / destination; filter
       sights by category or visited state.
 - [ ] **Attachments** — optional images/links per sight.
@@ -59,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Day-planner tab UX — two-row tab bar (General / Arrival / Departure / Overview /
+      Budget + a collapsible day selector).
+- [x] Budget tab — per-vacation budget and number of people.
+- [x] Custom item categories — Settings CRUD with seeded defaults
+      (Activity / Food / Point of Interest).
+- [x] Printable and server-generated PDF itinerary export (per day or full trip).
 - [x] Switched persistence from PostgreSQL to SQLite (`modernc.org/sqlite`, pure Go);
       added SQLite store tests (CRUD, cascade, round-trip).
 - [x] Multi-language UI (English/German) switchable under Settings.
