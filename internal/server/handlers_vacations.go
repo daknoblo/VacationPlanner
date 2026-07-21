@@ -392,26 +392,38 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 }
 
 // overviewLists splits items into a chronological activity list (those with a
-// day) and the unscheduled "ideas" bucket, and merges travel legs (by departure
-// time) into the activity list. The result is sorted chronologically.
+// day) and the unscheduled "ideas" bucket, and merges travel legs into the
+// activity list (using the departure time, or the trip start/end when no time
+// is set). The result is sorted chronologically.
 func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
-	for _, ts := range v.TravelSegments {
-		if ts.DepartAt == nil {
-			continue
+	for i := range v.TravelSegments {
+		ts := v.TravelSegments[i]
+		var when string
+		var key time.Time
+		switch {
+		case ts.DepartAt != nil:
+			dep := ts.DepartAt.In(tz)
+			when = fmtDate(dep) + " · " + dep.Format("15:04")
+			key = *ts.DepartAt
+		case ts.Kind == models.TravelArrival:
+			when = fmtDate(v.StartDate)
+			key = v.StartDate
+		default:
+			when = fmtDate(v.EndDate)
+			key = v.EndDate.Add(24*time.Hour - time.Minute)
 		}
-		dep := ts.DepartAt.In(tz)
 		lat, lng := ts.ToLat, ts.ToLng
 		if lat == nil {
 			lat, lng = ts.FromLat, ts.FromLng
 		}
 		activities = append(activities, overviewActivity{
-			WhenLabel: fmtDate(dep) + " · " + dep.Format("15:04"),
+			WhenLabel: when,
 			Title:     travelLabel(loc, ts),
 			Category:  modeLabel(loc, ts.Mode),
 			Latitude:  lat,
 			Longitude: lng,
 			HasCoords: lat != nil && lng != nil,
-			sortKey:   *ts.DepartAt,
+			sortKey:   key,
 		})
 	}
 	for _, it := range v.Items {
@@ -439,6 +451,88 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 		return activities[i].sortKey.Before(activities[j].sortKey)
 	})
 	return activities, ideas
+}
+
+// handleBudgetFragment re-renders the budget panel so it can refresh after item
+// changes without a full page reload.
+func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	items, err := s.store.ListItems(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	var spent float64
+	for _, it := range items {
+		if it.Cost != nil {
+			spent += *it.Cost
+		}
+	}
+	s.fragment(w, r, "budget_panel", newBudgetView(v, spent))
+}
+
+// handleOverviewFragment re-renders the overview activity list.
+func (s *Server) handleOverviewFragment(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	if v.TravelSegments, err = s.store.ListTravelSegments(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if v.Items, err = s.store.ListItems(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+	_, tz := s.regionSettings(r.Context())
+	activities, _ := overviewLists(loc, tz, v)
+	s.fragment(w, r, "overview_list", activities)
+}
+
+// handleIdeasFragment re-renders the unscheduled ideas backlog.
+func (s *Server) handleIdeasFragment(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	items, err := s.store.ListItems(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	var ideas []models.Item
+	for _, it := range items {
+		if it.Day == nil {
+			ideas = append(ideas, it)
+		}
+	}
+	s.fragment(w, r, "ideas_backlog", ideas)
 }
 
 func (s *Server) handleCreateVacation(w http.ResponseWriter, r *http.Request) {

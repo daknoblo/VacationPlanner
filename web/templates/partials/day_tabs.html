@@ -1,6 +1,20 @@
 {{define "day_tabs"}}
-{{range $i, $d := .Days}}
-{{if eq (mod $i 7) 0}}<span class="days-week">{{t "tab.week"}} {{add (div $i 7) 1}}</span>{{end}}
-<button type="button" class="tabs__tab tabs__tab--day" data-tab="day-{{$i}}" data-day-index="{{$i}}"><span class="tabs__wd">{{t (printf "weekday.%s" (weekday $d))}}</span><span class="tabs__sub">{{fmtDate $d}}</span></button>
+{{range $wi, $week := .Weeks}}
+<div class="days-week-block">
+  <span class="days-week">{{t "tab.week"}} {{add $wi 1}}</span>
+  <div class="days-week-grid">
+    {{range $ci, $col := $week.Days}}
+    {{if $col}}
+    <button type="button" class="tabs__tab tabs__tab--day{{if $col.Weekend}} tabs__tab--weekend{{end}}{{if eq $col.DayIndex 0}} is-active{{end}}" data-tab="day-{{$col.DayIndex}}">
+      <span class="tabs__wd">{{(index $.Headers $ci).Label}}</span>
+      <span class="tabs__sub">{{fmtDate $col.Date}}</span>
+    </button>
+    {{else}}
+    <span class="tabs__tab--empty" aria-hidden="true"></span>
+    {{end}}
+    {{end}}
+  </div>
+</div>
 {{end}}
 {{end}}
+

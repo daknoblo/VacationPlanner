@@ -1,0 +1,14 @@
+{{define "overview_list"}}
+{{if .}}
+<ul id="overview-activities" class="activity-list">
+  {{range .}}
+  <li class="activity-item{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
+    <span class="activity-item__when">{{.WhenLabel}}</span>
+    <span class="activity-item__title">{{.Title}}{{if .Category}} <span class="badge">{{.Category}}</span>{{end}}</span>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="muted">{{t "overview.empty"}}</p>
+{{end}}
+{{end}}

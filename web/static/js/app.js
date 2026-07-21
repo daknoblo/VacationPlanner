@@ -510,6 +510,63 @@
     for (var i = 0; i < grids.length; i++) { initPlanner(grids[i]); }
   }
 
+  // ---- Drag ideas from the backlog onto a day's grid to schedule them ----
+  document.addEventListener("dragstart", function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest(".idea-chip") : null;
+    if (!chip || !e.dataTransfer) return;
+    e.dataTransfer.setData("text/plain", chip.getAttribute("data-id"));
+    e.dataTransfer.effectAllowed = "move";
+    chip.classList.add("is-dragging");
+  });
+  document.addEventListener("dragend", function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest(".idea-chip") : null;
+    if (chip) chip.classList.remove("is-dragging");
+  });
+
+  function initGridDrops() {
+    var grids = document.querySelectorAll("[data-planner-grid]");
+    for (var i = 0; i < grids.length; i++) { initGridDrop(grids[i]); }
+  }
+
+  function initGridDrop(grid) {
+    grid.addEventListener("dragover", function (e) {
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      e.preventDefault();
+      grid.classList.add("is-droptarget");
+    });
+    grid.addEventListener("dragleave", function () { grid.classList.remove("is-droptarget"); });
+    grid.addEventListener("drop", function (e) {
+      e.preventDefault();
+      grid.classList.remove("is-droptarget");
+      var id = e.dataTransfer ? e.dataTransfer.getData("text/plain") : "";
+      if (!id) return;
+      var day = grid.getAttribute("data-day");
+      if (!day) return;
+      var rect = grid.getBoundingClientRect();
+      var minutes = Math.round(((e.clientY - rect.top) / PLANNER_PPM) / PLANNER_SNAP) * PLANNER_SNAP;
+      minutes = plClamp(minutes, 0, 1440 - 60);
+      var body = new URLSearchParams();
+      body.set("day", day);
+      body.set("start", plLabel(minutes));
+      body.set("end", plLabel(minutes + 60));
+      fetch("/items/" + encodeURIComponent(id) + "/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF-Token": getCookie("csrf_token")
+        },
+        body: body.toString()
+      }).then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+        .then(function (html) {
+          grid.insertAdjacentHTML("beforeend", html);
+          var chip = document.querySelector('.idea-chip[data-id="' + id + '"]');
+          if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
+          document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
+        })
+        .catch(function () { /* ignore */ });
+    });
+  }
+
   function initPlanner(grid) {
     var drag = null;
 
@@ -661,6 +718,7 @@
     initActivityInputs();
     initGeoLiteInputs();
     initPlanners();
+    initGridDrops();
     initTabs();
     initViewToggle();
     initDateRanges();

@@ -106,6 +106,9 @@ func TestRenderFragments(t *testing.T) {
 		{"travel_item", v.TravelSegments[0]},
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
 		{"detail_head", map[string]any{"V": v, "OOB": true}},
+		{"budget_panel", newBudgetView(v, 120)},
+		{"overview_list", []overviewActivity{{WhenLabel: "01.08.2026 · 09:00", Title: "Test", Category: "POI"}}},
+		{"ideas_backlog", []models.Item{v.Items[0]}},
 		{"form_error", "etwas ist schiefgelaufen"},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),

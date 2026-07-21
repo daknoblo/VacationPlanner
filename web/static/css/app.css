@@ -170,9 +170,25 @@ code {
 .tabs__row--main::-webkit-scrollbar { display: none; } /* WebKit */
 .tabs__row--days {
   border-bottom: none;
-  align-items: center;
-  flex-wrap: wrap;
+  display: block;
+  width: 100%;
 }
+.days-week-block { max-width: 820px; margin: 0 auto 0.5rem; }
+.days-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; }
+.days-week-grid .tabs__tab--day {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 0;
+  padding: 0.4rem 0.2rem;
+  background: #fff;
+  min-width: 0;
+}
+.days-week-grid .tabs__tab--day:hover { border-color: var(--primary); }
+.days-week-grid .tabs__tab--day.is-active { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+.days-week-grid .tabs__tab--weekend { background: #eef2f7; }
+.days-week-grid .tabs__tab--weekend.is-active { background: #e3ebf3; }
+.tabs__tab--empty { display: block; }
 .tabs__tab {
   flex: 0 0 auto;
   display: flex;
@@ -236,7 +252,8 @@ code {
 .days-week {
   flex-basis: 100%;
   width: 100%;
-  margin: 0.4rem 0 0.1rem;
+  display: block;
+  margin: 0.4rem 0 0.3rem;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -468,6 +485,35 @@ code {
 }
 .planner-block.is-dragging { cursor: grabbing; opacity: 0.9; z-index: 5; }
 .planner-block--travel { background: #0ea5e9; cursor: default; }
+
+/* Ideas backlog (drag onto a day's grid to schedule) */
+.ideas-backlog {
+  margin: 0.5rem auto 1rem;
+  max-width: 820px;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: #fbfdff;
+}
+.ideas-backlog__head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+.ideas-backlog__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.idea-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  cursor: grab;
+  font-size: 0.85rem;
+  user-select: none;
+}
+.idea-chip:hover { border-color: var(--primary); }
+.idea-chip.is-dragging { opacity: 0.5; }
+.idea-chip__grip { color: var(--muted); }
+.idea-chip__title { font-weight: 600; }
+.planner__grid.is-droptarget { background: #eff6ff; outline: 2px dashed var(--primary); outline-offset: -2px; }
 .planner-block__inner { display: flex; align-items: baseline; gap: 0.4rem; }
 .planner-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.7rem; opacity: 0.9; }
 .planner-block__title { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

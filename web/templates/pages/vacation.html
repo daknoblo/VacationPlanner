@@ -100,8 +100,14 @@
       <div class="tabs" data-tabs data-day-view>
       <div class="tabs__bar" role="tablist">
         <div class="tabs__row tabs__row--days" data-day-tabs>
-          {{template "day_tabs" (dict "Days" $v.Days)}}
+          {{template "day_tabs" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders)}}
         </div>
+      </div>
+      <div id="ideas-backlog" class="ideas-backlog"
+           hx-get="/vacations/{{$v.ID}}/api/ideas"
+           hx-trigger="itemsChanged from:body"
+           hx-swap="innerHTML">
+        {{template "ideas_backlog" .Data.Ideas}}
       </div>
       {{range $i, $d := $v.Days}}
       <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">
@@ -122,7 +128,7 @@
             <div class="planner__hours">
               {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
             </div>
-            <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid>
+            <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid data-day="{{dateInput $d}}">
               {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
               {{range index $.Data.CalTravel (dateInput $d)}}
               <div class="planner-block planner-block--travel" data-static
@@ -160,18 +166,12 @@
       <div class="detail__main">
         <section class="panel">
           <h2>{{t "overview.activities"}}</h2>
-          {{if .Data.ActivityList}}
-          <ul id="overview-activities" class="activity-list">
-            {{range .Data.ActivityList}}
-            <li class="activity-item{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
-              <span class="activity-item__when">{{.WhenLabel}}</span>
-              <span class="activity-item__title">{{.Title}}{{if .Category}} <span class="badge">{{.Category}}</span>{{end}}</span>
-            </li>
-            {{end}}
-          </ul>
-          {{else}}
-          <p class="muted">{{t "overview.empty"}}</p>
-          {{end}}
+          <div id="overview-body"
+               hx-get="/vacations/{{$v.ID}}/api/overview"
+               hx-trigger="itemsChanged from:body"
+               hx-swap="innerHTML">
+            {{template "overview_list" .Data.ActivityList}}
+          </div>
         </section>
       </div>
 
@@ -225,35 +225,12 @@
   <section class="tab-panel" data-tab-panel="budget">
     <div class="panel">
       <h2>{{t "tab.budget"}}</h2>
-      {{$b := .Data.Budget}}
-      {{if $b.HasBudget}}
-      <div class="budget">
-        <div class="budget__summary">
-          <div class="budget__stat">
-            <span class="budget__label">{{t "budget.total"}}</span>
-            <span class="budget__value">{{money $b.Total}}</span>
-          </div>
-          <div class="budget__stat">
-            <span class="budget__label">{{t "budget.spent"}}</span>
-            <span class="budget__value">{{moneyF $b.Spent}}</span>
-          </div>
-          <div class="budget__stat budget__stat--remaining{{if $b.Over}} is-over{{end}}">
-            <span class="budget__label">{{t "budget.remaining"}}</span>
-            <span class="budget__value">{{moneyF $b.Remaining}}</span>
-          </div>
-        </div>
-        <div class="budget__bar">
-          <div class="budget__bar-fill{{if $b.Over}} is-over{{end}}" style="width:{{$b.PercentClamped}}%"></div>
-        </div>
-        <ul class="budget__meta">
-          {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{moneyF $b.PerPerson}}</strong></li>{{end}}
-          {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{moneyF $b.PerNight}}</strong></li>{{end}}
-        </ul>
-        <p class="muted small">{{t "budget.hint"}}</p>
+      <div id="budget-body"
+           hx-get="/vacations/{{$v.ID}}/api/budget"
+           hx-trigger="itemsChanged from:body"
+           hx-swap="innerHTML">
+        {{template "budget_panel" .Data.Budget}}
       </div>
-      {{else}}
-      <p class="muted">{{t "budget.none"}}</p>
-      {{end}}
     </div>
   </section>
 </div>

@@ -72,8 +72,9 @@
   </div>
   {{else}}
   <div class="field">
-    <label>{{t "sight.planned"}}</label>
-    <input name="day" type="date" min="{{dateInput .V.StartDate}}" max="{{dateInput .V.EndDate}}" value="{{dateInput .V.StartDate}}">
+    <label>{{t "sight.planned"}} <span class="muted">({{fmtDate .V.StartDate}} – {{fmtDate .V.EndDate}})</span></label>
+    <input name="day" type="date">
+    <p class="muted small">{{t "ideen.schedule_hint"}}</p>
   </div>
   {{end}}
   <div class="field">

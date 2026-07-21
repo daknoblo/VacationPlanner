@@ -70,6 +70,9 @@ func (s *Server) routes() {
 			r.Get("/export.pdf", s.handleExportPDF)
 			r.Get("/api/items", s.handleItemsJSON)
 			r.Get("/api/day-summary", s.handleDaySummary)
+			r.Get("/api/budget", s.handleBudgetFragment)
+			r.Get("/api/overview", s.handleOverviewFragment)
+			r.Get("/api/ideas", s.handleIdeasFragment)
 			r.Post("/items", s.handleCreateItem)
 			r.Post("/travel", s.handleSaveTravel)
 			r.Post("/ai/recommendations", s.handleAIRecommend)
@@ -78,6 +81,7 @@ func (s *Server) routes() {
 
 	r.Route("/items/{itemID}", func(r chi.Router) {
 		r.Post("/", s.handleUpdateItem)
+		r.Post("/schedule", s.handleScheduleItem)
 		r.Post("/visited", s.handleToggleVisited)
 		r.Delete("/", s.handleDeleteItem)
 	})

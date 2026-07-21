@@ -1,0 +1,19 @@
+{{define "ideas_backlog"}}
+<div class="ideas-backlog__head">
+  <strong>💡 {{t "ideen.backlog"}}</strong>
+  <span class="muted small">{{t "ideen.backlog_hint"}}</span>
+</div>
+{{if .}}
+<div class="ideas-backlog__chips">
+  {{range .}}
+  <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
+    <span class="idea-chip__grip" aria-hidden="true">⠿</span>
+    <span class="idea-chip__title">{{.Title}}</span>
+    {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+  </div>
+  {{end}}
+</div>
+{{else}}
+<p class="muted small">{{t "ideen.backlog_empty"}}</p>
+{{end}}
+{{end}}

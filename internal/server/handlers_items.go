@@ -180,6 +180,42 @@ func (s *Server) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleScheduleItem assigns a day and time to an item (used when dragging an
+// idea from the backlog onto a day's grid) and returns the planner block.
+func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	item, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	day, err := parseDatePtr(r, "day")
+	if err != nil || day == nil {
+		http.Error(w, "day required", http.StatusBadRequest)
+		return
+	}
+	item.Day = day
+	item.StartMin = parseMinutes(formStr(r, "start"), 540)
+	item.EndMin = parseMinutes(formStr(r, "end"), item.StartMin+60)
+	if item.EndMin <= item.StartMin {
+		item.EndMin = item.StartMin + 60
+	}
+	if err := s.store.UpdateItem(r.Context(), item); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	hxTrigger(w, "itemsChanged")
+	s.fragment(w, r, "planner_block", map[string]any{"Item": item})
+}
+
 func (s *Server) handleToggleVisited(w http.ResponseWriter, r *http.Request) {
 	id, err := urlUUID(r, "itemID")
 	if err != nil {

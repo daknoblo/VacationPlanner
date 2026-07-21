@@ -1,0 +1,31 @@
+{{define "budget_panel"}}
+{{$b := .}}
+{{if $b.HasBudget}}
+<div class="budget">
+  <div class="budget__summary">
+    <div class="budget__stat">
+      <span class="budget__label">{{t "budget.total"}}</span>
+      <span class="budget__value">{{money $b.Total}}</span>
+    </div>
+    <div class="budget__stat">
+      <span class="budget__label">{{t "budget.spent"}}</span>
+      <span class="budget__value">{{moneyF $b.Spent}}</span>
+    </div>
+    <div class="budget__stat budget__stat--remaining{{if $b.Over}} is-over{{end}}">
+      <span class="budget__label">{{t "budget.remaining"}}</span>
+      <span class="budget__value">{{moneyF $b.Remaining}}</span>
+    </div>
+  </div>
+  <div class="budget__bar">
+    <div class="budget__bar-fill{{if $b.Over}} is-over{{end}}" style="width:{{$b.PercentClamped}}%"></div>
+  </div>
+  <ul class="budget__meta">
+    {{if gt $b.People 0}}<li>{{t "budget.per_person"}}: <strong>{{moneyF $b.PerPerson}}</strong></li>{{end}}
+    {{if gt $b.Nights 0}}<li>{{t "budget.per_night"}}: <strong>{{moneyF $b.PerNight}}</strong></li>{{end}}
+  </ul>
+  <p class="muted small">{{t "budget.hint"}}</p>
+</div>
+{{else}}
+<p class="muted">{{t "budget.none"}}</p>
+{{end}}
+{{end}}
