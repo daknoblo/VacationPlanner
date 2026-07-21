@@ -399,6 +399,66 @@ func (s *SQLite) PutSetting(ctx context.Context, key, value string) error {
 	return nil
 }
 
+// ---- Categories ----
+
+func (s *SQLite) ListCategories(ctx context.Context) ([]models.Category, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, icon, sort_order, created_at
+		FROM categories ORDER BY sort_order ASC, name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing categories: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Category
+	for rows.Next() {
+		var c models.Category
+		if err := scanCategory(rows, &c); err != nil {
+			return nil, fmt.Errorf("store: scanning category: %w", err)
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating categories: %w", err)
+	}
+	return out, nil
+}
+
+func (s *SQLite) CreateCategory(ctx context.Context, c *models.Category) error {
+	if c.ID == uuid.Nil {
+		c.ID = uuid.New()
+	}
+	c.CreatedAt = time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO categories (id, name, icon, sort_order, created_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		c.ID, c.Name, c.Icon, c.SortOrder, dbTime(c.CreatedAt))
+	if err != nil {
+		return fmt.Errorf("store: creating category: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) DeleteCategory(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM categories WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting category: %w", err)
+	}
+	return checkAffected(res)
+}
+
+func scanCategory(sc rowScanner, c *models.Category) error {
+	var created string
+	if err := sc.Scan(&c.ID, &c.Name, &c.Icon, &c.SortOrder, &created); err != nil {
+		return err
+	}
+	var err error
+	if c.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+		return fmt.Errorf("store: parsing category created_at: %w", err)
+	}
+	return nil
+}
+
 // ---- helpers ----
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.

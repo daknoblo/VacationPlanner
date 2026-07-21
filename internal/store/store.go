@@ -40,6 +40,10 @@ type Store interface {
 	ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error)
 	DeleteTravelSegment(ctx context.Context, id uuid.UUID) error
 
+	ListCategories(ctx context.Context) ([]models.Category, error)
+	CreateCategory(ctx context.Context, c *models.Category) error
+	DeleteCategory(ctx context.Context, id uuid.UUID) error
+
 	GetSettings(ctx context.Context) (map[string]string, error)
 	PutSetting(ctx context.Context, key, value string) error
 

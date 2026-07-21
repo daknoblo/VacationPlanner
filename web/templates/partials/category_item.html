@@ -1,0 +1,11 @@
+{{define "category_item"}}
+<li class="cat-item" id="cat-{{.ID}}">
+  {{if .Icon}}<span class="cat-item__icon">{{.Icon}}</span>{{end}}
+  <span class="cat-item__name">{{.Name}}</span>
+  <button type="button" class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
+          hx-delete="/settings/categories/{{.ID}}"
+          hx-target="#cat-{{.ID}}"
+          hx-swap="outerHTML"
+          hx-confirm="{{t "settings.categories.confirm_delete"}}">✕</button>
+</li>
+{{end}}

@@ -148,3 +148,12 @@ func minLabel(m int) string {
 	}
 	return fmt.Sprintf("%02d:%02d", m/60, m%60)
 }
+
+// Category is a user-managed label offered when adding sights and activities.
+type Category struct {
+	ID        uuid.UUID
+	Name      string
+	Icon      string
+	SortOrder int
+	CreatedAt time.Time
+}

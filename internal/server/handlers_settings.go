@@ -91,6 +91,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		timezone = v
 	}
 	stats, _ := s.store.Stats(r.Context())
+	categories, _ := s.store.ListCategories(r.Context())
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
 		"Languages":         i18n.Supported(),
 		"Current":           loc.Lang(),
@@ -106,6 +107,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"GeoBaseURL":        settings[settingGeoBaseURL],
 		"GeoDefaultBaseURL": geo.DefaultBaseURL,
 		"GeoKeyConfigured":  s.cfg.GeocoderAPIKey != "",
+		"Categories":        categories,
 		"Stats":             stats,
 		"DBSize":            humanBytes(s.dbSizeBytes()),
 		"Backups":           s.listBackups(),

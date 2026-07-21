@@ -100,6 +100,33 @@
 </section>
 
 <section class="panel">
+  <h2>{{t "settings.categories.heading"}}</h2>
+  <p class="muted small">{{t "settings.categories.hint"}}</p>
+  <ul id="category-list" class="cat-list">
+    {{range .Data.Categories}}{{template "category_item" .}}{{end}}
+  </ul>
+  <form class="form cat-form"
+        method="post" action="/settings/categories"
+        hx-post="/settings/categories"
+        hx-target="#category-list" hx-swap="beforeend"
+        data-reset>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="cat-icon">{{t "settings.categories.icon"}}</label>
+      <input id="cat-icon" name="icon" maxlength="16" class="cat-form__icon" placeholder="📍">
+    </div>
+    <div class="field field--grow">
+      <label for="cat-name">{{t "settings.categories.name"}}</label>
+      <input id="cat-name" name="name" required maxlength="60" placeholder="{{t "settings.categories.name_placeholder"}}">
+    </div>
+    <div class="field">
+      <button class="btn" type="submit">{{t "settings.categories.add"}}</button>
+    </div>
+  </form>
+  <div id="category-error" class="form-error"></div>
+</section>
+
+<section class="panel">
   <h2>{{t "settings.stats.heading"}}</h2>
   <ul class="stats">
     <li><span class="stats__num">{{.Data.Stats.Vacations}}</span> {{t "settings.stats.vacations"}}</li>

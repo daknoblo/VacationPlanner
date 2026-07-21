@@ -250,6 +250,46 @@ func TestSettings(t *testing.T) {
 	}
 }
 
+func TestCategories(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	// Migration 0005 seeds three default categories.
+	cats, err := st.ListCategories(ctx)
+	if err != nil {
+		t.Fatalf("ListCategories: %v", err)
+	}
+	if len(cats) != 3 {
+		t.Fatalf("expected 3 seeded categories, got %d", len(cats))
+	}
+
+	c := &models.Category{Name: "Museum", Icon: "🏛️", SortOrder: 4}
+	if err := st.CreateCategory(ctx, c); err != nil {
+		t.Fatalf("CreateCategory: %v", err)
+	}
+	if c.ID == uuid.Nil {
+		t.Fatal("category ID was not assigned")
+	}
+	if cats, _ = st.ListCategories(ctx); len(cats) != 4 {
+		t.Fatalf("expected 4 categories after insert, got %d", len(cats))
+	}
+
+	// The unique index is case-insensitive.
+	if err := st.CreateCategory(ctx, &models.Category{Name: "museum"}); err == nil {
+		t.Fatal("expected error creating a case-insensitive duplicate category")
+	}
+
+	if err := st.DeleteCategory(ctx, c.ID); err != nil {
+		t.Fatalf("DeleteCategory: %v", err)
+	}
+	if cats, _ = st.ListCategories(ctx); len(cats) != 3 {
+		t.Fatalf("expected 3 categories after delete, got %d", len(cats))
+	}
+	if err := st.DeleteCategory(ctx, uuid.New()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound deleting missing category, got %v", err)
+	}
+}
+
 func TestStatsBackupRestore(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

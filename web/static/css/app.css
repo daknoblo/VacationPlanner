@@ -272,6 +272,24 @@ code {
   flex-wrap: wrap;
 }
 
+/* Categories (settings) */
+.cat-list { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.cat-item__icon { font-size: 1.15rem; line-height: 1; }
+.cat-item__name { flex: 1 1 auto; font-weight: 600; }
+.cat-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+.cat-form .field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+.cat-form .field--grow { flex: 1 1 14rem; }
+.cat-form__icon { width: 4.5rem; text-align: center; }
+
 /* Day planner */
 .planner {
   --ppm: 0.8px;
