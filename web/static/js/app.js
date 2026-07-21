@@ -567,6 +567,11 @@
   });
 
   function init() {
+    if (typeof L !== "undefined" && L.Icon && L.Icon.Default) {
+      // Point Leaflet's default marker at the vendored images (its auto-detection
+      // resolves them relative to the page URL, which 404s).
+      L.Icon.Default.imagePath = "/static/vendor/leaflet/images/";
+    }
     if (typeof window.mermaid !== "undefined") {
       window.mermaid.initialize({
         startOnLoad: false,

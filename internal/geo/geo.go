@@ -150,13 +150,16 @@ func parsePhoton(body []byte) []Result {
 				Coordinates []float64 `json:"coordinates"`
 			} `json:"geometry"`
 			Properties struct {
-				Name    string `json:"name"`
-				City    string `json:"city"`
-				County  string `json:"county"`
-				State   string `json:"state"`
-				Country string `json:"country"`
-				Type    string `json:"type"`
-				OSMKey  string `json:"osm_key"`
+				Name        string `json:"name"`
+				Street      string `json:"street"`
+				HouseNumber string `json:"housenumber"`
+				Postcode    string `json:"postcode"`
+				City        string `json:"city"`
+				County      string `json:"county"`
+				State       string `json:"state"`
+				Country     string `json:"country"`
+				Type        string `json:"type"`
+				OSMKey      string `json:"osm_key"`
 			} `json:"properties"`
 		} `json:"features"`
 	}
@@ -169,8 +172,13 @@ func parsePhoton(body []byte) []Result {
 			continue
 		}
 		p := f.Properties
+		street := strings.TrimSpace(p.Street)
+		if street != "" && strings.TrimSpace(p.HouseNumber) != "" {
+			street += " " + strings.TrimSpace(p.HouseNumber)
+		}
+		cityLine := strings.TrimSpace(p.Postcode + " " + p.City)
 		out = append(out, Result{
-			DisplayName: joinParts(p.Name, p.City, p.County, p.State, p.Country),
+			DisplayName: joinParts(p.Name, street, cityLine, p.County, p.State, p.Country),
 			Lat:         f.Geometry.Coordinates[1],
 			Lng:         f.Geometry.Coordinates[0],
 			Type:        p.Type,
