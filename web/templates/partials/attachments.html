@@ -1,0 +1,42 @@
+{{/* attachments_box is the lazily-loaded container placed on an item or travel
+     leg. It fetches the current document list (and the upload control) on load.
+     The argument is the owner's documents base URL. */}}
+{{define "attachments_box"}}
+<div class="attachments" data-attachments
+     hx-get="{{.}}" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+  <span class="attachments__loading" aria-hidden="true"></span>
+</div>
+{{end}}
+
+{{/* attachments renders the current documents as openable chips plus the upload
+     control. It is returned by the document list/upload/delete handlers and
+     swapped into the innerHTML of the surrounding .attachments container. */}}
+{{define "attachments"}}
+<div class="attachments__list">
+  {{range .Docs}}
+  <span class="attachment">
+    <a class="attachment__open" href="{{.Href}}" target="_blank" rel="noopener noreferrer" title="{{.Filename}}">
+      <span class="attachment__icon" aria-hidden="true">{{.Icon}}</span>
+      <span class="attachment__name">{{.Filename}}</span>
+      <span class="attachment__ext" aria-hidden="true">↗</span>
+    </a>
+    <button type="button" class="attachment__del"
+            title="{{t "action.delete"}}" aria-label="{{t "doc.delete_label"}}"
+            hx-delete="/documents/{{.ID}}"
+            hx-target="closest .attachments"
+            hx-swap="innerHTML"
+            hx-confirm="{{t "doc.confirm_delete"}}">✕</button>
+  </span>
+  {{end}}
+  <form class="attachment-add" hx-post="{{.ListURL}}" hx-encoding="multipart/form-data"
+        hx-target="closest .attachments" hx-swap="innerHTML" hx-trigger="change">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <label class="attachment-add__btn" title="{{t "doc.add"}}">
+      <span class="attachment-add__plus" aria-hidden="true">＋</span>
+      <span class="attachment-add__label">{{t "doc.add"}}</span>
+      <input type="file" name="file" multiple hidden aria-label="{{t "doc.add"}}">
+    </label>
+  </form>
+</div>
+{{if .Error}}<p class="attachment-error form-error" role="alert">{{.Error}}</p>{{end}}
+{{end}}

@@ -727,6 +727,7 @@ code {
 .travel-multistop { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; font-weight: 600; cursor: pointer; }
 .travel-multistop input { width: auto; }
 .travel-steps { display: flex; flex-direction: column; }
+.travel-step-wrap { position: relative; }
 .travel-step { position: relative; }
 .travel-step__grid { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: stretch; }
 .travel-step__grid .field { flex: 1 1 150px; min-width: 0; }
@@ -754,33 +755,66 @@ code {
 .travel-when input[type="time"] { flex: 1 1 42%; }
 
 /* Multi-stop: a connected block of numbered legs */
-.travel-block.is-multi .travel-step {
+.travel-block.is-multi .travel-step-wrap {
   border: 1px solid var(--line);
   background: #fff;
   padding: 0.95rem 2.7rem;
 }
-.travel-block.is-multi .travel-step + .travel-step { border-top: none; }
-.travel-block.is-multi .travel-step:first-child { border-radius: 12px 12px 0 0; }
-.travel-block.is-multi .travel-step:last-child { border-radius: 0 0 12px 12px; }
+.travel-block.is-multi .travel-step-wrap + .travel-step-wrap { border-top: none; }
+.travel-block.is-multi .travel-step-wrap:first-child { border-radius: 12px 12px 0 0; }
+.travel-block.is-multi .travel-step-wrap:last-child { border-radius: 0 0 12px 12px; }
 .travel-step__badge {
   position: absolute; left: 0.7rem; top: 1.85rem;
   width: 1.5rem; height: 1.5rem; border-radius: 50%;
   background: var(--primary); color: #fff; font-size: 0.78rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center; z-index: 1;
 }
-.travel-block.is-multi .travel-step::before {
+.travel-block.is-multi .travel-step-wrap::before {
   content: ""; position: absolute; left: calc(0.7rem + 0.75rem - 1px);
   top: 0; bottom: 0; width: 2px; background: var(--line);
 }
-.travel-block.is-multi .travel-step:first-child::before { top: 2.6rem; }
-.travel-block.is-multi .travel-step:last-child::before { bottom: auto; top: 0; height: 2.6rem; }
+.travel-block.is-multi .travel-step-wrap:first-child::before { top: 2.6rem; }
+.travel-block.is-multi .travel-step-wrap:last-child::before { bottom: auto; top: 0; height: 2.6rem; }
 .travel-step__remove {
   position: absolute; top: 0.6rem; right: 0.6rem;
   border: none; background: transparent; color: var(--muted); cursor: pointer;
   font-size: 0.9rem; line-height: 1; padding: 0.2rem 0.4rem; border-radius: 6px;
 }
 .travel-step__remove:hover { background: #fef2f2; color: var(--danger); }
+.travel-step__docs { margin-top: 0.5rem; }
 .travel-addstep { margin-top: 0.8rem; }
+
+/* Attachments (documents on items and travel legs) */
+.attachments { margin-top: 0.55rem; min-height: 1.6rem; }
+.attachments__list { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.attachment {
+  display: inline-flex; align-items: center; gap: 0.15rem; max-width: 100%;
+  background: #f1f5f9; border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.1rem 0.25rem 0.1rem 0.55rem;
+}
+.attachment__open {
+  display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0;
+  color: var(--ink); text-decoration: none; font-size: 0.82rem;
+}
+.attachment__open:hover { color: var(--primary); }
+.attachment__icon { flex: none; }
+.attachment__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 13rem; }
+.attachment__ext { flex: none; color: var(--muted); font-size: 0.72rem; }
+.attachment__del {
+  flex: none; border: none; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 0.72rem; line-height: 1; padding: 0.25rem 0.35rem; border-radius: 50%;
+}
+.attachment__del:hover { background: #fef2f2; color: var(--danger); }
+.attachment-add { display: inline-flex; margin: 0; }
+.attachment-add__btn {
+  display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; color: var(--primary);
+  border: 1px dashed var(--primary); border-radius: 999px; padding: 0.15rem 0.65rem;
+  background: #eff6ff;
+}
+.attachment-add__btn:hover { background: #dbeafe; }
+.attachment-add__plus { font-size: 0.95rem; line-height: 1; }
+.attachment-error { margin: 0.35rem 0 0; }
 label { font-size: 0.85rem; font-weight: 600; color: #334155; }
 input, textarea, select {
   font: inherit;

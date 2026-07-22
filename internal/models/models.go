@@ -165,3 +165,26 @@ type Category struct {
 	SortOrder int
 	CreatedAt time.Time
 }
+
+// Document is an uploaded file (e.g. a ferry ticket PDF or a booking) attached
+// either to an Item (activity) or to a single travel leg. Exactly one owner is
+// set: ItemID for item documents, or VacationID + TravelKind + TravelStep for
+// travel documents. The raw bytes in Data are only populated when the file is
+// served, not when listing a document's metadata.
+type Document struct {
+	ID          uuid.UUID
+	ItemID      *uuid.UUID
+	VacationID  *uuid.UUID
+	TravelKind  TravelKind
+	TravelStep  int
+	Filename    string
+	ContentType string
+	Size        int64
+	CreatedAt   time.Time
+	Data        []byte
+}
+
+// IsImage reports whether the document is a raster image (used to pick an icon).
+func (d Document) IsImage() bool {
+	return len(d.ContentType) >= 6 && d.ContentType[:6] == "image/"
+}

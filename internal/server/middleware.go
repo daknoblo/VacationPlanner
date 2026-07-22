@@ -48,14 +48,24 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 func (s *Server) bodyLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		limit := s.cfg.MaxRequestBytes
+		switch {
 		// Database restore uploads a full SQLite file, which legitimately exceeds
 		// the default request body limit.
-		if r.Method == http.MethodPost && r.URL.Path == "/settings/backups/restore" {
+		case r.Method == http.MethodPost && r.URL.Path == "/settings/backups/restore":
 			limit = maxRestoreUploadBytes
+		// Document uploads carry one or more attached files.
+		case r.Method == http.MethodPost && isDocumentUploadPath(r.URL.Path):
+			limit = maxDocumentUploadBytes
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isDocumentUploadPath reports whether the path is one of the document upload
+// endpoints (item attachments or per-leg travel attachments).
+func isDocumentUploadPath(p string) bool {
+	return strings.HasSuffix(p, "/documents") || strings.Contains(p, "/traveldocs/")
 }
 
 // requestLogger emits a structured log line per request.

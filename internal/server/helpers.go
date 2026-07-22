@@ -64,9 +64,25 @@ func isNotFound(err error) bool {
 	return errors.Is(err, store.ErrNotFound)
 }
 
+// validationError is a user-facing validation message that should be shown to
+// the user (HTTP 4xx) rather than logged as an internal error.
+type validationError struct{ msg string }
+
+func (e validationError) Error() string { return e.msg }
+
 // errValidation wraps a user-facing validation message.
 func errValidation(msg string) error {
-	return errors.New(msg)
+	return validationError{msg: msg}
+}
+
+// validationMessage returns the user-facing message if err is a validationError,
+// or the empty string for a system error that should be treated as a 500.
+func validationMessage(err error) string {
+	var ve validationError
+	if errors.As(err, &ve) {
+		return ve.msg
+	}
+	return ""
 }
 
 // ---- form parsing/validation ----

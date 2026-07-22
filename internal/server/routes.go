@@ -81,6 +81,8 @@ func (s *Server) routes() {
 			r.Post("/travel/step", s.handleAddTravelStep)
 			r.Post("/travel/multistop", s.handleToggleTravelMulti)
 			r.Delete("/travel/{travelID}", s.handleRemoveTravelStep)
+			r.Get("/traveldocs/{kind}/{step}", s.handleTravelDocuments)
+			r.Post("/traveldocs/{kind}/{step}", s.handleUploadTravelDocument)
 			r.Post("/ai/recommendations", s.handleAIRecommend)
 		})
 	})
@@ -88,6 +90,8 @@ func (s *Server) routes() {
 	r.Route("/items/{itemID}", func(r chi.Router) {
 		r.Get("/", s.handleItemRow)
 		r.Get("/edit", s.handleEditItemForm)
+		r.Get("/documents", s.handleItemDocuments)
+		r.Post("/documents", s.handleUploadItemDocument)
 		r.Post("/", s.handleUpdateItem)
 		r.Post("/edit", s.handleEditItem)
 		r.Post("/schedule", s.handleScheduleItem)
@@ -97,6 +101,11 @@ func (s *Server) routes() {
 
 	r.Route("/travel/{travelID}", func(r chi.Router) {
 		r.Delete("/", s.handleDeleteTravel)
+	})
+
+	r.Route("/documents/{docID}", func(r chi.Router) {
+		r.Get("/", s.handleServeDocument)
+		r.Delete("/", s.handleDeleteDocument)
 	})
 
 	s.router = r

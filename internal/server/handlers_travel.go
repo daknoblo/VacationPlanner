@@ -279,6 +279,10 @@ func (s *Server) handleToggleTravelMulti(w http.ResponseWriter, r *http.Request)
 				s.serverError(w, r, err)
 				return
 			}
+			if err := s.store.DeleteTravelStepDocuments(r.Context(), vacationID, kind, steps[i].StepOrder); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
 		}
 	}
 	s.renderTravelBlock(w, r, vacationID, kind)
@@ -301,9 +305,26 @@ func (s *Server) handleRemoveTravelStep(w http.ResponseWriter, r *http.Request) 
 		s.notFound(w, r)
 		return
 	}
+	// Look up the leg's step order first so its documents can be removed too;
+	// otherwise they could resurface on a later leg reusing the same order.
+	step := -1
+	if v, lerr := s.loadVacationFull(r.Context(), vacationID); lerr == nil {
+		for _, ts := range v.TravelSegments {
+			if ts.ID == travelID {
+				step = ts.StepOrder
+				break
+			}
+		}
+	}
 	if err := s.store.DeleteTravelSegment(r.Context(), travelID); err != nil && !isNotFound(err) {
 		s.serverError(w, r, err)
 		return
+	}
+	if step >= 0 {
+		if err := s.store.DeleteTravelStepDocuments(r.Context(), vacationID, kind, step); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 	}
 	s.renderTravelBlock(w, r, vacationID, kind)
 }

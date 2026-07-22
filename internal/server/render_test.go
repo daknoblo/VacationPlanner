@@ -115,6 +115,14 @@ func TestRenderFragments(t *testing.T) {
 		{"item_edit", map[string]any{"Item": v.Items[0], "Cats": []models.Category{{Name: "POI", Icon: "📍"}}, "CSRF": "tok"}},
 		{"destination_info", destinationInfoView{Destination: "Lisbon", Description: "capital of Portugal", Extract: "Lisbon is the capital of Portugal.", URL: "https://en.wikipedia.org/wiki/Lisbon"}},
 		{"form_error", "etwas ist schiefgelaufen"},
+		{"attachments", attachmentsView{
+			ListURL: "/items/" + v.ID.String() + "/documents",
+			CSRF:    "tok",
+			Docs: []documentView{
+				{ID: "11111111-1111-1111-1111-111111111111", Filename: "ferry-ticket.pdf", Icon: "📄", Href: "/documents/11111111-1111-1111-1111-111111111111"},
+			},
+		}},
+		{"attachments", attachmentsView{ListURL: "/items/x/documents", CSRF: "tok", Error: "too large"}},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),
 			Suggestions: []ai.Suggestion{{Name: "Castelo", Category: "Burg", Description: "d", Reason: "r"}},

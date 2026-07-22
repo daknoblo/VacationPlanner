@@ -415,6 +415,154 @@ func scanCategory(sc rowScanner, c *models.Category) error {
 	return nil
 }
 
+// ---- Documents ----
+
+// documentMetaCols lists the document columns loaded when only metadata (not the
+// file bytes) is needed.
+const documentMetaCols = `id, item_id, vacation_id, travel_kind, travel_step, filename, content_type, size, created_at`
+
+func (s *SQLite) CreateDocument(ctx context.Context, d *models.Document) error {
+	if d.ID == uuid.Nil {
+		d.ID = uuid.New()
+	}
+	d.CreatedAt = time.Now().UTC()
+
+	var kind any
+	var step any
+	if d.VacationID != nil {
+		kind = string(d.TravelKind)
+		step = d.TravelStep
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO documents
+			(id, item_id, vacation_id, travel_kind, travel_step, filename, content_type, size, data, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.ID, dbUUIDPtr(d.ItemID), dbUUIDPtr(d.VacationID), kind, step,
+		d.Filename, d.ContentType, d.Size, d.Data, dbTime(d.CreatedAt))
+	if err != nil {
+		return fmt.Errorf("store: creating document: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) GetDocument(ctx context.Context, id uuid.UUID) (*models.Document, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+documentMetaCols+` FROM documents WHERE id = ?`, id)
+	var d models.Document
+	if err := scanDocument(row, &d); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: getting document: %w", err)
+	}
+	return &d, nil
+}
+
+func (s *SQLite) ReadDocument(ctx context.Context, id uuid.UUID) (*models.Document, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+documentMetaCols+`, data FROM documents WHERE id = ?`, id)
+	var d models.Document
+	if err := scanDocumentWithData(row, &d); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: reading document: %w", err)
+	}
+	return &d, nil
+}
+
+func (s *SQLite) ListItemDocuments(ctx context.Context, itemID uuid.UUID) ([]models.Document, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+documentMetaCols+` FROM documents WHERE item_id = ? ORDER BY created_at ASC`, itemID)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing item documents: %w", err)
+	}
+	return scanDocumentList(rows)
+}
+
+func (s *SQLite) ListTravelDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) ([]models.Document, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+documentMetaCols+` FROM documents
+		 WHERE vacation_id = ? AND travel_kind = ? AND travel_step = ? ORDER BY created_at ASC`,
+		vacationID, string(kind), step)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing travel documents: %w", err)
+	}
+	return scanDocumentList(rows)
+}
+
+func (s *SQLite) DeleteDocument(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM documents WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting document: %w", err)
+	}
+	return checkAffected(res)
+}
+
+// DeleteTravelStepDocuments removes all documents attached to a specific travel
+// leg. It is used when a leg is removed so its documents cannot resurface on a
+// later leg that happens to reuse the same step order.
+func (s *SQLite) DeleteTravelStepDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) error {
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM documents WHERE vacation_id = ? AND travel_kind = ? AND travel_step = ?`,
+		vacationID, string(kind), step)
+	if err != nil {
+		return fmt.Errorf("store: deleting travel step documents: %w", err)
+	}
+	return nil
+}
+
+func scanDocumentList(rows *sql.Rows) ([]models.Document, error) {
+	defer func() { _ = rows.Close() }()
+	var out []models.Document
+	for rows.Next() {
+		var d models.Document
+		if err := scanDocument(rows, &d); err != nil {
+			return nil, fmt.Errorf("store: scanning document: %w", err)
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating documents: %w", err)
+	}
+	return out, nil
+}
+
+func scanDocument(sc rowScanner, d *models.Document) error {
+	return scanDocumentInto(sc, d, nil)
+}
+
+func scanDocumentWithData(sc rowScanner, d *models.Document) error {
+	return scanDocumentInto(sc, d, &d.Data)
+}
+
+func scanDocumentInto(sc rowScanner, d *models.Document, data *[]byte) error {
+	var itemID, vacID uuid.NullUUID
+	var kind sql.NullString
+	var step sql.NullInt64
+	var created string
+	dest := []any{&d.ID, &itemID, &vacID, &kind, &step, &d.Filename, &d.ContentType, &d.Size, &created}
+	if data != nil {
+		dest = append(dest, data)
+	}
+	if err := sc.Scan(dest...); err != nil {
+		return err
+	}
+	if itemID.Valid {
+		id := itemID.UUID
+		d.ItemID = &id
+	}
+	if vacID.Valid {
+		id := vacID.UUID
+		d.VacationID = &id
+	}
+	d.TravelKind = models.TravelKind(kind.String)
+	d.TravelStep = int(step.Int64)
+	var err error
+	if d.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+		return fmt.Errorf("store: parsing document created_at: %w", err)
+	}
+	return nil
+}
+
 // ---- helpers ----
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
@@ -448,6 +596,13 @@ func dbTimePtr(t *time.Time) any {
 		return nil
 	}
 	return t.UTC().Format(dbTimeLayout)
+}
+
+func dbUUIDPtr(id *uuid.UUID) any {
+	if id == nil {
+		return nil
+	}
+	return *id
 }
 
 func scanVacation(sc rowScanner, v *models.Vacation) error {

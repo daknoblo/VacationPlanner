@@ -219,6 +219,100 @@ func TestToggleVisited(t *testing.T) {
 	}
 }
 
+func TestDocuments(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+	it := &models.Item{VacationID: v.ID, Title: "Ferry"}
+	if err := st.CreateItem(ctx, it); err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+
+	// Item document round-trip: listing loads metadata only, reading loads bytes.
+	idoc := &models.Document{ItemID: &it.ID, Filename: "ticket.pdf", ContentType: "application/pdf", Size: 5, Data: []byte("%PDF-")}
+	if err := st.CreateDocument(ctx, idoc); err != nil {
+		t.Fatalf("CreateDocument(item): %v", err)
+	}
+	idocs, err := st.ListItemDocuments(ctx, it.ID)
+	if err != nil || len(idocs) != 1 || idocs[0].Filename != "ticket.pdf" || idocs[0].ItemID == nil {
+		t.Fatalf("ListItemDocuments: err=%v docs=%+v", err, idocs)
+	}
+	if len(idocs[0].Data) != 0 {
+		t.Fatalf("list should not load file bytes, got %d", len(idocs[0].Data))
+	}
+	full, err := st.ReadDocument(ctx, idoc.ID)
+	if err != nil || string(full.Data) != "%PDF-" {
+		t.Fatalf("ReadDocument: err=%v data=%q", err, full.Data)
+	}
+
+	// Travel document keyed by (vacation, kind, step).
+	tdoc := &models.Document{VacationID: &v.ID, TravelKind: models.TravelArrival, TravelStep: 1, Filename: "boarding.png", ContentType: "image/png", Size: 3, Data: []byte("PNG")}
+	if err := st.CreateDocument(ctx, tdoc); err != nil {
+		t.Fatalf("CreateDocument(travel): %v", err)
+	}
+	tdocs, err := st.ListTravelDocuments(ctx, v.ID, models.TravelArrival, 1)
+	if err != nil || len(tdocs) != 1 || !tdocs[0].IsImage() || tdocs[0].VacationID == nil {
+		t.Fatalf("ListTravelDocuments: err=%v docs=%+v", err, tdocs)
+	}
+	if other, _ := st.ListTravelDocuments(ctx, v.ID, models.TravelArrival, 0); len(other) != 0 {
+		t.Fatalf("expected 0 docs for step 0, got %d", len(other))
+	}
+
+	// DeleteTravelStepDocuments removes only that leg's documents.
+	if err := st.DeleteTravelStepDocuments(ctx, v.ID, models.TravelArrival, 1); err != nil {
+		t.Fatalf("DeleteTravelStepDocuments: %v", err)
+	}
+	if left, _ := st.ListTravelDocuments(ctx, v.ID, models.TravelArrival, 1); len(left) != 0 {
+		t.Fatalf("travel docs not deleted: %d", len(left))
+	}
+
+	if err := st.DeleteDocument(ctx, idoc.ID); err != nil {
+		t.Fatalf("DeleteDocument: %v", err)
+	}
+	if _, err := st.GetDocument(ctx, idoc.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+func TestDocumentCascade(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	_ = st.CreateVacation(ctx, v)
+	it := &models.Item{VacationID: v.ID, Title: "T"}
+	_ = st.CreateItem(ctx, it)
+
+	idoc := &models.Document{ItemID: &it.ID, Filename: "a.pdf", ContentType: "application/pdf", Size: 1, Data: []byte("x")}
+	if err := st.CreateDocument(ctx, idoc); err != nil {
+		t.Fatalf("CreateDocument(item): %v", err)
+	}
+	tdoc := &models.Document{VacationID: &v.ID, TravelKind: models.TravelDeparture, TravelStep: 0, Filename: "b.pdf", ContentType: "application/pdf", Size: 1, Data: []byte("y")}
+	if err := st.CreateDocument(ctx, tdoc); err != nil {
+		t.Fatalf("CreateDocument(travel): %v", err)
+	}
+
+	// Deleting the item cascades its documents.
+	if err := st.DeleteItem(ctx, it.ID); err != nil {
+		t.Fatalf("DeleteItem: %v", err)
+	}
+	if _, err := st.GetDocument(ctx, idoc.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("item document not cascaded: %v", err)
+	}
+
+	// Deleting the vacation cascades the travel document.
+	if err := st.DeleteVacation(ctx, v.ID); err != nil {
+		t.Fatalf("DeleteVacation: %v", err)
+	}
+	if _, err := st.GetDocument(ctx, tdoc.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("travel document not cascaded: %v", err)
+	}
+}
+
 func TestSettings(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

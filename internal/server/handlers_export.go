@@ -127,6 +127,7 @@ func (s *Server) handleExportICS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="itinerary.ics"`)
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	//nolint:gosec // G705 false positive: a text/calendar attachment (not HTML); fields are escaped by internal/ical
 	_, _ = w.Write(data)
 }
 

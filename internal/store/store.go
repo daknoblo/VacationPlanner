@@ -39,6 +39,14 @@ type Store interface {
 	CreateCategory(ctx context.Context, c *models.Category) error
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 
+	CreateDocument(ctx context.Context, d *models.Document) error
+	GetDocument(ctx context.Context, id uuid.UUID) (*models.Document, error)
+	ReadDocument(ctx context.Context, id uuid.UUID) (*models.Document, error)
+	ListItemDocuments(ctx context.Context, itemID uuid.UUID) ([]models.Document, error)
+	ListTravelDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) ([]models.Document, error)
+	DeleteDocument(ctx context.Context, id uuid.UUID) error
+	DeleteTravelStepDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) error
+
 	GetSettings(ctx context.Context) (map[string]string, error)
 	PutSetting(ctx context.Context, key, value string) error
 
