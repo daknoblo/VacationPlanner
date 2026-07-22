@@ -299,6 +299,8 @@
   document.addEventListener("click", function (e) {
     var li = e.target && e.target.closest ? e.target.closest("[data-focus-map]") : null;
     if (!li || !map) return;
+    // Don't hijack clicks on the origin picker or other controls inside a card.
+    if (e.target.closest && e.target.closest("select,option,button,input,a,label")) return;
     var la = parseFloat(li.getAttribute("data-lat"));
     var ln = parseFloat(li.getAttribute("data-lng"));
     if (isNaN(la) || isNaN(ln)) return;
@@ -741,6 +743,8 @@
   function nudgeDaySummary() {
     var el = document.querySelector(".tab-panel.is-active [data-day-summary]");
     if (el) el.dispatchEvent(new CustomEvent("loadsummary"));
+    var cards = document.querySelector(".tab-panel.is-active [data-day-cards]");
+    if (cards) cards.dispatchEvent(new CustomEvent("loadcards"));
   }
 
   document.body.addEventListener("htmx:afterSwap", function (e) { renderMermaid(e.target); });

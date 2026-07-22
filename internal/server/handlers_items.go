@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
@@ -345,6 +347,39 @@ func (s *Server) handleToggleVisited(w http.ResponseWriter, r *http.Request) {
 	}
 	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "item_row", item)
+}
+
+// handleSetItemOrigin sets an activity's origin (the start point used for its
+// distance and time) and triggers a refresh of the activity lists. The value is
+// "" (automatic), "hotel" or the id of another item on the same day.
+func (s *Server) handleSetItemOrigin(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	item, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	ref := strings.TrimSpace(formStr(r, "origin"))
+	if ref != "" && ref != "hotel" {
+		if _, perr := uuid.Parse(ref); perr != nil {
+			ref = ""
+		}
+	}
+	item.OriginRef = ref
+	if err := s.store.UpdateItem(r.Context(), item); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	hxTrigger(w, "itemsChanged")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleDeleteItem(w http.ResponseWriter, r *http.Request) {

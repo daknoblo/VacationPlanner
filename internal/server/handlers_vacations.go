@@ -301,7 +301,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
 	weekStart, tz := s.regionSettings(r.Context())
 	mondayStart := weekStart != "sunday"
-	activities, ideas := overviewLists(loc, tz, v)
+	cardMap := s.dayCardMap(r.Context(), loc, v)
+	activities, ideas := overviewFromCards(loc, tz, v, cardMap)
 	currency := s.currencySymbol(r.Context())
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
@@ -313,6 +314,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"HomeAddress":     s.homeAddress(r.Context()),
 		"ActivityList":    activities,
 		"Ideas":           ideas,
+		"DayCards":        cardMap,
+		"WeekCards":       weekCardGroups(mondayStart, v, cardMap),
 		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
 		"Lodgings":        lodgingViews(tz, v.Lodgings),
@@ -321,6 +324,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"HourRows":        calHourRows(),
 		"ArrivalTravel":   s.travelBlock(r.Context(), tz, v, models.TravelArrival),
 		"DepartureTravel": s.travelBlock(r.Context(), tz, v, models.TravelDeparture),
+		"ArrivalTotal":    travelTotalFor(v, models.TravelArrival, false),
+		"DepartureTotal":  travelTotalFor(v, models.TravelDeparture, false),
 	})
 }
 
@@ -368,20 +373,34 @@ func (s *Server) applyEndpointDefaults(ctx context.Context, v *models.Vacation, 
 	}
 }
 
-// overviewActivity is a scheduled entry shown in the Overview activity list.
+// overviewActivity is a scheduled entry shown in the Overview activity list and
+// in the day/week card lists. Travel rows carry the leg totals; item rows carry
+// the origin (start point) plus the distance and time to reach it.
 type overviewActivity struct {
+	ItemID        string // "" for travel rows (no origin picker)
 	Weekday       string
 	DateLabel     string
 	TimeLabel     string
 	Title         string
 	Category      string
-	DistanceLabel string // total leg distance (travel rows only)
-	DurationLabel string // total leg duration (travel rows only)
+	DistanceLabel string // travel: total leg distance; item: distance from the origin
+	DurationLabel string // travel: total leg duration; item: time from the origin
+	OriginLabel   string // item rows: the resolved start point (e.g. "🛏 Hotel Lisboa")
+	Approx        bool   // duration is a straight-line estimate (item rows)
 	IsTravel      bool
+	DayKey        string         // dateInput of the item's day (scopes the origin picker)
+	Origins       []originOption // predecessor options for the origin picker (item rows)
 	Latitude      *float64
 	Longitude     *float64
 	HasCoords     bool
 	sortKey       time.Time
+}
+
+// originOption is one selectable predecessor in an activity's origin picker.
+type originOption struct {
+	Value    string // "", "hotel" or an item UUID
+	Label    string
+	Selected bool
 }
 
 // weekdayLabel returns the localized weekday name for a date.
@@ -590,11 +609,11 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 	return weeks
 }
 
-// overviewLists splits items into a chronological activity list (those with a
-// day) and the unscheduled "ideas" bucket, and merges travel legs into the
-// activity list (using the departure time, or the trip start/end when no time
-// is set). The result is sorted chronologically.
-func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
+// overviewFromCards merges the travel legs (each direction collapsed into a
+// single entry whose distance and duration are the sum of its legs) with the
+// per-day item cards from cardMap, plus the unscheduled "ideas" bucket. The
+// activity list is returned sorted chronologically.
+func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, cardMap map[string][]overviewActivity) (activities []overviewActivity, ideas []models.Item) {
 	// Each travel direction (arrival/departure) is collapsed into a single entry
 	// whose distance and duration are the sum of all its legs.
 	for _, kind := range []models.TravelKind{models.TravelArrival, models.TravelDeparture} {
@@ -672,28 +691,14 @@ func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (
 		}
 		activities = append(activities, oa)
 	}
+	// Item cards, grouped by day and already carrying their origin/leg info.
 	for _, it := range v.Items {
 		if it.Day == nil {
 			ideas = append(ideas, it)
-			continue
 		}
-		key := *it.Day
-		tm := ""
-		if it.Timed() {
-			tm = it.StartLabel()
-			key = it.Day.Add(time.Duration(it.StartMin) * time.Minute)
-		}
-		activities = append(activities, overviewActivity{
-			Weekday:   weekdayLabel(loc, *it.Day),
-			DateLabel: fmtDate(*it.Day),
-			TimeLabel: tm,
-			Title:     it.Title,
-			Category:  it.Category,
-			Latitude:  it.Latitude,
-			Longitude: it.Longitude,
-			HasCoords: it.HasCoords(),
-			sortKey:   key,
-		})
+	}
+	for _, cards := range cardMap {
+		activities = append(activities, cards...)
 	}
 	sort.SliceStable(activities, func(i, j int) bool {
 		return activities[i].sortKey.Before(activities[j].sortKey)
@@ -755,10 +760,67 @@ func (s *Server) handleOverviewFragment(w http.ResponseWriter, r *http.Request) 
 		s.serverError(w, r, err)
 		return
 	}
+	if v.Lodgings, err = s.store.ListLodgings(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	loc := i18n.FromContext(r.Context())
 	_, tz := s.regionSettings(r.Context())
-	activities, _ := overviewLists(loc, tz, v)
+	activities, _ := overviewFromCards(loc, tz, v, s.dayCardMap(r.Context(), loc, v))
 	s.fragment(w, r, "overview_list", activities)
+}
+
+// handleDayCards renders the activity card list for a single day of the trip.
+func (s *Server) handleDayCards(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.loadVacationFull(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	day := parseDayParam(r)
+	if day == nil {
+		s.fragment(w, r, "activity_cards", []overviewActivity(nil))
+		return
+	}
+	var items []models.Item
+	for _, it := range v.Items {
+		if it.OnDay(*day) {
+			items = append(items, it)
+		}
+	}
+	loc := i18n.FromContext(r.Context())
+	s.fragment(w, r, "activity_cards", s.dayCards(r.Context(), loc, *day, v, items))
+}
+
+// handleWeekCards renders the per-week activity card lists for the week view.
+func (s *Server) handleWeekCards(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	v, err := s.loadVacationFull(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+	weekStart, _ := s.regionSettings(r.Context())
+	mondayStart := weekStart != "sunday"
+	s.fragment(w, r, "week_cards", weekCardGroups(mondayStart, v, s.dayCardMap(r.Context(), loc, v)))
 }
 
 // handleIdeasFragment re-renders the unscheduled ideas backlog.

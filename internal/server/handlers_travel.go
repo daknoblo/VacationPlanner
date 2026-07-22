@@ -52,6 +52,40 @@ func stepsForKind(v *models.Vacation, kind models.TravelKind) []models.TravelSeg
 	return out
 }
 
+// travelTotalView is the summed distance and time of a travel direction, shown
+// next to the Arrival/Departure heading and refreshed out-of-band on changes.
+type travelTotalView struct {
+	Kind      models.TravelKind
+	DistLabel string
+	DurLabel  string
+	OOB       bool // rendered as an hx-swap-oob update rather than in place
+}
+
+// travelTotalFor sums the located legs of a travel direction into a summary.
+func travelTotalFor(v *models.Vacation, kind models.TravelKind, oob bool) travelTotalView {
+	tv := travelTotalView{Kind: kind, OOB: oob}
+	var distM float64
+	var durS int
+	var haveDist, haveDur bool
+	for _, ts := range stepsForKind(v, kind) {
+		if ts.DistanceM != nil {
+			distM += *ts.DistanceM
+			haveDist = true
+		}
+		if ts.DurationS != nil {
+			durS += *ts.DurationS
+			haveDur = true
+		}
+	}
+	if haveDist {
+		tv.DistLabel = formatDistance(distM)
+	}
+	if haveDur {
+		tv.DurLabel = formatDuration(float64(durS))
+	}
+	return tv
+}
+
 // travelBlock builds the multi-stop editor for one kind. When no leg exists yet
 // it renders a single blank step pre-filled with sensible endpoint defaults.
 func (s *Server) travelBlock(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelBlockView {
@@ -185,7 +219,14 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hxTrigger(w, "itemsChanged")
-	s.fragment(w, r, "travel_out", s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false))
+	if v.TravelSegments, err = s.store.ListTravelSegments(r.Context(), vacationID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.fragment(w, r, "travel_saved", map[string]any{
+		"Step":  s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false),
+		"Total": travelTotalFor(v, kind, true),
+	})
 }
 
 // handleAddTravelStep appends an empty leg to a kind and re-renders its block.
@@ -338,7 +379,10 @@ func (s *Server) renderTravelBlock(w http.ResponseWriter, r *http.Request, vacat
 	}
 	_, tz := s.regionSettings(r.Context())
 	hxTrigger(w, "itemsChanged")
-	s.fragment(w, r, "travel_block", s.travelBlock(r.Context(), tz, v, kind))
+	s.fragment(w, r, "travel_block_wrap", map[string]any{
+		"Block": s.travelBlock(r.Context(), tz, v, kind),
+		"Total": travelTotalFor(v, kind, true),
+	})
 }
 
 // computeTravel resolves the segment endpoints (geocoding free text when no

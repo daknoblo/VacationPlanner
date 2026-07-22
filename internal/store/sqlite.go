@@ -165,11 +165,11 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO items
-			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.VacationID, i.Category, i.Title, i.Description, i.Location,
 		i.Latitude, i.Longitude, dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost,
-		i.Visited, i.Notes, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
+		i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating item: %w", err)
 	}
@@ -178,7 +178,7 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at
 		FROM items WHERE id = ?`, id)
 	var it models.Item
 	if err := scanItem(row, &it); err != nil {
@@ -192,7 +192,7 @@ func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error
 
 func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at
 		FROM items WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing items: %w", err)
@@ -218,10 +218,10 @@ func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, title = ?, description = ?, location = ?, latitude = ?, longitude = ?,
-		    day = ?, start_min = ?, end_min = ?, cost = ?, visited = ?, notes = ?, updated_at = ?
+		    day = ?, start_min = ?, end_min = ?, cost = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?
 		WHERE id = ?`,
 		i.Category, i.Title, i.Description, i.Location, i.Latitude, i.Longitude,
-		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, i.Visited, i.Notes,
+		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, i.Visited, i.Notes, i.OriginRef,
 		dbTime(i.UpdatedAt), i.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating item: %w", err)
@@ -719,7 +719,7 @@ func scanItem(sc rowScanner, it *models.Item) error {
 	var created, updated string
 	if err := sc.Scan(&it.ID, &it.VacationID, &it.Category, &it.Title, &it.Description,
 		&it.Location, &it.Latitude, &it.Longitude, &day, &it.StartMin, &it.EndMin,
-		&it.Cost, &it.Visited, &it.Notes, &created, &updated); err != nil {
+		&it.Cost, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated); err != nil {
 		return err
 	}
 	if day.Valid {

@@ -112,3 +112,13 @@
 </p>
 {{end}}
 
+{{define "travel_total"}}
+<span class="panel-head__summary" id="travel-total-{{.Kind}}"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  {{- if .DistLabel}}📏 {{.DistLabel}}{{if .DurLabel}} · ⏱ {{.DurLabel}}{{end}}{{end -}}
+</span>
+{{end}}
+
+{{define "travel_saved"}}{{template "travel_out" .Step}}{{template "travel_total" .Total}}{{end}}
+
+{{define "travel_block_wrap"}}{{template "travel_block" .Block}}{{template "travel_total" .Total}}{{end}}
+

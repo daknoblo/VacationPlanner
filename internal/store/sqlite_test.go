@@ -92,7 +92,7 @@ func TestItemRoundTrip(t *testing.T) {
 	it := &models.Item{
 		VacationID: v.ID, Day: &day, Title: "Museum", Category: "Culture",
 		StartMin: 600, EndMin: 720, Description: "Visit", Location: "Center",
-		Latitude: &lat, Longitude: &lng, Cost: &cost,
+		Latitude: &lat, Longitude: &lng, Cost: &cost, OriginRef: "hotel",
 	}
 	if err := st.CreateItem(ctx, it); err != nil {
 		t.Fatalf("CreateItem: %v", err)
@@ -109,14 +109,18 @@ func TestItemRoundTrip(t *testing.T) {
 	if !got.HasCoords() || got.Cost == nil || *got.Cost != 42.0 || !got.Timed() {
 		t.Fatalf("coords/cost/timed round-trip mismatch: %+v", got)
 	}
+	if got.OriginRef != "hotel" {
+		t.Fatalf("origin_ref round-trip mismatch: %q", got.OriginRef)
+	}
 
 	got.StartMin = 630
 	got.Title = "Museum Tour"
+	got.OriginRef = ""
 	if err := st.UpdateItem(ctx, &got); err != nil {
 		t.Fatalf("UpdateItem: %v", err)
 	}
 	again, err := st.GetItem(ctx, it.ID)
-	if err != nil || again.StartMin != 630 || again.Title != "Museum Tour" {
+	if err != nil || again.StartMin != 630 || again.Title != "Museum Tour" || again.OriginRef != "" {
 		t.Fatalf("update not persisted: %+v err=%v", again, err)
 	}
 

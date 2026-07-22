@@ -122,8 +122,14 @@ type Item struct {
 	Cost        *float64
 	Visited     bool
 	Notes       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// OriginRef is a soft reference to the start point used for the distance and
+	// time shown on this activity: "" means automatic (the previous located stop
+	// that day, or the day's lodging), "hotel" means the day's lodging (or the
+	// vacation destination), and any other value is the ID of another item on the
+	// same day. A stale reference falls back to the automatic origin.
+	OriginRef string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // HasCoords reports whether the item can be placed on the map.

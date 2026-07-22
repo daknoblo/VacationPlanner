@@ -1,0 +1,49 @@
+{{define "activity_card"}}
+<li class="activity-item{{if .IsTravel}} activity-item--travel{{end}}{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
+  <div class="activity-item__when">
+    <span class="activity-item__wd">{{.Weekday}}{{if .TimeLabel}} {{.TimeLabel}}{{end}}</span>
+    <span class="activity-item__date">{{.DateLabel}}</span>
+  </div>
+  <div class="activity-item__body">
+    {{if .Category}}<span class="activity-item__type {{catclass .Category}}">{{.Category}}</span>{{end}}
+    <span class="activity-item__title">{{.Title}}</span>
+    {{if .IsTravel}}
+      {{if or .DistanceLabel .DurationLabel}}<span class="activity-item__travel">{{if .DistanceLabel}}📏 {{.DistanceLabel}}{{end}}{{if .DurationLabel}}{{if .DistanceLabel}} · {{end}}⏱ {{.DurationLabel}}{{end}}</span>{{end}}
+    {{else}}
+      {{if .DistanceLabel}}<span class="activity-item__travel">↳ {{t "activity.from"}} {{.OriginLabel}} · 📏 {{.DistanceLabel}}{{if .DurationLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurationLabel}}{{end}}</span>{{end}}
+      {{if .Origins}}
+      <label class="activity-item__origin">
+        <span class="activity-item__origin-lbl">{{t "activity.origin.label"}}</span>
+        <select name="origin" hx-post="/items/{{.ItemID}}/origin" hx-trigger="change" hx-swap="none"
+                aria-label="{{t "activity.origin.label"}}">
+          {{range .Origins}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+      </label>
+      {{end}}
+    {{end}}
+  </div>
+</li>
+{{end}}
+
+{{define "activity_cards"}}
+{{if .}}
+<ul class="activity-list">
+  {{range .}}{{template "activity_card" .}}{{end}}
+</ul>
+{{else}}
+<p class="muted small">{{t "day.cards.empty"}}</p>
+{{end}}
+{{end}}
+
+{{define "week_cards"}}
+{{if .}}
+{{range .}}
+<div class="weekcards__group">
+  <h4 class="weekcards__label">{{.Label}}</h4>
+  {{template "activity_cards" .Cards}}
+</div>
+{{end}}
+{{else}}
+<p class="muted small">{{t "day.cards.empty"}}</p>
+{{end}}
+{{end}}

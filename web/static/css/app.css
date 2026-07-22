@@ -451,6 +451,30 @@ code {
 .activity-item__title { font-weight: 600; line-height: 1.3; }
 .activity-item__travel { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .activity-item--travel { border-left: 3px solid var(--primary); }
+.activity-item__origin { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.15rem; }
+.activity-item__origin-lbl { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.activity-item__origin select {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  max-width: 12rem;
+}
+
+/* Section heading with an inline summary (e.g. Arrival · total distance/time) */
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.panel-head > h2 { margin: 0; }
+.panel-head__summary { color: var(--muted); font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Day/week activity card lists (below the calendar grid) */
+.day-cards-wrap { margin: 1.25rem 0; }
+.day-cards-wrap > h3 { margin: 0 0 0.5rem; }
+.weekview { margin-top: 0.5rem; }
+.weekcards { margin-top: 1rem; }
+.weekcards__group { margin-bottom: 1rem; }
+.weekcards__label { margin: 0 0 0.4rem; font-size: 0.9rem; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* Destination info (Wikipedia intro) */
 .dest-info-wrap { margin-top: 0.25rem; }

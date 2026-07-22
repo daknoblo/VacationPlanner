@@ -56,6 +56,16 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Travel summary next to the headings — the Arrival/Departure tab shows the
+      total distance & time inline with the "Anreise"/"Abreise" headings, updated
+      live as the legs change.
+- [x] Activity distance & time — every activity now shows, in gray, its start
+      point plus the distance and time to reach it (routed when a routing key is
+      set, straight-line estimate otherwise). The start point defaults to the
+      previous stop of the day (the day's hotel for the first stop) and can be
+      changed per activity via a picker.
+- [x] Day/Week card lists — the day and week calendar views gained an
+      Overview-style activity card list below the hour grid.
 - [x] Auto-vacuum — a Settings picker to run the database optimization
       automatically (daily / every 3 days / weekly / every 2 weeks / monthly),
       via a background maintenance loop.

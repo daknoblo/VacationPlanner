@@ -1,19 +1,7 @@
 {{define "overview_list"}}
 {{if .}}
 <ul id="overview-activities" class="activity-list">
-  {{range .}}
-  <li class="activity-item{{if .IsTravel}} activity-item--travel{{end}}{{if not .HasCoords}} is-nogeo{{end}}" data-focus-map data-lat="{{coord .Latitude}}" data-lng="{{coord .Longitude}}">
-    <div class="activity-item__when">
-      <span class="activity-item__wd">{{.Weekday}}{{if .TimeLabel}} {{.TimeLabel}}{{end}}</span>
-      <span class="activity-item__date">{{.DateLabel}}</span>
-    </div>
-    <div class="activity-item__body">
-      {{if .Category}}<span class="activity-item__type {{catclass .Category}}">{{.Category}}</span>{{end}}
-      <span class="activity-item__title">{{.Title}}</span>
-      {{if or .DistanceLabel .DurationLabel}}<span class="activity-item__travel">{{if .DistanceLabel}}📏 {{.DistanceLabel}}{{end}}{{if .DurationLabel}}{{if .DistanceLabel}} · {{end}}⏱ {{.DurationLabel}}{{end}}</span>{{end}}
-    </div>
-  </li>
-  {{end}}
+  {{range .}}{{template "activity_card" .}}{{end}}
 </ul>
 {{else}}
 <p class="muted">{{t "overview.empty"}}</p>
