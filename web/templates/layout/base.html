@@ -27,6 +27,21 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" data-saved="{{t "toast.saved"}}"></div>
 
+  <dialog id="doc-preview" class="doc-preview" aria-label="{{t "doc.preview"}}">
+    <div class="doc-preview__panel">
+      <div class="doc-preview__bar">
+        <span class="doc-preview__name" data-doc-preview-name></span>
+        <span class="doc-preview__actions">
+          <a class="doc-preview__download" data-doc-preview-download download
+             title="{{t "doc.download"}}" aria-label="{{t "doc.download"}}">⬇</a>
+          <button type="button" class="doc-preview__close" data-doc-preview-close
+                  title="{{t "action.close"}}" aria-label="{{t "action.close"}}">✕</button>
+        </span>
+      </div>
+      <div class="doc-preview__body" data-doc-preview-body></div>
+    </div>
+  </dialog>
+
   <script src="/static/vendor/htmx/htmx.min.js"></script>
   <script src="/static/vendor/leaflet/leaflet.js"></script>
   {{if eq .Page "vacation"}}<script src="/static/vendor/mermaid/mermaid.min.js"></script>{{end}}

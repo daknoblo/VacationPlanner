@@ -783,6 +783,73 @@
     }
   });
 
+  // ---- Document preview (in-page modal; never opens a new tab) ----
+  (function () {
+    var dlg = document.getElementById("doc-preview");
+    if (!dlg) return;
+    var bodyEl = dlg.querySelector("[data-doc-preview-body]");
+    var nameEl = dlg.querySelector("[data-doc-preview-name]");
+    var dlEl = dlg.querySelector("[data-doc-preview-download]");
+    var closeBtn = dlg.querySelector("[data-doc-preview-close]");
+
+    // Emptying the body removes the iframe/img so a closed preview stops loading.
+    function clearBody() { if (bodyEl) bodyEl.textContent = ""; }
+    function closeDlg() { clearBody(); if (dlg.open) { dlg.close(); } }
+
+    // Also clear on Escape / any other close path.
+    dlg.addEventListener("close", clearBody);
+    dlg.addEventListener("cancel", clearBody);
+
+    // Escape closes the modal explicitly. Focus is kept on the close button (see
+    // below) so this keydown reaches the dialog even when a native dialog
+    // "cancel" isn't dispatched reliably.
+    dlg.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); closeDlg(); }
+    });
+
+    // Close on the close button or a click on the backdrop (the dialog itself).
+    dlg.addEventListener("click", function (e) {
+      if (e.target === dlg || (e.target.closest && e.target.closest("[data-doc-preview-close]"))) {
+        closeDlg();
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest ? e.target.closest("[data-doc-preview]") : null;
+      if (!a) return;
+      var kind = a.getAttribute("data-doc-preview");
+      // Only PDFs and images preview inline; other types keep their normal
+      // (download) behaviour and never open a new tab.
+      if (kind !== "pdf" && kind !== "image") return;
+      e.preventDefault();
+
+      var href = a.getAttribute("href");
+      var name = a.getAttribute("data-doc-name") || "";
+      clearBody();
+      if (nameEl) nameEl.textContent = name;
+      if (dlEl) dlEl.setAttribute("href", href);
+
+      var node;
+      if (kind === "image") {
+        node = document.createElement("img");
+        node.className = "doc-preview__img";
+        node.alt = name;
+      } else {
+        node = document.createElement("iframe");
+        node.className = "doc-preview__frame";
+        node.setAttribute("title", name);
+      }
+      node.src = href;
+      if (bodyEl) bodyEl.appendChild(node);
+
+      if (typeof dlg.showModal === "function") { dlg.showModal(); }
+      else { dlg.setAttribute("open", ""); }
+      // Keep focus on a dialog control (not inside the PDF iframe) so Escape and
+      // the close button work immediately.
+      if (closeBtn) { try { closeBtn.focus(); } catch (err) { /* ignore */ } }
+    });
+  })();
+
   function init() {
     if (typeof L !== "undefined" && L.Icon && L.Icon.Default) {
       // Use the vendored marker images directly. Deleting the Default

@@ -125,6 +125,13 @@ func TestItemDocumentUploadServeDelete(t *testing.T) {
 	if !bytes.Equal(sr.Body.Bytes(), pdf) {
 		t.Fatal("served bytes differ from uploaded bytes")
 	}
+	// Inline documents may be embedded in the same-origin preview modal.
+	if xf := sr.Header().Get("X-Frame-Options"); xf != "SAMEORIGIN" {
+		t.Fatalf("inline X-Frame-Options = %q, want SAMEORIGIN", xf)
+	}
+	if csp := sr.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "frame-ancestors 'self'") {
+		t.Fatalf("inline CSP = %q, want frame-ancestors 'self'", csp)
+	}
 
 	// An unknown/binary type is served as an attachment (never inline).
 	if rec := uploadDoc(t, srv, uploadURL, token, "data.bin", []byte{0, 1, 2, 3, 4, 5, 6, 7}); rec.Code != http.StatusOK {
@@ -143,6 +150,10 @@ func TestItemDocumentUploadServeDelete(t *testing.T) {
 	sr = serveDoc(srv, binID)
 	if cd := sr.Header().Get("Content-Disposition"); !strings.HasPrefix(cd, "attachment;") {
 		t.Fatalf("expected attachment disposition for binary, got %q", cd)
+	}
+	// Download-only responses keep the strict global framing ban.
+	if xf := sr.Header().Get("X-Frame-Options"); xf != "DENY" {
+		t.Fatalf("download X-Frame-Options = %q, want DENY", xf)
 	}
 
 	// Delete the PDF via the shared document route.

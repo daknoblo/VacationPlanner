@@ -119,7 +119,7 @@ func TestRenderFragments(t *testing.T) {
 			ListURL: "/items/" + v.ID.String() + "/documents",
 			CSRF:    "tok",
 			Docs: []documentView{
-				{ID: "11111111-1111-1111-1111-111111111111", Filename: "ferry-ticket.pdf", Icon: "📄", Href: "/documents/11111111-1111-1111-1111-111111111111"},
+				{ID: "11111111-1111-1111-1111-111111111111", Filename: "ferry-ticket.pdf", Icon: "📄", Href: "/documents/11111111-1111-1111-1111-111111111111", Preview: "pdf"},
 			},
 		}},
 		{"attachments", attachmentsView{ListURL: "/items/x/documents", CSRF: "tok", Error: "too large"}},

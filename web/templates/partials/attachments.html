@@ -15,10 +15,10 @@
 <div class="attachments__list">
   {{range .Docs}}
   <span class="attachment">
-    <a class="attachment__open" href="{{.Href}}" target="_blank" rel="noopener noreferrer" title="{{.Filename}}">
+    <a class="attachment__open" href="{{.Href}}" title="{{.Filename}}"
+       data-doc-preview="{{.Preview}}" data-doc-name="{{.Filename}}"{{if not .Preview}} download{{end}}>
       <span class="attachment__icon" aria-hidden="true">{{.Icon}}</span>
       <span class="attachment__name">{{.Filename}}</span>
-      <span class="attachment__ext" aria-hidden="true">↗</span>
     </a>
     <button type="button" class="attachment__del"
             title="{{t "action.delete"}}" aria-label="{{t "doc.delete_label"}}"

@@ -21,6 +21,7 @@ var messages = map[Lang]map[string]string{
 		"action.delete":  "Delete",
 		"action.edit":    "Edit",
 		"action.cancel":  "Cancel",
+		"action.close":   "Close",
 		"form.autosave":  "Changes are saved automatically.",
 		"label.optional": "(optional)",
 
@@ -100,6 +101,8 @@ var messages = map[Lang]map[string]string{
 		"doc.add":                  "Add document",
 		"doc.delete_label":         "Delete document",
 		"doc.confirm_delete":       "Delete this document?",
+		"doc.preview":              "Document preview",
+		"doc.download":             "Download",
 		"day.summary.heading":      "Day at a glance",
 		"day.summary.loading":      "Loading route…",
 		"day.summary.empty":        "Add timed entries with a location to see the day's route.",
@@ -317,6 +320,7 @@ var messages = map[Lang]map[string]string{
 		"action.delete":  "Löschen",
 		"action.edit":    "Bearbeiten",
 		"action.cancel":  "Abbrechen",
+		"action.close":   "Schließen",
 		"form.autosave":  "Änderungen werden automatisch gespeichert.",
 		"label.optional": "(optional)",
 
@@ -396,6 +400,8 @@ var messages = map[Lang]map[string]string{
 		"doc.add":                  "Dokument hinzufügen",
 		"doc.delete_label":         "Dokument löschen",
 		"doc.confirm_delete":       "Dieses Dokument löschen?",
+		"doc.preview":              "Dokumentvorschau",
+		"doc.download":             "Herunterladen",
 		"day.summary.heading":      "Der Tag auf einen Blick",
 		"day.summary.loading":      "Route wird geladen…",
 		"day.summary.empty":        "Füge zeitlich geplante Einträge mit Ort hinzu, um die Tagesroute zu sehen.",

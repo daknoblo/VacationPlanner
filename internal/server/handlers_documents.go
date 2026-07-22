@@ -55,6 +55,7 @@ type documentView struct {
 	Filename string
 	Icon     string
 	Href     string // open/download URL
+	Preview  string // "pdf", "image", or "" when the type is download-only
 }
 
 func newDocumentView(d models.Document) documentView {
@@ -67,7 +68,30 @@ func newDocumentView(d models.Document) documentView {
 		Filename: d.Filename,
 		Icon:     icon,
 		Href:     "/documents/" + d.ID.String(),
+		Preview:  previewKind(d.ContentType),
 	}
+}
+
+// docMediaType returns the base media type (without parameters) of a stored
+// content type, falling back to the raw value.
+func docMediaType(contentType string) string {
+	if mt, _, err := mime.ParseMediaType(contentType); err == nil {
+		return mt
+	}
+	return contentType
+}
+
+// previewKind reports how a document can be shown in the in-page preview modal:
+// "pdf" (iframe), "image" (img), or "" for types that are download-only.
+func previewKind(contentType string) string {
+	mt := docMediaType(contentType)
+	if !inlineDocTypes[mt] {
+		return ""
+	}
+	if mt == "application/pdf" {
+		return "pdf"
+	}
+	return "image"
 }
 
 func toDocumentViews(docs []models.Document) []documentView {
@@ -238,7 +262,7 @@ func (s *Server) handleServeDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	disposition := "attachment"
-	if mediaType, _, perr := mime.ParseMediaType(doc.ContentType); perr == nil && inlineDocTypes[mediaType] {
+	if inlineDocTypes[docMediaType(doc.ContentType)] {
 		disposition = "inline"
 	}
 	w.Header().Set("Content-Type", doc.ContentType)
@@ -248,6 +272,12 @@ func (s *Server) handleServeDocument(w http.ResponseWriter, r *http.Request) {
 	// Reaffirm the global nosniff header; user-supplied bytes must never be sniffed.
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "private, no-store")
+	if disposition == "inline" {
+		// Permit the in-page preview modal to embed the file in a same-origin
+		// iframe/img; the global headers otherwise forbid all framing.
+		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+	}
 	http.ServeContent(w, r, doc.Filename, doc.CreatedAt, bytes.NewReader(doc.Data))
 }
 
