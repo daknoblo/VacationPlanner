@@ -37,12 +37,24 @@ func (s *Server) lodgingFromForm(r *http.Request, tz *time.Location) (*models.Lo
 		return nil, errValidation(loc.T("error.lodging_checkout_after"))
 	}
 
+	lat, lng, err := parseCoords(r, "latitude", "longitude")
+	if err != nil {
+		return nil, err
+	}
+	cost, err := parseCostPtr(r, "cost", loc)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.Lodging{
-		Name:     name,
-		Location: location,
-		CheckIn:  *checkIn,
-		CheckOut: *checkOut,
-		Notes:    notes,
+		Name:      name,
+		Location:  location,
+		Latitude:  lat,
+		Longitude: lng,
+		CheckIn:   *checkIn,
+		CheckOut:  *checkOut,
+		Cost:      cost,
+		Notes:     notes,
 	}, nil
 }
 
@@ -118,26 +130,30 @@ type lodgingStrip struct {
 // lodgingView is one accommodation shown in the Unterkunft tab list, with its
 // check-in/out already formatted in the display timezone.
 type lodgingView struct {
-	ID       string
-	Name     string
-	Location string
-	Notes    string
-	Nights   int
-	CheckIn  string
-	CheckOut string
+	ID        string
+	Name      string
+	Location  string
+	Notes     string
+	Nights    int
+	CheckIn   string
+	CheckOut  string
+	Cost      *float64
+	HasCoords bool
 }
 
 func lodgingViews(tz *time.Location, lodgings []models.Lodging) []lodgingView {
 	out := make([]lodgingView, 0, len(lodgings))
 	for _, lo := range lodgings {
 		out = append(out, lodgingView{
-			ID:       lo.ID.String(),
-			Name:     lo.Name,
-			Location: lo.Location,
-			Notes:    lo.Notes,
-			Nights:   lo.Nights(),
-			CheckIn:  lo.CheckIn.In(tz).Format("02.01.2006 15:04"),
-			CheckOut: lo.CheckOut.In(tz).Format("02.01.2006 15:04"),
+			ID:        lo.ID.String(),
+			Name:      lo.Name,
+			Location:  lo.Location,
+			Notes:     lo.Notes,
+			Nights:    lo.Nights(),
+			CheckIn:   lo.CheckIn.In(tz).Format("02.01.2006 15:04"),
+			CheckOut:  lo.CheckOut.In(tz).Format("02.01.2006 15:04"),
+			Cost:      lo.Cost,
+			HasCoords: lo.HasCoords(),
 		})
 	}
 	return out

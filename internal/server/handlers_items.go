@@ -376,8 +376,9 @@ type centerPoint struct {
 }
 
 type itemsPayload struct {
-	Center *centerPoint `json:"center,omitempty"`
-	Items  []itemMarker `json:"items"`
+	Center   *centerPoint `json:"center,omitempty"`
+	Items    []itemMarker `json:"items"`
+	Lodgings []itemMarker `json:"lodgings,omitempty"`
 }
 
 // handleItemsJSON feeds the Leaflet map with marker data for items that have
@@ -421,6 +422,26 @@ func (s *Server) handleItemsJSON(w http.ResponseWriter, r *http.Request) {
 			Lat:      *it.Latitude,
 			Lng:      *it.Longitude,
 			Visited:  it.Visited,
+		})
+	}
+
+	lodgings, err := s.store.ListLodgings(r.Context(), vacationID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	for _, lo := range lodgings {
+		if !lo.HasCoords() {
+			continue
+		}
+		if payload.Center == nil {
+			payload.Center = &centerPoint{Lat: *lo.Latitude, Lng: *lo.Longitude}
+		}
+		payload.Lodgings = append(payload.Lodgings, itemMarker{
+			ID:    lo.ID.String(),
+			Title: lo.Name,
+			Lat:   *lo.Latitude,
+			Lng:   *lo.Longitude,
 		})
 	}
 

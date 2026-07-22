@@ -176,8 +176,11 @@ type Lodging struct {
 	VacationID uuid.UUID
 	Name       string
 	Location   string
+	Latitude   *float64
+	Longitude  *float64
 	CheckIn    time.Time
 	CheckOut   time.Time
+	Cost       *float64
 	Notes      string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
@@ -191,6 +194,9 @@ func (l Lodging) Nights() int {
 	}
 	return int(d)
 }
+
+// HasCoords reports whether the lodging can be placed on the map.
+func (l Lodging) HasCoords() bool { return l.Latitude != nil && l.Longitude != nil }
 
 // Document is an uploaded file (e.g. a ferry ticket PDF or a booking) attached
 // either to an Item (activity) or to a single travel leg. Exactly one owner is

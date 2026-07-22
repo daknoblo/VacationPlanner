@@ -109,6 +109,9 @@ func run() error {
 		return err
 	}
 
+	// Background maintenance (automatic database vacuum when configured).
+	srv.StartMaintenance(ctx)
+
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           srv,

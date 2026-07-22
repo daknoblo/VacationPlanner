@@ -108,6 +108,10 @@
     document.body.addEventListener("itemsChanged", refreshMarkers);
   }
 
+  function lodgingMarkerIcon() {
+    return L.divIcon({ className: "lodging-marker", html: "🛏", iconSize: [28, 28], iconAnchor: [14, 14] });
+  }
+
   function refreshMarkers() {
     var el = document.getElementById("map");
     if (!el || !map || !markerLayer) return;
@@ -125,6 +129,12 @@
           var marker = L.marker([s.lat, s.lng], { opacity: s.visited ? 0.5 : 1 });
           var title = s.title + (s.category ? " (" + s.category + ")" : "");
           marker.bindPopup(escapeHtml(title));
+          marker.addTo(markerLayer);
+          bounds.push([s.lat, s.lng]);
+        });
+        (data.lodgings || []).forEach(function (s) {
+          var marker = L.marker([s.lat, s.lng], { icon: lodgingMarkerIcon(), title: s.title });
+          marker.bindPopup(escapeHtml("🛏 " + s.title));
           marker.addTo(markerLayer);
           bounds.push([s.lat, s.lng]);
         });

@@ -49,6 +49,16 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 				card.Spent += *it.Cost
 			}
 		}
+		lodgings, lerr := s.store.ListLodgings(r.Context(), v.ID)
+		if lerr != nil {
+			s.serverError(w, r, lerr)
+			return
+		}
+		for _, lo := range lodgings {
+			if lo.Cost != nil {
+				card.Spent += *lo.Cost
+			}
+		}
 		if v.Budget != nil && *v.Budget > 0 {
 			card.HasBudget = true
 			card.Over = card.Spent > *v.Budget
@@ -149,7 +159,7 @@ type budgetExpense struct {
 
 // newBudgetView computes the budget breakdown and spending statistics for a
 // vacation from its items. icons maps lower-cased category names to emoji.
-func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency string) budgetView {
+func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency, lodgingLabel string) budgetView {
 	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
 
 	catAmount := map[string]float64{}
@@ -181,6 +191,29 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		})
 	}
 
+	// Accommodations count toward the budget under their own category.
+	for _, lo := range v.Lodgings {
+		if lo.Cost == nil {
+			continue
+		}
+		amt := *lo.Cost
+		b.Spent += amt
+		b.ExpenseCount++
+		if amt > b.TopAmount {
+			b.TopAmount = amt
+		}
+		if _, ok := catAmount[lodgingLabel]; !ok {
+			catOrder = append(catOrder, lodgingLabel)
+		}
+		catAmount[lodgingLabel] += amt
+		b.Expenses = append(b.Expenses, budgetExpense{
+			Title:    lo.Name,
+			Icon:     "🛏",
+			DayLabel: fmtDate(lo.CheckIn),
+			Amount:   amt,
+		})
+	}
+
 	if b.ExpenseCount > 0 {
 		b.AvgExpense = b.Spent / float64(b.ExpenseCount)
 	}
@@ -197,8 +230,12 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		if b.Spent > 0 {
 			pct = int(amt / b.Spent * 100)
 		}
+		icon := icons[strings.ToLower(name)]
+		if name == lodgingLabel {
+			icon = "🛏"
+		}
 		b.Categories = append(b.Categories, budgetCategory{
-			Name: name, Icon: icons[strings.ToLower(name)], Amount: amt, Percent: pct,
+			Name: name, Icon: icon, Amount: amt, Percent: pct,
 		})
 	}
 	sort.SliceStable(b.Categories, func(i, j int) bool { return b.Categories[i].Amount > b.Categories[j].Amount })
@@ -270,7 +307,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
-		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency),
+		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging")),
 		"Currency":        currency,
 		"Categories":      categories,
 		"HomeAddress":     s.homeAddress(r.Context()),
@@ -686,7 +723,12 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context())))
+	if v.Lodgings, err = s.store.ListLodgings(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging")))
 }
 
 // handleOverviewFragment re-renders the overview activity list.

@@ -56,6 +56,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Auto-vacuum — a Settings picker to run the database optimization
+      automatically (daily / every 3 days / weekly / every 2 weeks / monthly),
+      via a background maintenance loop.
+- [x] Accommodation budget & map marker — lodgings now have an optional cost
+      (counted in the trip budget) and a geocoded location shown as a marker on
+      the overview map.
 - [x] Accommodations ("Unterkunft") — a dedicated tab (between Arrival/Departure
       and Day plan) to add lodgings with a check-in/check-out date & time; each
       shows as a narrow strip over its hours on the left of the day/week planner.

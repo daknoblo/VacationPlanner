@@ -246,6 +246,20 @@
     <span id="optimize-result" class="muted small"></span>
   </form>
 
+  <form class="form" method="post" action="/settings/autovacuum"
+        hx-post="/settings/autovacuum" hx-trigger="change"
+        hx-target="#autovacuum-error" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="autovacuum">{{t "settings.autovacuum.label"}}</label>
+      <select id="autovacuum" name="interval">
+        {{range $.Data.AutoVacuumOptions}}<option value="{{.}}"{{if eq . $.Data.AutoVacuum}} selected{{end}}>{{t (printf "settings.autovacuum.%s" .)}}</option>{{end}}
+      </select>
+      <p class="muted small">{{t "settings.autovacuum.hint"}}</p>
+      <div id="autovacuum-error" class="form-error"></div>
+    </div>
+  </form>
+
   <h3 class="settings-subheading">{{t "settings.backup.restore_heading"}}</h3>
   <p class="muted small">{{t "settings.backup.restore_hint"}}</p>
   <form class="form"

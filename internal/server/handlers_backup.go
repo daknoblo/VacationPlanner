@@ -130,6 +130,8 @@ func (s *Server) handleOptimizeDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	after := s.dbSizeBytes()
+	// Record the run so the auto-vacuum clock is reset by a manual optimize too.
+	_ = s.store.PutSetting(r.Context(), settingAutoVacuumLast, time.Now().UTC().Format(time.RFC3339))
 	msg := loc.T("settings.optimize.done", humanBytes(after))
 	if before > after {
 		msg = loc.T("settings.optimize.done_freed", humanBytes(before-after), humanBytes(after))

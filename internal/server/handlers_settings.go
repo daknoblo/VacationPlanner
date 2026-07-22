@@ -145,6 +145,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"Stats":               stats,
 		"DBSize":              humanBytes(s.dbSizeBytes()),
 		"Backups":             s.listBackups(),
+		"AutoVacuum":          autoVacuumSetting(settings),
+		"AutoVacuumOptions":   autoVacuumOptions,
 	})
 }
 

@@ -425,10 +425,10 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 	l.CreatedAt, l.UpdatedAt = now, now
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO lodging (id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		l.ID, l.VacationID, l.Name, l.Location, dbTime(l.CheckIn), dbTime(l.CheckOut),
-		l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
+		INSERT INTO lodging (id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		l.ID, l.VacationID, l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
+		l.Cost, l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating lodging: %w", err)
 	}
@@ -437,7 +437,7 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 
 func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at
 		FROM lodging WHERE id = ?`, id)
 	var l models.Lodging
 	if err := scanLodging(row, &l); err != nil {
@@ -451,7 +451,7 @@ func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging,
 
 func (s *SQLite) ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at
 		FROM lodging WHERE vacation_id = ? ORDER BY check_in ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing lodging: %w", err)
@@ -482,8 +482,8 @@ func (s *SQLite) DeleteLodging(ctx context.Context, id uuid.UUID) error {
 
 func scanLodging(sc rowScanner, l *models.Lodging) error {
 	var checkIn, checkOut, created, updated string
-	if err := sc.Scan(&l.ID, &l.VacationID, &l.Name, &l.Location,
-		&checkIn, &checkOut, &l.Notes, &created, &updated); err != nil {
+	if err := sc.Scan(&l.ID, &l.VacationID, &l.Name, &l.Location, &l.Latitude, &l.Longitude,
+		&checkIn, &checkOut, &l.Cost, &l.Notes, &created, &updated); err != nil {
 		return err
 	}
 	var err error

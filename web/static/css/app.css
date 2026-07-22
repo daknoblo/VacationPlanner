@@ -566,6 +566,17 @@ code {
   box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
 }
 .lodging-strip__icon { font-size: 0.7rem; padding-top: 2px; }
+.lodging-marker {
+  box-sizing: border-box;
+  width: 28px; height: 28px;
+  background: #f59e0b;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  text-align: center;
+  font-size: 15px;
+  line-height: 24px;
+  box-shadow: 0 1px 4px rgba(2, 6, 23, 0.4);
+}
 
 /* Ideas backlog (drag onto a day's grid to schedule) */
 .ideas-backlog {

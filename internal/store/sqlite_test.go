@@ -347,7 +347,8 @@ func TestLodging(t *testing.T) {
 
 	ci := time.Date(2026, 8, 2, 15, 0, 0, 0, time.UTC)
 	co := time.Date(2026, 8, 5, 11, 0, 0, 0, time.UTC)
-	lo := &models.Lodging{VacationID: v.ID, Name: "Hotel Central", Location: "Center", CheckIn: ci, CheckOut: co, Notes: "n"}
+	lat, lng, cost := 38.7223, -9.1393, 420.0
+	lo := &models.Lodging{VacationID: v.ID, Name: "Hotel Central", Location: "Center", Latitude: &lat, Longitude: &lng, CheckIn: ci, CheckOut: co, Cost: &cost, Notes: "n"}
 	if err := st.CreateLodging(ctx, lo); err != nil {
 		t.Fatalf("CreateLodging: %v", err)
 	}
@@ -359,6 +360,9 @@ func TestLodging(t *testing.T) {
 	got := list[0]
 	if got.Name != "Hotel Central" || !got.CheckIn.Equal(ci) || !got.CheckOut.Equal(co) || got.Nights() != 2 {
 		t.Fatalf("lodging round-trip: %+v nights=%d", got, got.Nights())
+	}
+	if !got.HasCoords() || got.Cost == nil || *got.Cost != 420.0 {
+		t.Fatalf("lodging cost/coords round-trip: %+v", got)
 	}
 	if one, err := st.GetLodging(ctx, lo.ID); err != nil || one.Location != "Center" {
 		t.Fatalf("GetLodging: err=%v %+v", err, one)
