@@ -872,6 +872,7 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 	if err != nil {
 		return nil, err
 	}
+	zoom := parseZoom(r, "map_zoom")
 
 	var budget *float64
 	if raw := formStr(r, "budget"); raw != "" {
@@ -898,6 +899,7 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		EndDate:     end,
 		Latitude:    lat,
 		Longitude:   lng,
+		MapZoom:     zoom,
 		Notes:       notes,
 		Budget:      budget,
 		People:      people,

@@ -17,6 +17,7 @@ type Vacation struct {
 	EndDate     time.Time
 	Latitude    *float64
 	Longitude   *float64
+	MapZoom     *int
 	Notes       string
 	Budget      *float64
 	People      int

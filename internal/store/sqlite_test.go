@@ -31,6 +31,7 @@ func TestVacationCRUD(t *testing.T) {
 
 	lat, lng := 38.7223, -9.1393
 	budget := 1500.0
+	zoom := 5
 	v := &models.Vacation{
 		Title:       "Lisbon",
 		Destination: "Portugal",
@@ -38,6 +39,7 @@ func TestVacationCRUD(t *testing.T) {
 		EndDate:     time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC),
 		Latitude:    &lat,
 		Longitude:   &lng,
+		MapZoom:     &zoom,
 		Notes:       "budget 1500",
 		Budget:      &budget,
 		People:      3,
@@ -59,6 +61,9 @@ func TestVacationCRUD(t *testing.T) {
 	if got.Budget == nil || *got.Budget != 1500 || got.People != 3 {
 		t.Fatalf("budget/people round-trip mismatch: budget=%v people=%d", got.Budget, got.People)
 	}
+	if got.MapZoom == nil || *got.MapZoom != 5 {
+		t.Fatalf("map_zoom round-trip mismatch: %v", got.MapZoom)
+	}
 	if !got.StartDate.Equal(v.StartDate) {
 		t.Fatalf("start date mismatch: %v != %v", got.StartDate, v.StartDate)
 	}
@@ -70,6 +75,9 @@ func TestVacationCRUD(t *testing.T) {
 	again, _ := st.GetVacation(ctx, v.ID)
 	if again.Title != "Lisboa" {
 		t.Fatalf("update not persisted: %q", again.Title)
+	}
+	if again.MapZoom == nil || *again.MapZoom != 5 {
+		t.Fatalf("map_zoom not preserved on update: %v", again.MapZoom)
 	}
 
 	list, err := st.ListVacations(ctx)

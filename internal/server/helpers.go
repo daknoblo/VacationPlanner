@@ -118,6 +118,21 @@ func parseCoords(r *http.Request, latKey, lngKey string) (lat, lng *float64, err
 	return &latV, &lngV, nil
 }
 
+// parseZoom reads an optional Leaflet zoom level (1..19) used to frame the
+// overview map. It returns nil when the field is empty or out of range, so a
+// missing or invalid value falls back to the client-side default.
+func parseZoom(r *http.Request, key string) *int {
+	raw := formStr(r, key)
+	if raw == "" {
+		return nil
+	}
+	z, err := strconv.Atoi(raw)
+	if err != nil || z < 1 || z > 19 {
+		return nil
+	}
+	return &z
+}
+
 func parseDate(r *http.Request, key string) (time.Time, error) {
 	return time.Parse("2006-01-02", formStr(r, key))
 }

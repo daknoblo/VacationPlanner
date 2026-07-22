@@ -48,6 +48,7 @@ var funcMap = template.FuncMap{
 	"dtInput":     dateTimeInput,
 	"fmtDateTime": fmtDateTime,
 	"coord":       coordValue,
+	"zoom":        zoomValue,
 	"money":       money,
 	"moneyF":      moneyF,
 	"bmoney":      bmoney,
@@ -279,6 +280,14 @@ func coordValue(f *float64) string {
 		return ""
 	}
 	return strconv.FormatFloat(*f, 'f', -1, 64)
+}
+
+// zoomValue renders an optional Leaflet zoom level; nil renders "".
+func zoomValue(z *int) string {
+	if z == nil {
+		return ""
+	}
+	return strconv.Itoa(*z)
 }
 
 // money formats an optional monetary amount with two decimals; nil renders "".

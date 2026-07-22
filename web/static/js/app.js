@@ -80,8 +80,10 @@
     var lat = parseFloat(el.dataset.lat);
     var lng = parseFloat(el.dataset.lng);
     var hasCenter = !isNaN(lat) && !isNaN(lng);
+    var zoom = parseInt(el.dataset.zoom, 10);
+    if (isNaN(zoom)) zoom = 12;
 
-    map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? 12 : 4);
+    map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? zoom : 4);
 
     var attribution = el.dataset.attribution || "\u00A9 OpenStreetMap contributors";
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -161,6 +163,7 @@
     var list = pk.querySelector("[data-geocode-list]");
     var latIn = pk.querySelector("[data-geocode-lat]");
     var lngIn = pk.querySelector("[data-geocode-lng]");
+    var zoomIn = pk.querySelector("[data-geocode-zoom]");
     var mapEl = pk.querySelector("[data-geocode-map]");
     if (!mapEl) return;
 
@@ -184,9 +187,10 @@
       else { marker = L.marker([la, ln]).addTo(lmap); }
       lmap.setView([la, ln], zoom || lmap.getZoom());
     }
+    function persistZoom(z) { if (zoomIn && z) zoomIn.value = z; }
     if (hasPoint) setPoint(lat, lng, 6);
 
-    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng); });
+    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng); persistZoom(lmap.getZoom()); });
     window.setTimeout(function () { lmap.invalidateSize(); }, 200);
 
     function hideList() { if (list) { list.hidden = true; list.innerHTML = ""; } }
@@ -202,7 +206,9 @@
         opt.textContent = it.display_name;
         opt.addEventListener("click", function () {
           if (input) input.value = it.display_name;
-          setPoint(it.lat, it.lng, zoomForResult(it));
+          var z = zoomForResult(it);
+          setPoint(it.lat, it.lng, z);
+          persistZoom(z);
           hideList();
         });
         list.appendChild(opt);

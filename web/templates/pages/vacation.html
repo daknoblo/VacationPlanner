@@ -48,6 +48,7 @@
           </div>
           <input type="hidden" name="latitude" id="m-lat" data-geocode-lat value="{{coord $v.Latitude}}">
           <input type="hidden" name="longitude" id="m-lng" data-geocode-lng value="{{coord $v.Longitude}}">
+          <input type="hidden" name="map_zoom" id="m-zoom" data-geocode-zoom value="{{zoom $v.MapZoom}}">
           <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
           <p class="muted small">{{t "field.location.hint"}}</p>
         </div>
@@ -191,6 +192,7 @@
              data-vacation-id="{{$v.ID}}"
              data-lat="{{coord $v.Latitude}}"
              data-lng="{{coord $v.Longitude}}"
+             data-zoom="{{zoom $v.MapZoom}}"
              data-attribution="{{t "map.attribution"}}"></div>
         <p class="muted small">{{t "overview.map_hint"}}</p>
         <div class="overview-notes">
