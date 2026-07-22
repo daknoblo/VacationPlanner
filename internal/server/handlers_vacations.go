@@ -255,6 +255,10 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	if v.Lodgings, err = s.store.ListLodgings(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 
 	categories, _ := s.store.ListCategories(r.Context())
 	loc := i18n.FromContext(r.Context())
@@ -273,6 +277,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"ActivityList":    activities,
 		"Ideas":           ideas,
 		"CalTravel":       travelCalBlocks(loc, tz, v),
+		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
+		"Lodgings":        lodgingViews(tz, v.Lodgings),
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),
 		"HourRows":        calHourRows(),
@@ -327,15 +333,18 @@ func (s *Server) applyEndpointDefaults(ctx context.Context, v *models.Vacation, 
 
 // overviewActivity is a scheduled entry shown in the Overview activity list.
 type overviewActivity struct {
-	Weekday   string
-	DateLabel string
-	TimeLabel string
-	Title     string
-	Category  string
-	Latitude  *float64
-	Longitude *float64
-	HasCoords bool
-	sortKey   time.Time
+	Weekday       string
+	DateLabel     string
+	TimeLabel     string
+	Title         string
+	Category      string
+	DistanceLabel string // total leg distance (travel rows only)
+	DurationLabel string // total leg duration (travel rows only)
+	IsTravel      bool
+	Latitude      *float64
+	Longitude     *float64
+	HasCoords     bool
+	sortKey       time.Time
 }
 
 // weekdayLabel returns the localized weekday name for a date.
@@ -495,6 +504,7 @@ type calDay struct {
 	DayIndex int
 	Weekend  bool
 	Blocks   []calBlock
+	Lodging  []calBlock
 }
 
 // calWeek is one calendar-week row; Days is indexed by weekday column
@@ -507,6 +517,7 @@ type calWeek struct {
 // placing each day in its weekday column with its timed items and travel legs.
 func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool, v *models.Vacation) []calWeek {
 	travel := travelCalBlocks(loc, tz, v)
+	lodging := lodgingDayStrips(tz, v.Lodgings)
 	var weeks []calWeek
 	idx := make(map[string]int)
 	for i, d := range v.Days() {
@@ -533,6 +544,10 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 			top := calMinPx(tb.StartMin)
 			cd.Blocks = append(cd.Blocks, calBlock{TopPx: top, HeightPx: calMinPx(tb.EndMin) - top, Title: tb.Title, Label: tb.Label, Travel: true})
 		}
+		for _, ls := range lodging[d.Format("2006-01-02")] {
+			top := calMinPx(ls.StartMin)
+			cd.Lodging = append(cd.Lodging, calBlock{TopPx: top, HeightPx: calMinPx(ls.EndMin) - top, Title: ls.Name})
+		}
 		weeks[wi].Days[col] = cd
 	}
 	return weeks
@@ -543,42 +558,82 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 // activity list (using the departure time, or the trip start/end when no time
 // is set). The result is sorted chronologically.
 func overviewLists(loc *i18n.Localizer, tz *time.Location, v *models.Vacation) (activities []overviewActivity, ideas []models.Item) {
-	for i := range v.TravelSegments {
-		ts := v.TravelSegments[i]
+	// Each travel direction (arrival/departure) is collapsed into a single entry
+	// whose distance and duration are the sum of all its legs.
+	for _, kind := range []models.TravelKind{models.TravelArrival, models.TravelDeparture} {
+		legs := stepsForKind(v, kind)
+		if len(legs) == 0 {
+			continue
+		}
+		var distM float64
+		var durS int
+		var haveDist, haveDur bool
+		for _, ts := range legs {
+			if ts.DistanceM != nil {
+				distM += *ts.DistanceM
+				haveDist = true
+			}
+			if ts.DurationS != nil {
+				durS += *ts.DurationS
+				haveDur = true
+			}
+		}
+		first, last := legs[0], legs[len(legs)-1]
+
 		var date, tm string
-		var key time.Time
-		var wd time.Time
+		var key, wd time.Time
 		switch {
-		case ts.DepartAt != nil:
-			dep := ts.DepartAt.In(tz)
-			date = fmtDate(dep)
-			tm = dep.Format("15:04")
-			key = *ts.DepartAt
-			wd = dep
-		case ts.Kind == models.TravelArrival:
-			date = fmtDate(v.StartDate)
-			key = v.StartDate
-			wd = v.StartDate
+		case first.DepartAt != nil:
+			dep := first.DepartAt.In(tz)
+			date, tm, key, wd = fmtDate(dep), dep.Format("15:04"), *first.DepartAt, dep
+		case kind == models.TravelArrival:
+			date, key, wd = fmtDate(v.StartDate), v.StartDate, v.StartDate
 		default:
-			date = fmtDate(v.EndDate)
-			key = v.EndDate.Add(24*time.Hour - time.Minute)
-			wd = v.EndDate
+			date, key, wd = fmtDate(v.EndDate), v.EndDate.Add(24*time.Hour-time.Minute), v.EndDate
 		}
-		lat, lng := ts.ToLat, ts.ToLng
+
+		title := loc.T("travel.kind." + string(kind))
+		switch {
+		case first.FromLocation != "" && last.ToLocation != "":
+			title += " · " + first.FromLocation + " → " + last.ToLocation
+		case last.ToLocation != "":
+			title += " · " + last.ToLocation
+		case first.FromLocation != "":
+			title += " · " + first.FromLocation
+		}
+
+		lat, lng := last.ToLat, last.ToLng
 		if lat == nil {
-			lat, lng = ts.FromLat, ts.FromLng
+			lat, lng = last.FromLat, last.FromLng
 		}
-		activities = append(activities, overviewActivity{
+		if lat == nil {
+			lat, lng = first.FromLat, first.FromLng
+		}
+
+		cat := modeLabel(loc, first.Mode)
+		if len(legs) > 1 {
+			cat = loc.T("overview.legs", len(legs))
+		}
+
+		oa := overviewActivity{
 			Weekday:   weekdayLabel(loc, wd),
 			DateLabel: date,
 			TimeLabel: tm,
-			Title:     travelLabel(loc, ts),
-			Category:  modeLabel(loc, ts.Mode),
+			Title:     title,
+			Category:  cat,
+			IsTravel:  true,
 			Latitude:  lat,
 			Longitude: lng,
 			HasCoords: lat != nil && lng != nil,
 			sortKey:   key,
-		})
+		}
+		if haveDist {
+			oa.DistanceLabel = formatDistance(distM)
+		}
+		if haveDur {
+			oa.DurationLabel = formatDuration(float64(durS))
+		}
+		activities = append(activities, oa)
 	}
 	for _, it := range v.Items {
 		if it.Day == nil {
@@ -872,6 +927,7 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 	if err != nil {
 		return nil, err
 	}
+	zoom := parseZoomPtr(r, "map_zoom")
 
 	var budget *float64
 	if raw := formStr(r, "budget"); raw != "" {
@@ -898,8 +954,23 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		EndDate:     end,
 		Latitude:    lat,
 		Longitude:   lng,
+		MapZoom:     zoom,
 		Notes:       notes,
 		Budget:      budget,
 		People:      people,
 	}, nil
+}
+
+// parseZoomPtr reads an optional Leaflet map zoom level (1–19); anything out of
+// range or unparseable yields nil so the client falls back to its default.
+func parseZoomPtr(r *http.Request, field string) *int {
+	raw := formStr(r, field)
+	if raw == "" {
+		return nil
+	}
+	z, err := strconv.Atoi(raw)
+	if err != nil || z < 1 || z > 19 {
+		return nil
+	}
+	return &z
 }

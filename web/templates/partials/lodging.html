@@ -1,0 +1,67 @@
+{{define "lodging_panel"}}
+<div class="panel">
+  <h2>{{t "tab.lodging"}}</h2>
+  <p class="muted small">{{t "lodging.hint"}}</p>
+
+  <ul class="list lodging-list">
+    {{range .Lodgings}}{{template "lodging_row" .}}{{end}}
+  </ul>
+  {{if not .Lodgings}}<p class="muted">{{t "lodging.none"}}</p>{{end}}
+
+  <form class="form grid lodging-form"
+        hx-post="/vacations/{{.V.ID}}/lodging"
+        hx-target="#lodging-error" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div class="field field--wide">
+      <label>{{t "lodging.name"}}</label>
+      <input name="name" required maxlength="200" placeholder="{{t "placeholder.lodging.name"}}">
+    </div>
+    <div class="field field--wide">
+      <label>{{t "lodging.location"}} <span class="muted">{{t "label.optional"}}</span></label>
+      <input name="location" maxlength="200" placeholder="{{t "placeholder.lodging.location"}}">
+    </div>
+    <div class="field">
+      <label>{{t "lodging.checkin"}}</label>
+      <div class="travel-when">
+        <input name="checkin_date" type="date" value="{{dateInput .V.StartDate}}" required aria-label="{{t "lodging.checkin"}}">
+        <input name="checkin_time" type="time" value="15:00" required aria-label="{{t "travel.time"}}">
+      </div>
+    </div>
+    <div class="field">
+      <label>{{t "lodging.checkout"}}</label>
+      <div class="travel-when">
+        <input name="checkout_date" type="date" value="{{dateInput .V.EndDate}}" required aria-label="{{t "lodging.checkout"}}">
+        <input name="checkout_time" type="time" value="11:00" required aria-label="{{t "travel.time"}}">
+      </div>
+    </div>
+    <div class="field field--wide">
+      <label>{{t "field.notes"}} <span class="muted">{{t "label.optional"}}</span></label>
+      <textarea name="notes" rows="2" maxlength="2000"></textarea>
+    </div>
+    <div class="field field--wide">
+      <div id="lodging-error" class="form-error"></div>
+      <button class="btn btn--primary" type="submit">{{t "lodging.add"}}</button>
+    </div>
+  </form>
+</div>
+{{end}}
+
+{{define "lodging_row"}}
+<li class="item-row lodging-item" id="lodging-{{.ID}}">
+  <div class="item-row__head">
+    <div class="item-row__title">
+      <span class="lodging-item__icon" aria-hidden="true">🛏</span>
+      <strong>{{.Name}}</strong>
+      <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
+    </div>
+    <div class="item-row__actions">
+      <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
+              hx-delete="/lodging/{{.ID}}"
+              hx-confirm="{{t "lodging.confirm_delete"}}">✕</button>
+    </div>
+  </div>
+  <p class="muted small">🗓️ {{.CheckIn}} → {{.CheckOut}}</p>
+  {{if .Location}}<p class="small">📍 {{.Location}}</p>{{end}}
+  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
+</li>
+{{end}}

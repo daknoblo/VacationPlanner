@@ -17,6 +17,7 @@ type Vacation struct {
 	EndDate     time.Time
 	Latitude    *float64
 	Longitude   *float64
+	MapZoom     *int
 	Notes       string
 	Budget      *float64
 	People      int
@@ -26,6 +27,7 @@ type Vacation struct {
 	// Relations are populated on demand, not stored on this row.
 	TravelSegments []TravelSegment
 	Items          []Item
+	Lodgings       []Lodging
 }
 
 // Nights returns the number of nights between start and end date.
@@ -164,6 +166,30 @@ type Category struct {
 	Icon      string
 	SortOrder int
 	CreatedAt time.Time
+}
+
+// Lodging is a place to stay for part of the trip, spanning a check-in to a
+// check-out date and time. It is shown as a narrow strip on the day/week
+// planner over the hours it covers on each day.
+type Lodging struct {
+	ID         uuid.UUID
+	VacationID uuid.UUID
+	Name       string
+	Location   string
+	CheckIn    time.Time
+	CheckOut   time.Time
+	Notes      string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// Nights returns the number of nights between check-in and check-out.
+func (l Lodging) Nights() int {
+	d := l.CheckOut.Sub(l.CheckIn).Hours() / 24
+	if d < 0 {
+		return 0
+	}
+	return int(d)
 }
 
 // Document is an uploaded file (e.g. a ferry ticket PDF or a booking) attached

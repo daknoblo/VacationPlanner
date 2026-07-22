@@ -67,6 +67,8 @@ func TestRenderPages(t *testing.T) {
 	arrivalEditor := travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, DepartDate: "2026-08-01", DepartTime: "09:30", DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}}}
 	departureEditor := travelBlockView{Kind: models.TravelDeparture, VID: v.ID.String(), Steps: []travelEditorView{{Seg: emptyTravelSegment(v.ID, models.TravelDeparture), VID: v.ID.String(), Kind: models.TravelDeparture, Number: 1, StepOrder: 0, DepartDate: "2026-08-10"}}}
 	calTravel := map[string][]calTravelBlock{"2026-08-01": {{StartMin: 570, EndMin: 720, Title: "Arrival · BER → LIS", Label: "09:30–12:00"}}}
+	calLodging := map[string][]lodgingStrip{"2026-08-02": {{StartMin: 900, EndMin: 1440, Name: "Hotel Central"}}}
+	lodgingList := []lodgingView{{ID: "l1", Name: "Hotel Central", Location: "Center", Nights: 3, CheckIn: "02.08.2026 15:00", CheckOut: "05.08.2026 11:00"}}
 	weekCal := buildWeekCalendar(loc, time.UTC, true, v)
 	weekHeaders := calWeekdayHeaders(loc, true)
 	hourRows := calHourRows()
@@ -77,8 +79,8 @@ func TestRenderPages(t *testing.T) {
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil, "€"), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil, "€"), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil, "€"), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil, "€"), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows}}},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
@@ -115,6 +117,7 @@ func TestRenderFragments(t *testing.T) {
 		{"item_edit", map[string]any{"Item": v.Items[0], "Cats": []models.Category{{Name: "POI", Icon: "📍"}}, "CSRF": "tok"}},
 		{"destination_info", destinationInfoView{Destination: "Lisbon", Description: "capital of Portugal", Extract: "Lisbon is the capital of Portugal.", URL: "https://en.wikipedia.org/wiki/Lisbon"}},
 		{"form_error", "etwas ist schiefgelaufen"},
+		{"lodging_row", lodgingView{ID: "l1", Name: "Hotel Central", Location: "Center", Nights: 3, CheckIn: "02.08.2026 15:00", CheckOut: "05.08.2026 11:00"}},
 		{"attachments", attachmentsView{
 			ListURL: "/items/" + v.ID.String() + "/documents",
 			CSRF:    "tok",

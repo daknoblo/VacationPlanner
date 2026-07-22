@@ -18,6 +18,7 @@
       <button type="button" class="tabs__tab is-active" data-tab="overview">{{t "tab.overview"}}</button>
       <button type="button" class="tabs__tab" data-tab="general">{{t "tab.general"}}</button>
       <button type="button" class="tabs__tab" data-tab="travel">{{t "tab.travel"}}</button>
+      <button type="button" class="tabs__tab" data-tab="lodging">{{t "tab.lodging"}}</button>
       <button type="button" class="tabs__tab" data-tab="tagesplan">{{t "tab.tagesplan"}}</button>
       <button type="button" class="tabs__tab" data-tab="ideen">{{t "tab.ideen"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
@@ -48,6 +49,7 @@
           </div>
           <input type="hidden" name="latitude" id="m-lat" data-geocode-lat value="{{coord $v.Latitude}}">
           <input type="hidden" name="longitude" id="m-lng" data-geocode-lng value="{{coord $v.Longitude}}">
+          <input type="hidden" name="map_zoom" id="m-zoom" data-geocode-zoom value="{{if $v.MapZoom}}{{$v.MapZoom}}{{end}}">
           <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
           <p class="muted small">{{t "field.location.hint"}}</p>
         </div>
@@ -100,6 +102,10 @@
     </div>
   </section>
 
+  <section class="tab-panel" data-tab-panel="lodging">
+    {{template "lodging_panel" (dict "V" $v "CSRF" $csrf "Lodgings" $.Data.Lodgings)}}
+  </section>
+
   <section class="tab-panel" data-tab-panel="tagesplan">
     {{if $v.Days}}
     <div class="tagesplan" data-tagesplan>
@@ -138,6 +144,13 @@
           <div class="planner" data-planner>
             <div class="planner__hours">
               {{range $h := seq 24}}<div class="planner__hour"><span>{{$h}}:00</span></div>{{end}}
+            </div>
+            <div class="planner__lodging">
+              {{range index $.Data.CalLodging (dateInput $d)}}
+              <div class="lodging-strip" style="top: calc({{.StartMin}} * var(--ppm)); height: calc({{sub .EndMin .StartMin}} * var(--ppm));" title="{{.Name}}">
+                <span class="lodging-strip__icon" aria-hidden="true">🛏</span>
+              </div>
+              {{end}}
             </div>
             <div id="day-grid-{{dateInput $d}}" class="planner__grid" data-planner-grid data-day="{{dateInput $d}}">
               {{range $v.Items}}{{if and (.OnDay $d) .Timed}}{{template "planner_block" (dict "Item" .)}}{{end}}{{end}}
@@ -191,6 +204,7 @@
              data-vacation-id="{{$v.ID}}"
              data-lat="{{coord $v.Latitude}}"
              data-lng="{{coord $v.Longitude}}"
+             data-zoom="{{if $v.MapZoom}}{{$v.MapZoom}}{{end}}"
              data-attribution="{{t "map.attribution"}}"></div>
         <p class="muted small">{{t "overview.map_hint"}}</p>
         <div class="overview-notes">

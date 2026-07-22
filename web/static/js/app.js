@@ -80,8 +80,10 @@
     var lat = parseFloat(el.dataset.lat);
     var lng = parseFloat(el.dataset.lng);
     var hasCenter = !isNaN(lat) && !isNaN(lng);
+    var zoom = parseInt(el.dataset.zoom, 10);
+    var hasZoom = !isNaN(zoom) && zoom > 0;
 
-    map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? 12 : 4);
+    map = L.map(el).setView(hasCenter ? [lat, lng] : [48.2082, 16.3738], hasCenter ? (hasZoom ? zoom : 12) : 4);
 
     var attribution = el.dataset.attribution || "\u00A9 OpenStreetMap contributors";
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -161,14 +163,17 @@
     var list = pk.querySelector("[data-geocode-list]");
     var latIn = pk.querySelector("[data-geocode-lat]");
     var lngIn = pk.querySelector("[data-geocode-lng]");
+    var zoomIn = pk.querySelector("[data-geocode-zoom]");
     var mapEl = pk.querySelector("[data-geocode-map]");
     if (!mapEl) return;
 
     var lat = parseFloat(latIn && latIn.value);
     var lng = parseFloat(lngIn && lngIn.value);
     var hasPoint = !isNaN(lat) && !isNaN(lng);
+    var storedZoom = parseInt(zoomIn && zoomIn.value, 10);
+    var hasStoredZoom = !isNaN(storedZoom) && storedZoom > 0;
 
-    var lmap = L.map(mapEl).setView(hasPoint ? [lat, lng] : [25, 5], hasPoint ? 6 : 2);
+    var lmap = L.map(mapEl).setView(hasPoint ? [lat, lng] : [25, 5], hasPoint ? (hasStoredZoom ? storedZoom : 6) : 2);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       referrerPolicy: "strict-origin-when-cross-origin",
@@ -177,16 +182,18 @@
     locationMaps.push(lmap);
 
     var marker = null;
-    function setPoint(la, ln, zoom) {
+    function setPoint(la, ln, zoom, persist) {
+      var z = zoom || lmap.getZoom();
       if (latIn) latIn.value = la.toFixed(6);
       if (lngIn) lngIn.value = ln.toFixed(6);
+      if (persist && zoomIn) { zoomIn.value = z; }
       if (marker) { marker.setLatLng([la, ln]); }
       else { marker = L.marker([la, ln]).addTo(lmap); }
-      lmap.setView([la, ln], zoom || lmap.getZoom());
+      lmap.setView([la, ln], z);
     }
-    if (hasPoint) setPoint(lat, lng, 6);
+    if (hasPoint) setPoint(lat, lng, hasStoredZoom ? storedZoom : 6, false);
 
-    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng); });
+    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng, null, true); });
     window.setTimeout(function () { lmap.invalidateSize(); }, 200);
 
     function hideList() { if (list) { list.hidden = true; list.innerHTML = ""; } }
@@ -202,7 +209,7 @@
         opt.textContent = it.display_name;
         opt.addEventListener("click", function () {
           if (input) input.value = it.display_name;
-          setPoint(it.lat, it.lng, zoomForResult(it));
+          setPoint(it.lat, it.lng, zoomForResult(it), true);
           hideList();
         });
         list.appendChild(opt);

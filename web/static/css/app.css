@@ -449,6 +449,8 @@ code {
 .cat-8 { --cat-bg: #e0e7ff; --cat-fg: #4338ca; --cat-bd: #c7d2fe; }
 .cat-9 { --cat-bg: #fee2e2; --cat-fg: #b91c1c; --cat-bd: #fecaca; }
 .activity-item__title { font-weight: 600; line-height: 1.3; }
+.activity-item__travel { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.activity-item--travel { border-left: 3px solid var(--primary); }
 
 /* Destination info (Wikipedia intro) */
 .dest-info-wrap { margin-top: 0.25rem; }
@@ -555,6 +557,16 @@ code {
 .planner-block.is-dragging { cursor: grabbing; opacity: 0.9; z-index: 5; }
 .planner-block--travel { background: #0ea5e9; cursor: default; }
 
+/* Accommodation strips (narrow lane on the left of the day/week planner) */
+.planner__lodging { flex: 0 0 18px; position: relative; border-right: 1px solid var(--line); background: #fffaf3; }
+.lodging-strip {
+  position: absolute; left: 2px; right: 2px; min-height: 10px;
+  background: #f59e0b; border-radius: 4px; overflow: hidden;
+  display: flex; align-items: flex-start; justify-content: center;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
+}
+.lodging-strip__icon { font-size: 0.7rem; padding-top: 2px; }
+
 /* Ideas backlog (drag onto a day's grid to schedule) */
 .ideas-backlog {
   margin: 0.5rem 0 1rem;
@@ -643,7 +655,7 @@ code {
 .weekcal__slot:first-child { border-top: none; }
 .weekcal-block {
   position: absolute;
-  left: 2px;
+  left: 8px;
   right: 2px;
   min-height: 12px;
   background: var(--primary);
@@ -655,6 +667,10 @@ code {
   font-size: 0.68rem;
   line-height: 1.15;
   box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
+}
+.weekcal-lodging {
+  position: absolute; left: 1px; width: 5px;
+  background: #f59e0b; border-radius: 3px;
 }
 .weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.6rem; display: block; }
 .weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -733,19 +749,15 @@ code {
 .travel-step__grid .field { flex: 1 1 150px; min-width: 0; }
 .travel-step__grid .field--mode { flex: 1 1 115px; }
 .travel-step__grid .field--when { flex: 1 1 210px; }
-.travel-step__grid .field--out { flex: 2 1 220px; }
+.travel-step__grid .field--out { flex: 2 1 220px; align-self: flex-start; }
 .travel-step__grid .field--note { flex: 1 1 100%; }
-/* Strecke & Zeit fills the combined height of the input + home shortcut so it
-   can show two lines and align with the taller From/To cells. */
-.travel-step__grid .field--out .travel-out { flex: 1 1 auto; display: flex; }
-.travel-step__grid .field--out .travel-computed { flex: 1 1 auto; }
+.travel-step__grid .field--out .travel-out { display: flex; }
 .travel-computed {
   margin: 0;
   padding: 0.6rem 0.7rem;
   border: 1px dashed var(--line);
   border-radius: 10px;
   background: #f8fafc;
-  min-height: 2.6rem;
   display: flex;
   align-items: center;
   font-variant-numeric: tabular-nums;

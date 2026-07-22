@@ -39,6 +39,11 @@ type Store interface {
 	CreateCategory(ctx context.Context, c *models.Category) error
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 
+	CreateLodging(ctx context.Context, l *models.Lodging) error
+	GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error)
+	ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error)
+	DeleteLodging(ctx context.Context, id uuid.UUID) error
+
 	CreateDocument(ctx context.Context, d *models.Document) error
 	GetDocument(ctx context.Context, id uuid.UUID) (*models.Document, error)
 	ReadDocument(ctx context.Context, id uuid.UUID) (*models.Document, error)
@@ -53,4 +58,5 @@ type Store interface {
 	Stats(ctx context.Context) (Stats, error)
 	BackupTo(ctx context.Context, dest string) error
 	Restore(ctx context.Context, srcPath string) error
+	Vacuum(ctx context.Context) error
 }

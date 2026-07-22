@@ -82,10 +82,10 @@ func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO vacations
-			(id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		v.ID, v.Title, v.Destination, dbDate(v.StartDate), dbDate(v.EndDate),
-		v.Latitude, v.Longitude, v.Notes, v.Budget, v.People, dbTime(v.CreatedAt), dbTime(v.UpdatedAt))
+		v.Latitude, v.Longitude, v.MapZoom, v.Notes, v.Budget, v.People, dbTime(v.CreatedAt), dbTime(v.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating vacation: %w", err)
 	}
@@ -94,7 +94,7 @@ func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
 
 func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacation, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at
 		FROM vacations WHERE id = ?`, id)
 
 	var v models.Vacation
@@ -109,7 +109,7 @@ func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacatio
 
 func (s *SQLite) ListVacations(ctx context.Context) ([]models.Vacation, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, notes, budget, people, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at
 		FROM vacations ORDER BY start_date ASC, created_at ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing vacations: %w", err)
@@ -135,10 +135,10 @@ func (s *SQLite) UpdateVacation(ctx context.Context, v *models.Vacation) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE vacations
 		SET title = ?, destination = ?, start_date = ?, end_date = ?,
-		    latitude = ?, longitude = ?, notes = ?, budget = ?, people = ?, updated_at = ?
+		    latitude = ?, longitude = ?, map_zoom = ?, notes = ?, budget = ?, people = ?, updated_at = ?
 		WHERE id = ?`,
 		v.Title, v.Destination, dbDate(v.StartDate), dbDate(v.EndDate),
-		v.Latitude, v.Longitude, v.Notes, v.Budget, v.People, dbTime(v.UpdatedAt), v.ID)
+		v.Latitude, v.Longitude, v.MapZoom, v.Notes, v.Budget, v.People, dbTime(v.UpdatedAt), v.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating vacation: %w", err)
 	}
@@ -415,6 +415,93 @@ func scanCategory(sc rowScanner, c *models.Category) error {
 	return nil
 }
 
+// ---- Lodging ----
+
+func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
+	if l.ID == uuid.Nil {
+		l.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	l.CreatedAt, l.UpdatedAt = now, now
+
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO lodging (id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		l.ID, l.VacationID, l.Name, l.Location, dbTime(l.CheckIn), dbTime(l.CheckOut),
+		l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
+	if err != nil {
+		return fmt.Errorf("store: creating lodging: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at
+		FROM lodging WHERE id = ?`, id)
+	var l models.Lodging
+	if err := scanLodging(row, &l); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: getting lodging: %w", err)
+	}
+	return &l, nil
+}
+
+func (s *SQLite) ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, vacation_id, name, location, check_in, check_out, notes, created_at, updated_at
+		FROM lodging WHERE vacation_id = ? ORDER BY check_in ASC, created_at ASC`, vacationID)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing lodging: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Lodging
+	for rows.Next() {
+		var l models.Lodging
+		if err := scanLodging(rows, &l); err != nil {
+			return nil, fmt.Errorf("store: scanning lodging: %w", err)
+		}
+		out = append(out, l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating lodging: %w", err)
+	}
+	return out, nil
+}
+
+func (s *SQLite) DeleteLodging(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM lodging WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting lodging: %w", err)
+	}
+	return checkAffected(res)
+}
+
+func scanLodging(sc rowScanner, l *models.Lodging) error {
+	var checkIn, checkOut, created, updated string
+	if err := sc.Scan(&l.ID, &l.VacationID, &l.Name, &l.Location,
+		&checkIn, &checkOut, &l.Notes, &created, &updated); err != nil {
+		return err
+	}
+	var err error
+	if l.CheckIn, err = time.Parse(dbTimeLayout, checkIn); err != nil {
+		return fmt.Errorf("store: parsing lodging check_in: %w", err)
+	}
+	if l.CheckOut, err = time.Parse(dbTimeLayout, checkOut); err != nil {
+		return fmt.Errorf("store: parsing lodging check_out: %w", err)
+	}
+	if l.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+		return fmt.Errorf("store: parsing lodging created_at: %w", err)
+	}
+	if l.UpdatedAt, err = time.Parse(dbTimeLayout, updated); err != nil {
+		return fmt.Errorf("store: parsing lodging updated_at: %w", err)
+	}
+	return nil
+}
+
 // ---- Documents ----
 
 // documentMetaCols lists the document columns loaded when only metadata (not the
@@ -608,7 +695,7 @@ func dbUUIDPtr(id *uuid.UUID) any {
 func scanVacation(sc rowScanner, v *models.Vacation) error {
 	var start, end, created, updated string
 	if err := sc.Scan(&v.ID, &v.Title, &v.Destination, &start, &end,
-		&v.Latitude, &v.Longitude, &v.Notes, &v.Budget, &v.People, &created, &updated); err != nil {
+		&v.Latitude, &v.Longitude, &v.MapZoom, &v.Notes, &v.Budget, &v.People, &created, &updated); err != nil {
 		return err
 	}
 	var err error

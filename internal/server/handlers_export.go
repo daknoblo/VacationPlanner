@@ -28,6 +28,9 @@ func (s *Server) loadVacationFull(ctx context.Context, id uuid.UUID) (*models.Va
 	if v.Items, err = s.store.ListItems(ctx, id); err != nil {
 		return nil, err
 	}
+	if v.Lodgings, err = s.store.ListLodgings(ctx, id); err != nil {
+		return nil, err
+	}
 	return v, nil
 }
 

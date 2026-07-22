@@ -56,6 +56,16 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Accommodations ("Unterkunft") — a dedicated tab (between Arrival/Departure
+      and Day plan) to add lodgings with a check-in/check-out date & time; each
+      shows as a narrow strip over its hours on the left of the day/week planner.
+- [x] Inline document preview — open PDFs/images in an in-page modal (no new tab).
+- [x] Overview travel totals — per-direction total distance & travel time
+      (summed across legs) shown on the Arrival/Departure overview rows.
+- [x] Map viewport fix — persist a per-trip map zoom captured from the geocoder
+      result type so a country/region no longer opens zoomed in too far.
+- [x] Database optimization — a Settings button that runs `VACUUM` (+ checkpoint
+      and `PRAGMA optimize`) to reclaim space, reporting the freed/new size.
 - [x] Document attachments — upload one or more files (PDFs, images, …) to
       activities and to individual arrival/departure legs; open PDFs/images
       inline or download other types via a small open icon next to the plus.

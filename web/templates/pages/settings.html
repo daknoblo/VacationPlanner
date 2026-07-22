@@ -236,6 +236,16 @@
 
   {{template "backup_list" .Data}}
 
+  <h3 class="settings-subheading">{{t "settings.optimize.heading"}}</h3>
+  <p class="muted small">{{t "settings.optimize.hint"}}</p>
+  <form class="row" hx-post="/settings/optimize"
+        hx-target="#optimize-result" hx-swap="innerHTML"
+        hx-disabled-elt="find button">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button class="btn" type="submit">{{t "settings.optimize.run"}}</button>
+    <span id="optimize-result" class="muted small"></span>
+  </form>
+
   <h3 class="settings-subheading">{{t "settings.backup.restore_heading"}}</h3>
   <p class="muted small">{{t "settings.backup.restore_hint"}}</p>
   <form class="form"

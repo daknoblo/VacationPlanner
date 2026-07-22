@@ -50,6 +50,26 @@ func (s *SQLite) BackupTo(ctx context.Context, dest string) error {
 	return nil
 }
 
+// Vacuum rebuilds the database file to reclaim unused space and defragment it,
+// then refreshes the query-planner statistics. It serializes against Restore
+// (which swaps the handle) via the same mutex.
+func (s *SQLite) Vacuum(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.db.ExecContext(ctx, "VACUUM"); err != nil {
+		return fmt.Errorf("store: vacuuming database: %w", err)
+	}
+	// Best effort: truncate the WAL so freed pages are released to the OS, and
+	// let SQLite update its internal statistics.
+	if _, err := s.db.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		return fmt.Errorf("store: checkpointing after vacuum: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, "PRAGMA optimize"); err != nil {
+		return fmt.Errorf("store: optimizing database: %w", err)
+	}
+	return nil
+}
+
 // Restore replaces the live database with the SQLite file at srcPath and then
 // re-applies migrations. srcPath should already be validated with ValidSQLiteFile.
 // This is safe for the app's single-writer, single-user model.

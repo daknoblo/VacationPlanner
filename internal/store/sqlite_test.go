@@ -313,6 +313,99 @@ func TestDocumentCascade(t *testing.T) {
 	}
 }
 
+func TestVacationMapZoom(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	zoom := 6
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC(), MapZoom: &zoom}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+	got, err := st.GetVacation(ctx, v.ID)
+	if err != nil || got.MapZoom == nil || *got.MapZoom != 6 {
+		t.Fatalf("map_zoom round-trip: err=%v zoom=%v", err, got.MapZoom)
+	}
+	got.MapZoom = nil
+	if err := st.UpdateVacation(ctx, got); err != nil {
+		t.Fatalf("UpdateVacation: %v", err)
+	}
+	again, _ := st.GetVacation(ctx, v.ID)
+	if again.MapZoom != nil {
+		t.Fatalf("expected nil map_zoom after clearing, got %v", *again.MapZoom)
+	}
+}
+
+func TestLodging(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+
+	ci := time.Date(2026, 8, 2, 15, 0, 0, 0, time.UTC)
+	co := time.Date(2026, 8, 5, 11, 0, 0, 0, time.UTC)
+	lo := &models.Lodging{VacationID: v.ID, Name: "Hotel Central", Location: "Center", CheckIn: ci, CheckOut: co, Notes: "n"}
+	if err := st.CreateLodging(ctx, lo); err != nil {
+		t.Fatalf("CreateLodging: %v", err)
+	}
+
+	list, err := st.ListLodgings(ctx, v.ID)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListLodgings: err=%v n=%d", err, len(list))
+	}
+	got := list[0]
+	if got.Name != "Hotel Central" || !got.CheckIn.Equal(ci) || !got.CheckOut.Equal(co) || got.Nights() != 2 {
+		t.Fatalf("lodging round-trip: %+v nights=%d", got, got.Nights())
+	}
+	if one, err := st.GetLodging(ctx, lo.ID); err != nil || one.Location != "Center" {
+		t.Fatalf("GetLodging: err=%v %+v", err, one)
+	}
+
+	if err := st.DeleteLodging(ctx, lo.ID); err != nil {
+		t.Fatalf("DeleteLodging: %v", err)
+	}
+	if l, _ := st.ListLodgings(ctx, v.ID); len(l) != 0 {
+		t.Fatalf("expected 0 lodgings after delete, got %d", len(l))
+	}
+}
+
+func TestLodgingCascade(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	_ = st.CreateVacation(ctx, v)
+	lo := &models.Lodging{VacationID: v.ID, Name: "H", CheckIn: time.Now().UTC(), CheckOut: time.Now().UTC().Add(48 * time.Hour)}
+	if err := st.CreateLodging(ctx, lo); err != nil {
+		t.Fatalf("CreateLodging: %v", err)
+	}
+	if err := st.DeleteVacation(ctx, v.ID); err != nil {
+		t.Fatalf("DeleteVacation: %v", err)
+	}
+	if _, err := st.GetLodging(ctx, lo.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("lodging not cascaded: %v", err)
+	}
+}
+
+func TestVacuum(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+	if err := st.Vacuum(ctx); err != nil {
+		t.Fatalf("Vacuum: %v", err)
+	}
+	if _, err := st.GetVacation(ctx, v.ID); err != nil {
+		t.Fatalf("GetVacation after vacuum: %v", err)
+	}
+}
+
 func TestSettings(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

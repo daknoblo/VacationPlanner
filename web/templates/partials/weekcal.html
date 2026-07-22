@@ -15,6 +15,9 @@
       </div>
       <div class="weekcal__col"{{if $col}} data-weekcol data-day="{{dateInput $col.Date}}"{{end}}>
         {{range $.HourRows}}<div class="weekcal__slot" style="height:{{.Px}}px"></div>{{end}}
+        {{if $col}}{{range $col.Lodging}}
+        <div class="weekcal-lodging" style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}"></div>
+        {{end}}{{end}}
         {{if $col}}{{range $col.Blocks}}
         <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"
              style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">

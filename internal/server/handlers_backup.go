@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -117,6 +118,27 @@ func (s *Server) safeBackupPath(name string) (string, bool) {
 		return "", false
 	}
 	return filepath.Join(s.backupDir(), name), true
+}
+
+// handleOptimizeDB rebuilds (VACUUMs) the database to reclaim space, reporting
+// the resulting size. It reuses the maintenance panel next to the backups.
+func (s *Server) handleOptimizeDB(w http.ResponseWriter, r *http.Request) {
+	loc := i18n.FromContext(r.Context())
+	before := s.dbSizeBytes()
+	if err := s.store.Vacuum(r.Context()); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	after := s.dbSizeBytes()
+	msg := loc.T("settings.optimize.done", humanBytes(after))
+	if before > after {
+		msg = loc.T("settings.optimize.done_freed", humanBytes(before-after), humanBytes(after))
+	}
+	if isHTMX(r) {
+		hxTrigger(w, "saved")
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, template.HTMLEscapeString(msg))
 }
 
 func (s *Server) handleCreateBackup(w http.ResponseWriter, r *http.Request) {
