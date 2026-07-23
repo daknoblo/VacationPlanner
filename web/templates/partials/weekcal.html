@@ -21,7 +21,8 @@
           <div class="weekcal-lodging" style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}"><span class="weekcal-lodging__icon" aria-hidden="true">🛏</span></div>
           {{end}}{{end}}
           {{if $col}}{{range $col.Blocks}}
-          <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"
+          <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{else}} weekcal-block--move{{end}}"
+               {{if .ID}}data-id="{{.ID}}" data-start="{{.StartMin}}" data-end="{{.EndMin}}"{{end}}
                style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
             <span class="weekcal-block__time">{{.Label}}</span>
             <span class="weekcal-block__title">{{if .Travel}}✈ {{end}}{{.Title}}</span>

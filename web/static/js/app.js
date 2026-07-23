@@ -769,7 +769,7 @@
         body: body.toString()
       }).then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
         .then(function () {
-          appendWeekBlock(col, minutes, minutes + 60, title);
+          appendWeekBlock(col, id, minutes, minutes + 60, title);
           if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
           document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
         })
@@ -777,10 +777,13 @@
     });
   }
 
-  function appendWeekBlock(col, start, end, title) {
+  function appendWeekBlock(col, id, start, end, title) {
     var top = calMinToPx(start), bottom = calMinToPx(end);
     var block = document.createElement("div");
-    block.className = "weekcal-block";
+    block.className = "weekcal-block weekcal-block--move";
+    block.setAttribute("data-id", id);
+    block.setAttribute("data-start", start);
+    block.setAttribute("data-end", end);
     block.style.top = top + "px";
     block.style.height = (bottom - top) + "px";
     block.setAttribute("title", title);
@@ -794,6 +797,76 @@
     block.appendChild(titleEl);
     col.appendChild(block);
   }
+
+  // ---- Move a scheduled block within the week calendar (drag to reschedule) ----
+  // Document-level pointer handling (no capture) so the block can be reparented
+  // into another day's column mid-drag without losing events.
+  var weekDrag = null;
+
+  function weekColUnder(x, y, block) {
+    var prev = block.style.pointerEvents;
+    block.style.pointerEvents = "none";
+    var el = document.elementFromPoint(x, y);
+    block.style.pointerEvents = prev;
+    return el && el.closest ? el.closest(".weekcal__col[data-weekcol]") : null;
+  }
+
+  document.addEventListener("pointerdown", function (e) {
+    var block = e.target && e.target.closest ? e.target.closest(".weekcal-block[data-id]") : null;
+    if (!block) return;
+    e.preventDefault();
+    var start = parseInt(block.getAttribute("data-start"), 10) || 0;
+    var end = parseInt(block.getAttribute("data-end"), 10) || (start + 60);
+    weekDrag = { block: block, dur: Math.max(15, end - start), col: block.closest(".weekcal__col"), start: start, moved: false };
+    block.classList.add("is-dragging");
+  });
+
+  document.addEventListener("pointermove", function (e) {
+    if (!weekDrag) return;
+    weekDrag.moved = true;
+    var target = weekColUnder(e.clientX, e.clientY, weekDrag.block) || weekDrag.col;
+    if (!target) return;
+    if (target !== weekDrag.block.parentNode) { target.appendChild(weekDrag.block); weekDrag.col = target; }
+    var rect = target.getBoundingClientRect();
+    var minutes = Math.round(calPxToMin(e.clientY - rect.top) / PLANNER_SNAP) * PLANNER_SNAP;
+    minutes = plClamp(minutes, 0, 1440 - weekDrag.dur);
+    weekDrag.start = minutes;
+    var top = calMinToPx(minutes), bottom = calMinToPx(minutes + weekDrag.dur);
+    weekDrag.block.style.top = top + "px";
+    weekDrag.block.style.height = Math.max(4, bottom - top) + "px";
+    var t = weekDrag.block.querySelector(".weekcal-block__time");
+    if (t) t.textContent = plLabel(minutes) + "\u2013" + plLabel(minutes + weekDrag.dur);
+  });
+
+  function weekMoveFinish() {
+    if (!weekDrag) return;
+    var d = weekDrag;
+    weekDrag = null;
+    d.block.classList.remove("is-dragging");
+    if (!d.moved || !d.col) return;
+    var day = d.col.getAttribute("data-day");
+    var id = d.block.getAttribute("data-id");
+    if (!day || !id) return;
+    var start = d.start, end = d.start + d.dur;
+    d.block.setAttribute("data-start", start);
+    d.block.setAttribute("data-end", end);
+    var body = new URLSearchParams();
+    body.set("day", day);
+    body.set("start", plLabel(start));
+    body.set("end", plLabel(end));
+    fetch("/items/" + encodeURIComponent(id) + "/schedule", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRF-Token": getCookie("csrf_token")
+      },
+      body: body.toString()
+    }).then(function () {
+      document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
+    }).catch(function () { /* ignore */ });
+  }
+  document.addEventListener("pointerup", weekMoveFinish);
+  document.addEventListener("pointercancel", weekMoveFinish);
 
   function initPlanner(grid) {
     var drag = null;

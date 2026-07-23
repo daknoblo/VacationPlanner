@@ -590,6 +590,9 @@ func weekdayCol(d time.Time, mondayStart bool) int {
 
 // calBlock is a positioned block (item or travel) on the week calendar.
 type calBlock struct {
+	ID       string
+	StartMin int
+	EndMin   int
 	TopPx    int
 	HeightPx int
 	Title    string
@@ -636,7 +639,7 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 		for _, it := range v.Items {
 			if it.OnDay(d) && it.Timed() {
 				top := calMinPx(it.StartMin)
-				cd.Blocks = append(cd.Blocks, calBlock{TopPx: top, HeightPx: calMinPx(it.EndMin) - top, Title: it.Title, Label: it.StartLabel()})
+				cd.Blocks = append(cd.Blocks, calBlock{ID: it.ID.String(), StartMin: it.StartMin, EndMin: it.EndMin, TopPx: top, HeightPx: calMinPx(it.EndMin) - top, Title: it.Title, Label: it.StartLabel()})
 			}
 		}
 		for _, tb := range travel[d.Format("2006-01-02")] {

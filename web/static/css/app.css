@@ -759,6 +759,8 @@ code {
 .weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.6rem; display: block; }
 .weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .weekcal-block--travel { background: #0ea5e9; }
+.weekcal-block--move { cursor: grab; touch-action: none; }
+.weekcal-block--move.is-dragging { cursor: grabbing; opacity: 0.85; z-index: 5; box-shadow: 0 3px 10px rgba(2, 6, 23, 0.35); }
 .activity-form { margin-bottom: 1.5rem; }
 
 @media print {
