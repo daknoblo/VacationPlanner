@@ -1,0 +1,24 @@
+{{define "content"}}
+<a class="back" href="/">{{t "vacation.back"}}</a>
+
+<h1>🌴 {{t "about.heading"}}</h1>
+
+<section class="panel about">
+  <p class="about__tagline">{{t "about.tagline"}}</p>
+
+  <dl class="about__list">
+    <div class="about__row">
+      <dt>{{t "about.version"}}</dt>
+      <dd><code class="about__version">{{.Data.Version}}</code></dd>
+    </div>
+    <div class="about__row">
+      <dt>{{t "about.repo"}}</dt>
+      <dd><a href="{{.Data.RepoURL}}" target="_blank" rel="noopener noreferrer">{{.Data.RepoURL}}</a></dd>
+    </div>
+    <div class="about__row">
+      <dt>{{t "about.docs"}}</dt>
+      <dd><a href="{{.Data.DocsURL}}" target="_blank" rel="noopener noreferrer">{{t "about.docs_link"}}</a></dd>
+    </div>
+  </dl>
+</section>
+{{end}}

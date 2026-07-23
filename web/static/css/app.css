@@ -795,6 +795,18 @@ code {
 .panel h2 { margin: 0 0 1rem; font-size: 1.2rem; }
 .panel--ai { background: linear-gradient(180deg, #ffffff, #f5f8ff); }
 
+/* About page */
+.about__tagline { margin: 0 0 1.25rem; max-width: 46rem; color: var(--muted); }
+.about__list { margin: 0; display: grid; gap: 0.75rem; }
+.about__row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: baseline; }
+.about__row dt { flex: 0 0 8rem; margin: 0; font-weight: 600; color: var(--muted); }
+.about__row dd { margin: 0; min-width: 0; word-break: break-word; }
+.about__version {
+  border: 1px solid var(--line);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.95em;
+}
+
 /* Detail layout */
 .detail-head {
   display: flex;

@@ -17,6 +17,7 @@
         {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}"{{if eq .Page "vacation"}} class="is-active"{{end}}>{{t "nav.planning"}}</a>{{else}}<span class="is-disabled">{{t "nav.planning"}}</span>{{end}}
         {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}/export"{{if eq .Page "export"}} class="is-active"{{end}}>{{t "nav.export"}}</a>{{else}}<span class="is-disabled">{{t "nav.export"}}</span>{{end}}
         <a href="/settings"{{if eq .Page "settings"}} class="is-active"{{end}}>{{t "nav.settings"}}</a>
+        <a href="/about"{{if eq .Page "about"}} class="is-active"{{end}}>{{t "nav.about"}}</a>
       </nav>
     </div>
   </header>

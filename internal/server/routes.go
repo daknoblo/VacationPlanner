@@ -37,6 +37,8 @@ func (s *Server) routes() {
 	// Pages & actions.
 	r.Get("/", s.handleIndex)
 
+	r.Get("/about", s.handleAbout)
+
 	r.Get("/settings", s.handleSettings)
 	r.Post("/settings", s.handleUpdateSettings)
 	r.Post("/settings/ai", s.handleUpdateAISettings)

@@ -91,6 +91,7 @@ func TestRenderPages(t *testing.T) {
 	}{
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
+		{"about", viewData{Title: "t", Data: aboutView{Version: "dev", RepoURL: aboutRepoURL, DocsURL: aboutDocsURL}}},
 		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards, "WeekCards": sampleWeekCards}}},
 		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards, "WeekCards": sampleWeekCards}}},
 	}
