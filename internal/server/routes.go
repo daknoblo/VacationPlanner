@@ -49,6 +49,7 @@ func (s *Server) routes() {
 	r.Delete("/settings/categories/{categoryID}", s.handleDeleteCategory)
 	r.Post("/settings/optimize", s.handleOptimizeDB)
 	r.Post("/settings/autovacuum", s.handleUpdateAutoVacuum)
+	r.Delete("/settings/vacations/{vacationID}", s.handleDeleteVacationSettings)
 
 	r.Route("/settings/backups", func(r chi.Router) {
 		r.Post("/", s.handleCreateBackup)
@@ -73,7 +74,6 @@ func (s *Server) routes() {
 			r.Get("/export.pdf", s.handleExportPDF)
 			r.Get("/export.ics", s.handleExportICS)
 			r.Get("/api/items", s.handleItemsJSON)
-			r.Get("/api/day-summary", s.handleDaySummary)
 			r.Get("/api/budget", s.handleBudgetFragment)
 			r.Get("/api/overview", s.handleOverviewFragment)
 			r.Get("/api/daycards", s.handleDayCards)
@@ -110,7 +110,10 @@ func (s *Server) routes() {
 	})
 
 	r.Route("/lodging/{lodgingID}", func(r chi.Router) {
+		r.Post("/", s.handleUpdateLodging)
 		r.Delete("/", s.handleDeleteLodging)
+		r.Get("/documents", s.handleLodgingDocuments)
+		r.Post("/documents", s.handleUploadLodgingDocument)
 	})
 
 	r.Route("/documents/{docID}", func(r chi.Router) {

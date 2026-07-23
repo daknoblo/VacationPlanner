@@ -205,9 +205,10 @@ func (l Lodging) Nights() int {
 func (l Lodging) HasCoords() bool { return l.Latitude != nil && l.Longitude != nil }
 
 // Document is an uploaded file (e.g. a ferry ticket PDF or a booking) attached
-// either to an Item (activity) or to a single travel leg. Exactly one owner is
-// set: ItemID for item documents, or VacationID + TravelKind + TravelStep for
-// travel documents. The raw bytes in Data are only populated when the file is
+// either to an Item (activity), to a single travel leg, or to a lodging
+// (accommodation). Exactly one owner is set: ItemID for item documents,
+// VacationID + TravelKind + TravelStep for travel documents, or LodgingID for
+// lodging documents. The raw bytes in Data are only populated when the file is
 // served, not when listing a document's metadata.
 type Document struct {
 	ID          uuid.UUID
@@ -215,6 +216,7 @@ type Document struct {
 	VacationID  *uuid.UUID
 	TravelKind  TravelKind
 	TravelStep  int
+	LodgingID   *uuid.UUID
 	Filename    string
 	ContentType string
 	Size        int64

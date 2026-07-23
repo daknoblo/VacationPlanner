@@ -1,79 +1,95 @@
 {{define "lodging_panel"}}
-<div class="panel">
-  <h2>{{t "tab.lodging"}}</h2>
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{t "tab.lodging"}}</h2>
+  </div>
   <p class="muted small">{{t "lodging.hint"}}</p>
 
-  <ul class="list lodging-list">
-    {{range .Lodgings}}{{template "lodging_row" .}}{{end}}
-  </ul>
-  {{if not .Lodgings}}<p class="muted">{{t "lodging.none"}}</p>{{end}}
+  <div id="lodging-blocks" class="lodging-blocks">
+    {{range .Lodgings}}{{template "lodging_editor" .}}{{end}}
+  </div>
 
-  <form class="form grid lodging-form"
-        hx-post="/vacations/{{.V.ID}}/lodging"
-        hx-target="#lodging-error" hx-swap="innerHTML">
-    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-    <div class="field field--wide">
-      <label>{{t "lodging.name"}}</label>
-      <input name="name" required maxlength="200" placeholder="{{t "placeholder.lodging.name"}}">
-    </div>
-    <div class="field field--wide">
-      <label>{{t "lodging.location"}} <span class="muted">{{t "label.optional"}}</span></label>
-      <div class="location-picker__field">
-        <input name="location" maxlength="200" autocomplete="off"
-               data-geo-lite data-geo-near-lat="{{coord .V.Latitude}}" data-geo-near-lng="{{coord .V.Longitude}}"
-               placeholder="{{t "placeholder.lodging.location"}}">
-        <div class="suggest" data-geo-lite-list hidden></div>
+  <button type="button" class="btn btn--sm lodging-addstep"
+          hx-post="/vacations/{{.V.ID}}/lodging"
+          hx-target="#lodging-blocks"
+          hx-swap="beforeend">＋ {{t "lodging.add"}}</button>
+
+  <div id="lodging-error" class="form-error"></div>
+</section>
+{{end}}
+
+{{define "lodging_editor"}}
+<div class="lodging-step-wrap" id="lodging-{{.ID}}">
+  <button type="button" class="travel-step__remove"
+          title="{{t "action.delete"}}" aria-label="{{t "action.delete"}}"
+          hx-delete="/lodging/{{.ID}}"
+          hx-target="#lodging-{{.ID}}"
+          hx-swap="outerHTML"
+          hx-confirm="{{t "lodging.confirm_delete"}}">✕</button>
+
+  <form class="form lodging-step" data-lodging-editor
+        hx-post="/lodging/{{.ID}}"
+        hx-trigger="change delay:300ms"
+        hx-target="#lodging-out-{{.ID}}"
+        hx-swap="innerHTML">
+    <input type="hidden" name="latitude" data-geo-lite-lat value="{{coord .Lat}}">
+    <input type="hidden" name="longitude" data-geo-lite-lng value="{{coord .Lng}}">
+
+    <div class="lodging-step__grid">
+      <div class="field field--name">
+        <label>{{t "lodging.name"}}</label>
+        <input name="name" required maxlength="200" value="{{.Name}}" placeholder="{{t "placeholder.lodging.name"}}">
       </div>
-      <input type="hidden" name="latitude" data-geo-lite-lat>
-      <input type="hidden" name="longitude" data-geo-lite-lng>
-      <p class="muted small">{{t "item.location_hint"}}</p>
-    </div>
-    <div class="field">
-      <label>{{t "lodging.checkin"}}</label>
-      <div class="travel-when">
-        <input name="checkin_date" type="date" value="{{dateInput .V.StartDate}}" required aria-label="{{t "lodging.checkin"}}">
-        <input name="checkin_time" type="time" value="15:00" required aria-label="{{t "travel.time"}}">
+
+      <div class="field field--loc">
+        <label>{{t "lodging.location"}} <span class="muted">{{t "label.optional"}}</span></label>
+        <div class="location-picker__field">
+          <input name="location" maxlength="200" autocomplete="off" value="{{.Location}}"
+                 data-geo-lite data-geo-near-lat="{{coord .NearLat}}" data-geo-near-lng="{{coord .NearLng}}"
+                 placeholder="{{t "placeholder.lodging.location"}}">
+          <div class="suggest" data-geo-lite-list hidden></div>
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label>{{t "lodging.checkout"}}</label>
-      <div class="travel-when">
-        <input name="checkout_date" type="date" value="{{dateInput .V.EndDate}}" required aria-label="{{t "lodging.checkout"}}">
-        <input name="checkout_time" type="time" value="11:00" required aria-label="{{t "travel.time"}}">
+
+      <div class="field field--when">
+        <label>{{t "lodging.checkin"}}</label>
+        <div class="travel-when">
+          <input name="checkin_date" type="date" value="{{.CheckInDate}}" required aria-label="{{t "lodging.checkin"}}">
+          <input name="checkin_time" type="time" value="{{.CheckInTime}}" required aria-label="{{t "travel.time"}}">
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label>{{t "item.cost"}} <span class="muted">{{t "label.optional"}}</span></label>
-      <input name="cost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
-    </div>
-    <div class="field field--wide">
-      <label>{{t "field.notes"}} <span class="muted">{{t "label.optional"}}</span></label>
-      <textarea name="notes" rows="2" maxlength="2000"></textarea>
-    </div>
-    <div class="field field--wide">
-      <div id="lodging-error" class="form-error"></div>
-      <button class="btn btn--primary" type="submit">{{t "lodging.add"}}</button>
+
+      <div class="field field--when">
+        <label>{{t "lodging.checkout"}}</label>
+        <div class="travel-when">
+          <input name="checkout_date" type="date" value="{{.CheckOutDate}}" required aria-label="{{t "lodging.checkout"}}">
+          <input name="checkout_time" type="time" value="{{.CheckOutTime}}" required aria-label="{{t "travel.time"}}">
+        </div>
+      </div>
+
+      <div class="field field--cost">
+        <label>{{t "item.cost"}} <span class="muted">{{t "label.optional"}}</span></label>
+        <input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="{{coord .Cost}}" placeholder="0.00">
+      </div>
+
+      <div class="field field--out">
+        <label>{{t "lodging.summary"}}</label>
+        <div id="lodging-out-{{.ID}}" class="travel-out">{{template "lodging_out" .}}</div>
+      </div>
+
+      <div class="field field--note">
+        <label>{{t "field.notes"}} <span class="muted">{{t "label.optional"}}</span></label>
+        <input name="notes" maxlength="2000" value="{{.Notes}}" placeholder="{{t "placeholder.lodging.note"}}">
+      </div>
     </div>
   </form>
+
+  <div class="lodging-step__docs">
+    {{template "attachments_box" (printf "/lodging/%s/documents" .ID)}}
+  </div>
 </div>
 {{end}}
 
-{{define "lodging_row"}}
-<li class="item-row lodging-item" id="lodging-{{.ID}}">
-  <div class="item-row__head">
-    <div class="item-row__title">
-      <span class="lodging-item__icon" aria-hidden="true">🛏</span>
-      <strong>{{.Name}}</strong>
-      <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
-    </div>
-    <div class="item-row__actions">
-      <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
-              hx-delete="/lodging/{{.ID}}"
-              hx-confirm="{{t "lodging.confirm_delete"}}">✕</button>
-    </div>
-  </div>
-  <p class="muted small">🗓️ {{.CheckIn}} → {{.CheckOut}}</p>
-  {{if or .Cost .Location}}<p class="small">{{if .Cost}}💶 {{money .Cost}}{{end}}{{if .Location}}{{if .Cost}} · {{end}}📍 {{.Location}}{{end}}</p>{{end}}
-  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
-</li>
+{{define "lodging_out"}}
+<p class="travel-computed">🛏 {{.Nights}} {{t "vacation.nights"}}{{if .Cost}} · 💶 {{money .Cost}}{{end}}</p>
 {{end}}

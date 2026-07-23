@@ -119,6 +119,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	stats, _ := s.store.Stats(r.Context())
 	categories, _ := s.store.ListCategories(r.Context())
+	vacations, _ := s.store.ListVacations(r.Context())
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
 		"Languages":        i18n.Supported(),
 		"Current":          loc.Lang(),
@@ -147,6 +148,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"Backups":             s.listBackups(),
 		"AutoVacuum":          autoVacuumSetting(settings),
 		"AutoVacuumOptions":   autoVacuumOptions,
+		"Vacations":           vacations,
 	})
 }
 

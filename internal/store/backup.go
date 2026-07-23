@@ -14,6 +14,7 @@ type Stats struct {
 	Days      int
 	Items     int
 	Travel    int
+	Documents int
 }
 
 // Stats returns aggregate counts across all vacations.
@@ -35,6 +36,9 @@ func (s *SQLite) Stats(ctx context.Context) (Stats, error) {
 	}
 	if err := count(`SELECT COUNT(*) FROM travel_segments`, &st.Travel); err != nil {
 		return st, fmt.Errorf("store: counting travel segments: %w", err)
+	}
+	if err := count(`SELECT COUNT(*) FROM documents`, &st.Documents); err != nil {
+		return st, fmt.Errorf("store: counting documents: %w", err)
 	}
 	return st, nil
 }

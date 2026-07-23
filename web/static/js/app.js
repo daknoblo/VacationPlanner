@@ -48,9 +48,9 @@
     initGeoLiteInputs();
   });
 
-  // The travel editor auto-saves on change; suppress native form submission.
+  // The travel/lodging editors auto-save on change; suppress native submission.
   document.addEventListener("submit", function (e) {
-    if (e.target && e.target.matches && e.target.matches("[data-travel-editor]")) {
+    if (e.target && e.target.matches && e.target.matches("[data-travel-editor], [data-lodging-editor]")) {
       e.preventDefault();
     }
   });
@@ -292,7 +292,7 @@
       panels[j].classList.toggle("is-active", panels[j].getAttribute("data-tab-panel") === name);
     }
     resizeMaps();
-    nudgeDaySummary();
+    refreshDayCards();
   }
 
   // ---- Overview: click an activity to center the map on it ----
@@ -364,10 +364,38 @@
     var btn = e.target && e.target.closest ? e.target.closest("[data-icon-picker] .icon-picker__btn") : null;
     if (!btn) return;
     var form = btn.closest("form");
-    var hidden = form ? form.querySelector("[data-icon-value]") : null;
-    if (hidden) { hidden.value = btn.getAttribute("data-emoji"); }
-    selectIcon(btn.closest("[data-icon-picker]"), btn);
+    applyIcon(form, btn.closest("[data-icon-picker]"), btn.getAttribute("data-emoji"));
+    if (form) { form.dataset.iconManual = "1"; }
+    var drop = btn.closest("[data-icon-drop]");
+    if (drop) { drop.open = false; }
   });
+
+  // Suggest a fitting symbol from the typed category name, unless the user has
+  // already picked one manually.
+  document.addEventListener("input", function (e) {
+    var input = e.target;
+    if (!input || !input.matches || !input.matches("[data-cat-name]")) return;
+    var form = input.closest("form");
+    if (!form || form.dataset.iconManual === "1") return;
+    var emoji = suggestCategoryIcon(input.value);
+    if (emoji) { applyIcon(form, form.querySelector("[data-icon-picker]"), emoji); }
+  });
+
+  function applyIcon(form, picker, emoji) {
+    if (!emoji) return;
+    var hidden = form ? form.querySelector("[data-icon-value]") : null;
+    if (hidden) { hidden.value = emoji; }
+    var current = form ? form.querySelector("[data-icon-current]") : null;
+    if (current) { current.textContent = emoji; }
+    if (picker) {
+      var btns = picker.querySelectorAll(".icon-picker__btn");
+      var match = null;
+      for (var i = 0; i < btns.length; i++) {
+        if (btns[i].getAttribute("data-emoji") === emoji) { match = btns[i]; break; }
+      }
+      selectIcon(picker, match);
+    }
+  }
 
   function selectIcon(picker, active) {
     if (!picker) return;
@@ -380,12 +408,69 @@
   // form is reset following a successful submit.
   function resyncIconPicker(form) {
     if (!form) return;
+    form.dataset.iconManual = "";
     var picker = form.querySelector("[data-icon-picker]");
-    if (!picker) return;
-    var hidden = form.querySelector("[data-icon-value]");
-    var first = picker.querySelector(".icon-picker__btn");
-    if (hidden && first) { hidden.value = first.getAttribute("data-emoji"); }
-    selectIcon(picker, first);
+    var first = picker ? picker.querySelector(".icon-picker__btn") : null;
+    applyIcon(form, picker, first ? first.getAttribute("data-emoji") : "");
+  }
+
+  var ICON_SUGGESTIONS = [
+    [/museum/i, "🏛️"],
+    [/gallery|kunst|\bart\b/i, "🖼️"],
+    [/restaurant|essen|dinner|lunch|\bfood\b|mittag|abendessen/i, "🍽️"],
+    [/caf[eé]|coffee|kaffee|frühst|breakfast/i, "☕"],
+    [/wine|wein|vineyard/i, "🍷"],
+    [/beer|bier|brewery|\bpub\b/i, "🍺"],
+    [/\bbar\b|cocktail|drink/i, "🍸"],
+    [/pizza/i, "🍕"],
+    [/ice ?cream|\beis\b|gelato/i, "🍦"],
+    [/shop|shopping|einkauf|store|\bmall\b/i, "🛍️"],
+    [/market|markt/i, "🛒"],
+    [/church|kirche|cathedral|\bdom\b/i, "⛪"],
+    [/mosque|moschee/i, "🕌"],
+    [/castle|schloss|\bburg\b|palace|palast/i, "🏰"],
+    [/beach|strand/i, "🏖️"],
+    [/island|insel/i, "🏝️"],
+    [/mountain|\bberg|gipfel|peak|alpen/i, "⛰️"],
+    [/\bpark\b|garden|garten|natur/i, "🏞️"],
+    [/hike|wander|trail|trekking/i, "🥾"],
+    [/bike|\brad\b|cycl|fahrrad/i, "🚴"],
+    [/swim|schwimm|\bpool\b/i, "🏊"],
+    [/dive|tauch|snorkel|schnorch/i, "🤿"],
+    [/surf/i, "🏄"],
+    [/boat|ferry|fähre|schiff|cruise|kreuzfahrt/i, "⛴️"],
+    [/sail|segel/i, "⛵"],
+    [/\bski\b|snowboard/i, "⛷️"],
+    [/golf/i, "⛳"],
+    [/tennis/i, "🎾"],
+    [/photo|foto|\bview\b|aussicht|viewpoint|panorama/i, "📷"],
+    [/theat|\bshow\b|bühne/i, "🎭"],
+    [/concert|konzert|music|musik|festival/i, "🎤"],
+    [/spa|wellness|sauna|therme/i, "🧖"],
+    [/\bzoo\b|tierpark/i, "🦁"],
+    [/aquar/i, "🐠"],
+    [/amusement|freizeitpark|theme ?park|kirmes/i, "🎡"],
+    [/hotel|unterkunft|accommod|apartment|hostel/i, "🏨"],
+    [/camp|\bzelt/i, "🏕️"],
+    [/train|\bbahn|\bzug\b|railway/i, "🚆"],
+    [/metro|subway|u-bahn|tram/i, "🚇"],
+    [/\bbus\b/i, "🚌"],
+    [/flight|\bflug|airport|flughafen|plane/i, "✈️"],
+    [/\bcar\b|\bauto\b|drive|rental|mietwagen|parkplatz|parking/i, "🚗"],
+    [/pharmacy|apotheke/i, "💊"],
+    [/hospital|krankenhaus|klinik|arzt|doctor/i, "🏥"],
+    [/\bbank\b|\bgeld\b|money|\batm\b/i, "🏦"],
+    [/\binfo\b|tourist/i, "ℹ️"],
+    [/landmark|wahrzeichen|sight|sehensw|monument/i, "🗼"]
+  ];
+
+  function suggestCategoryIcon(name) {
+    var q = (name || "").trim();
+    if (q.length < 3) return "";
+    for (var i = 0; i < ICON_SUGGESTIONS.length; i++) {
+      if (ICON_SUGGESTIONS[i][0].test(q)) { return ICON_SUGGESTIONS[i][1]; }
+    }
+    return "";
   }
 
   function initTabs() {
@@ -731,24 +816,13 @@
     grid.addEventListener("pointercancel", finish);
   }
 
-  // ---- Mermaid day-summary rendering ----
-  function renderMermaid(root) {
-    if (typeof window.mermaid === "undefined") return;
-    var scope = (root && root.querySelectorAll) ? root : document;
-    var nodes = scope.querySelectorAll(".mermaid:not([data-processed])");
-    if (!nodes.length) return;
-    try { window.mermaid.run({ nodes: nodes }); } catch (e) { /* ignore render errors */ }
-  }
-
-  function nudgeDaySummary() {
-    var el = document.querySelector(".tab-panel.is-active [data-day-summary]");
-    if (el) el.dispatchEvent(new CustomEvent("loadsummary"));
+  // ---- Day route cards refresh ----
+  function refreshDayCards() {
     var cards = document.querySelector(".tab-panel.is-active [data-day-cards]");
     if (cards) cards.dispatchEvent(new CustomEvent("loadcards"));
   }
 
-  document.body.addEventListener("htmx:afterSwap", function (e) { renderMermaid(e.target); });
-  document.body.addEventListener("itemsChanged", nudgeDaySummary);
+  document.body.addEventListener("itemsChanged", refreshDayCards);
 
   // ---- Date range: choosing "From" constrains and opens "To" ----
   function pairedDateTo(fromEl) {
@@ -881,14 +955,6 @@
         iconRetinaUrl: "/static/vendor/leaflet/images/marker-icon-2x.png",
         iconUrl: "/static/vendor/leaflet/images/marker-icon.png",
         shadowUrl: "/static/vendor/leaflet/images/marker-shadow.png"
-      });
-    }
-    if (typeof window.mermaid !== "undefined") {
-      window.mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: "strict",
-        theme: "default",
-        flowchart: { htmlLabels: false, curve: "basis" }
       });
     }
     initMap();

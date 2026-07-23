@@ -243,6 +243,70 @@ func (s *Server) renderTravelAttachments(w http.ResponseWriter, r *http.Request,
 	})
 }
 
+// ---- lodging documents ----
+
+func (s *Server) handleLodgingDocuments(w http.ResponseWriter, r *http.Request) {
+	lodgingID, ok := s.lodgingForDocuments(w, r)
+	if !ok {
+		return
+	}
+	s.renderLodgingAttachments(w, r, lodgingID, "")
+}
+
+func (s *Server) handleUploadLodgingDocument(w http.ResponseWriter, r *http.Request) {
+	lodgingID, ok := s.lodgingForDocuments(w, r)
+	if !ok {
+		return
+	}
+	loc := i18n.FromContext(r.Context())
+	err := s.saveUploadedDocuments(r, loc, func(d *models.Document) {
+		id := lodgingID
+		d.LodgingID = &id
+	})
+	msg := ""
+	if err != nil {
+		if verr := validationMessage(err); verr != "" {
+			msg = verr
+		} else {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+	s.renderLodgingAttachments(w, r, lodgingID, msg)
+}
+
+// lodgingForDocuments resolves and validates the lodging id from the URL.
+func (s *Server) lodgingForDocuments(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	lodgingID, err := urlUUID(r, "lodgingID")
+	if err != nil {
+		s.notFound(w, r)
+		return uuid.Nil, false
+	}
+	if _, err := s.store.GetLodging(r.Context(), lodgingID); err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+			return uuid.Nil, false
+		}
+		s.serverError(w, r, err)
+		return uuid.Nil, false
+	}
+	return lodgingID, true
+}
+
+func (s *Server) renderLodgingAttachments(w http.ResponseWriter, r *http.Request, lodgingID uuid.UUID, errMsg string) {
+	docs, err := s.store.ListLodgingDocuments(r.Context(), lodgingID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.fragment(w, r, "attachments", attachmentsView{
+		ListURL: "/lodging/" + lodgingID.String() + "/documents",
+		CSRF:    csrfToken(r.Context()),
+		Docs:    toDocumentViews(docs),
+		Error:   errMsg,
+	})
+}
+
 // ---- serve & delete ----
 
 func (s *Server) handleServeDocument(w http.ResponseWriter, r *http.Request) {
@@ -305,6 +369,8 @@ func (s *Server) handleDeleteDocument(w http.ResponseWriter, r *http.Request) {
 		s.renderItemAttachments(w, r, *doc.ItemID, "")
 	case doc.VacationID != nil:
 		s.renderTravelAttachments(w, r, *doc.VacationID, doc.TravelKind, doc.TravelStep, "")
+	case doc.LodgingID != nil:
+		s.renderLodgingAttachments(w, r, *doc.LodgingID, "")
 	default:
 		w.WriteHeader(http.StatusNoContent)
 	}

@@ -40,6 +40,7 @@ type Store interface {
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 
 	CreateLodging(ctx context.Context, l *models.Lodging) error
+	UpdateLodging(ctx context.Context, l *models.Lodging) error
 	GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error)
 	ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error)
 	DeleteLodging(ctx context.Context, id uuid.UUID) error
@@ -49,6 +50,7 @@ type Store interface {
 	ReadDocument(ctx context.Context, id uuid.UUID) (*models.Document, error)
 	ListItemDocuments(ctx context.Context, itemID uuid.UUID) ([]models.Document, error)
 	ListTravelDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) ([]models.Document, error)
+	ListLodgingDocuments(ctx context.Context, lodgingID uuid.UUID) ([]models.Document, error)
 	DeleteDocument(ctx context.Context, id uuid.UUID) error
 	DeleteTravelStepDocuments(ctx context.Context, vacationID uuid.UUID, kind models.TravelKind, step int) error
 

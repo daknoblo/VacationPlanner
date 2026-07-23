@@ -318,7 +318,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"WeekCards":       weekCardGroups(mondayStart, v, cardMap),
 		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
-		"Lodgings":        lodgingViews(tz, v.Lodgings),
+		"Lodgings":        lodgingBlock(tz, v),
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),
 		"HourRows":        calHourRows(),
@@ -996,6 +996,26 @@ func (s *Server) handleDeleteVacation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// handleDeleteVacationSettings deletes a vacation from the Settings management
+// list, removing just its row (no redirect) so the user stays on the page.
+func (s *Server) handleDeleteVacationSettings(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	if err := s.store.DeleteVacation(r.Context(), id); err != nil && !isNotFound(err) {
+		s.serverError(w, r, err)
+		return
+	}
+	if isHTMX(r) {
+		// Empty body swaps out the row (outerHTML).
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
 // vacationFromForm parses and validates the shared create/update form.

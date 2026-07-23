@@ -56,6 +56,11 @@
       <ul class="export__list">
         {{range $v.Items}}{{if .OnDay $d}}<li>{{if .Timed}}<strong>{{.StartLabel}}–{{.EndLabel}}</strong> {{else}}📍 {{end}}{{.Title}}{{if .Category}} <span class="muted">({{.Category}})</span>{{end}}{{if .Description}}<br><span class="muted">{{.Description}}</span>{{end}}</li>{{end}}{{end}}
       </ul>
+      {{$cards := index $.Data.DayCards (dateInput $d)}}
+      {{if $cards}}
+      <h3 class="export__route">{{t "day.cards.heading"}}</h3>
+      {{template "activity_cards" $cards}}
+      {{end}}
     </section>
     {{end}}
     {{end}}

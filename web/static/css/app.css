@@ -111,6 +111,8 @@ code {
 .export__actions { display: flex; gap: 0.5rem; align-items: center; }
 .export__day { margin-top: 0.5rem; }
 .export__day-actions { font-size: 0.8rem; font-weight: 400; margin-left: 0.5rem; }
+.export__route { margin: 0.9rem 0 0.3rem; font-size: 0.95rem; }
+.export .activity-item__origin { display: none; }
 
 /* Location picker (destination autocomplete + map) */
 .location-picker__field { position: relative; }
@@ -384,6 +386,27 @@ code {
 }
 .icon-picker__btn:hover { border-color: var(--primary); }
 .icon-picker__btn.is-selected { border-color: var(--primary); background: #eff6ff; box-shadow: inset 0 0 0 1px var(--primary); }
+
+/* Category add: one-line row (symbol drop-down · name · add) */
+.cat-form__row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.cat-form__row > input[name="name"] { flex: 1 1 12rem; min-width: 8rem; }
+.icon-drop { position: relative; }
+.icon-drop > summary {
+  list-style: none; cursor: pointer;
+  width: 2.7rem; height: 2.7rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  font-size: 1.25rem; line-height: 1;
+}
+.icon-drop > summary::-webkit-details-marker { display: none; }
+.icon-drop[open] > summary { border-color: var(--primary); }
+.icon-drop .icon-picker {
+  position: absolute; z-index: 20; top: calc(100% + 0.3rem); left: 0;
+  width: min(22rem, 82vw); max-height: 15rem; overflow-y: auto;
+  padding: 0.5rem; margin: 0;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
 
 /* Day items (unified sights + activities) */
 .day-items { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 2px solid var(--line); }
@@ -831,6 +854,38 @@ code {
 .travel-step__docs { margin-top: 0.5rem; }
 .travel-addstep { margin-top: 0.8rem; }
 
+/* Lodging: connected accommodation cards, mirroring the travel editor */
+.lodging-blocks { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 0.9rem; }
+.lodging-step-wrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.95rem 2.7rem;
+}
+.lodging-step__grid { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: stretch; }
+.lodging-step__grid .field { flex: 1 1 150px; min-width: 0; }
+.lodging-step__grid .field--name { flex: 1 1 190px; }
+.lodging-step__grid .field--loc { flex: 1 1 200px; }
+.lodging-step__grid .field--when { flex: 1 1 210px; }
+.lodging-step__grid .field--cost { flex: 1 1 110px; }
+.lodging-step__grid .field--out { flex: 2 1 200px; align-self: flex-start; }
+.lodging-step__grid .field--out .travel-out { display: flex; }
+.lodging-step__grid .field--note { flex: 1 1 100%; }
+.lodging-step__docs { margin-top: 0.5rem; }
+.lodging-addstep { margin-top: 0.2rem; }
+
+/* Day view: the "route of the day" collapsible above the planner */
+.day-route { margin: 0 0 1rem; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; }
+.day-route > summary {
+  cursor: pointer; padding: 0.55rem 0.8rem; font-weight: 600; color: var(--text);
+  list-style: none;
+}
+.day-route > summary::-webkit-details-marker { display: none; }
+.day-route > summary::before { content: "🗺 "; }
+.day-route[open] > summary { border-bottom: 1px solid var(--line); }
+.day-route .day-cards { padding: 0.6rem 0.8rem; }
+
 /* Attachments (documents on items and travel legs) */
 .attachments { margin-top: 0.55rem; min-height: 1.6rem; }
 .attachments__list { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
@@ -1002,6 +1057,15 @@ textarea { resize: vertical; }
 .stats li { display: flex; align-items: baseline; gap: 0.5rem; }
 .stats__num { font-weight: 700; font-size: 1.15rem; color: var(--primary); font-variant-numeric: tabular-nums; }
 .settings-subheading { margin-top: 1.5rem; }
+
+/* Manage trips (delete from settings) */
+.vac-manage { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.vac-manage__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+}
+.vac-manage__info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+
 .backup-list { margin: 1rem 0; }
 .backup-item {
   display: flex;

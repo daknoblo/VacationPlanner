@@ -435,6 +435,20 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 	return nil
 }
 
+func (s *SQLite) UpdateLodging(ctx context.Context, l *models.Lodging) error {
+	l.UpdatedAt = time.Now().UTC()
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE lodging
+		SET name = ?, location = ?, latitude = ?, longitude = ?, check_in = ?, check_out = ?, cost = ?, notes = ?, updated_at = ?
+		WHERE id = ?`,
+		l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
+		l.Cost, l.Notes, dbTime(l.UpdatedAt), l.ID)
+	if err != nil {
+		return fmt.Errorf("store: updating lodging: %w", err)
+	}
+	return checkAffected(res)
+}
+
 func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at
@@ -506,7 +520,7 @@ func scanLodging(sc rowScanner, l *models.Lodging) error {
 
 // documentMetaCols lists the document columns loaded when only metadata (not the
 // file bytes) is needed.
-const documentMetaCols = `id, item_id, vacation_id, travel_kind, travel_step, filename, content_type, size, created_at`
+const documentMetaCols = `id, item_id, vacation_id, travel_kind, travel_step, lodging_id, filename, content_type, size, created_at`
 
 func (s *SQLite) CreateDocument(ctx context.Context, d *models.Document) error {
 	if d.ID == uuid.Nil {
@@ -522,9 +536,9 @@ func (s *SQLite) CreateDocument(ctx context.Context, d *models.Document) error {
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO documents
-			(id, item_id, vacation_id, travel_kind, travel_step, filename, content_type, size, data, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		d.ID, dbUUIDPtr(d.ItemID), dbUUIDPtr(d.VacationID), kind, step,
+			(id, item_id, vacation_id, travel_kind, travel_step, lodging_id, filename, content_type, size, data, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.ID, dbUUIDPtr(d.ItemID), dbUUIDPtr(d.VacationID), kind, step, dbUUIDPtr(d.LodgingID),
 		d.Filename, d.ContentType, d.Size, d.Data, dbTime(d.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating document: %w", err)
@@ -576,6 +590,15 @@ func (s *SQLite) ListTravelDocuments(ctx context.Context, vacationID uuid.UUID, 
 	return scanDocumentList(rows)
 }
 
+func (s *SQLite) ListLodgingDocuments(ctx context.Context, lodgingID uuid.UUID) ([]models.Document, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+documentMetaCols+` FROM documents WHERE lodging_id = ? ORDER BY created_at ASC`, lodgingID)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing lodging documents: %w", err)
+	}
+	return scanDocumentList(rows)
+}
+
 func (s *SQLite) DeleteDocument(ctx context.Context, id uuid.UUID) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM documents WHERE id = ?`, id)
 	if err != nil {
@@ -622,11 +645,11 @@ func scanDocumentWithData(sc rowScanner, d *models.Document) error {
 }
 
 func scanDocumentInto(sc rowScanner, d *models.Document, data *[]byte) error {
-	var itemID, vacID uuid.NullUUID
+	var itemID, vacID, lodgingID uuid.NullUUID
 	var kind sql.NullString
 	var step sql.NullInt64
 	var created string
-	dest := []any{&d.ID, &itemID, &vacID, &kind, &step, &d.Filename, &d.ContentType, &d.Size, &created}
+	dest := []any{&d.ID, &itemID, &vacID, &kind, &step, &lodgingID, &d.Filename, &d.ContentType, &d.Size, &created}
 	if data != nil {
 		dest = append(dest, data)
 	}
@@ -640,6 +663,10 @@ func scanDocumentInto(sc rowScanner, d *models.Document, data *[]byte) error {
 	if vacID.Valid {
 		id := vacID.UUID
 		d.VacationID = &id
+	}
+	if lodgingID.Valid {
+		id := lodgingID.UUID
+		d.LodgingID = &id
 	}
 	d.TravelKind = models.TravelKind(kind.String)
 	d.TravelStep = int(step.Int64)
