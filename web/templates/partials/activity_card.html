@@ -38,16 +38,3 @@
 <p class="muted small">{{t "day.cards.empty"}}</p>
 {{end}}
 {{end}}
-
-{{define "week_cards"}}
-{{if .}}
-{{range .}}
-<div class="weekcards__group">
-  <h4 class="weekcards__label">{{.Label}}</h4>
-  {{template "activity_cards" .Cards}}
-</div>
-{{end}}
-{{else}}
-<p class="muted small">{{t "day.cards.empty"}}</p>
-{{end}}
-{{end}}

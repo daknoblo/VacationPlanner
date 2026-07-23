@@ -355,7 +355,6 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"ActivityList":    activities,
 		"Ideas":           ideas,
 		"DayCards":        cardMap,
-		"WeekCards":       weekCardGroups(mondayStart, v, cardMap),
 		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
 		"Lodgings":        lodgingBlock(tz, v),
@@ -880,28 +879,6 @@ func (s *Server) handleDayCards(w http.ResponseWriter, r *http.Request) {
 	}
 	loc := i18n.FromContext(r.Context())
 	s.fragment(w, r, "activity_cards", s.dayCards(r.Context(), loc, *day, v, items))
-}
-
-// handleWeekCards renders the per-week activity card lists for the week view.
-func (s *Server) handleWeekCards(w http.ResponseWriter, r *http.Request) {
-	id, err := urlUUID(r, "vacationID")
-	if err != nil {
-		s.notFound(w, r)
-		return
-	}
-	v, err := s.loadVacationFull(r.Context(), id)
-	if err != nil {
-		if isNotFound(err) {
-			s.notFound(w, r)
-			return
-		}
-		s.serverError(w, r, err)
-		return
-	}
-	loc := i18n.FromContext(r.Context())
-	weekStart, _ := s.regionSettings(r.Context())
-	mondayStart := weekStart != "sunday"
-	s.fragment(w, r, "week_cards", weekCardGroups(mondayStart, v, s.dayCardMap(r.Context(), loc, v)))
 }
 
 // handleIdeasFragment re-renders the unscheduled ideas backlog.

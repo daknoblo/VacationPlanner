@@ -520,9 +520,6 @@ code {
 .day-cards-wrap { margin: 1.25rem 0; }
 .day-cards-wrap > h3 { margin: 0 0 0.5rem; }
 .weekview { margin-top: 0.5rem; }
-.weekcards { margin-top: 1rem; }
-.weekcards__group { margin-bottom: 1rem; }
-.weekcards__label { margin: 0 0 0.4rem; font-size: 0.9rem; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* Destination info (Wikipedia intro) */
 .dest-info-wrap { margin-top: 0.25rem; }
@@ -536,21 +533,6 @@ code {
   .dest-info { flex-direction: column; }
   .dest-info__img { width: 100%; height: 160px; }
 }
-
-/* Day summary (route diagram) */
-.day-summary-wrap { margin-bottom: 1.25rem; }
-.day-summary-wrap > h3 { margin: 0 0 0.5rem; }
-.day-summary {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 0.75rem;
-  overflow-x: auto;
-}
-.day-summary .mermaid { margin: 0; text-align: center; min-height: 40px; }
-.day-summary__timeline { margin-top: 0.5rem; }
-.day-summary__timeline > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
-.day-summary__timeline ol { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 
 /* Log viewer (diagnostics) */
 .logview { margin-top: 0.75rem; }
@@ -1141,23 +1123,6 @@ textarea { resize: vertical; }
 
 /* Lists */
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
-.sight-item, .travel-item {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.75rem 0.9rem;
-  background: #fff;
-}
-.sight-item.is-visited { background: #f0fdf4; border-color: #bbf7d0; }
-.sight-item__head, .travel-item__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.sight-item__title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.sight-item__actions { display: flex; gap: 0.35rem; }
-.sight-item__desc { margin: 0.4rem 0; }
-.travel-item__head { flex-wrap: wrap; }
 
 /* Badges */
 .badge {

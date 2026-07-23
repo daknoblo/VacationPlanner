@@ -41,17 +41,16 @@ type viewData struct {
 }
 
 var funcMap = template.FuncMap{
-	"fmtDate":     fmtDate,
-	"fmtDatePtr":  fmtDatePtr,
-	"dateInput":   dateInput,
-	"datePtrIn":   datePtrInput,
-	"dtInput":     dateTimeInput,
-	"fmtDateTime": fmtDateTime,
-	"coord":       coordValue,
-	"money":       money,
-	"moneyF":      moneyF,
-	"bmoney":      bmoney,
-	"bmoneyp":     bmoneyP,
+	"fmtDate":    fmtDate,
+	"fmtDatePtr": fmtDatePtr,
+	"dateInput":  dateInput,
+	"datePtrIn":  datePtrInput,
+	"dtInput":    dateTimeInput,
+	"coord":      coordValue,
+	"money":      money,
+	"moneyF":     moneyF,
+	"bmoney":     bmoney,
+	"bmoneyp":    bmoneyP,
 	// cost/costf format an amount with the configured currency symbol; they are
 	// bound per request (placeholders here so templates parse).
 	"cost":     func(*float64) string { return "" },
@@ -129,11 +128,10 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 		return fmt.Errorf("server: cloning page %q: %w", name, err)
 	}
 	clone.Funcs(template.FuncMap{
-		"t":           loc.T,
-		"fmtDateTime": fmtDateTimeIn(tz),
-		"dtInput":     dateTimeInputIn(tz),
-		"cost":        func(f *float64) string { return bmoneyP(f, currency) },
-		"costf":       func(f float64) string { return bmoney(f, currency) },
+		"t":       loc.T,
+		"dtInput": dateTimeInputIn(tz),
+		"cost":    func(f *float64) string { return bmoneyP(f, currency) },
+		"costf":   func(f float64) string { return bmoney(f, currency) },
 	})
 
 	var buf bytes.Buffer
@@ -151,11 +149,10 @@ func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Locali
 		return fmt.Errorf("server: cloning fragments: %w", err)
 	}
 	clone.Funcs(template.FuncMap{
-		"t":           loc.T,
-		"fmtDateTime": fmtDateTimeIn(tz),
-		"dtInput":     dateTimeInputIn(tz),
-		"cost":        func(f *float64) string { return bmoneyP(f, currency) },
-		"costf":       func(f float64) string { return bmoney(f, currency) },
+		"t":       loc.T,
+		"dtInput": dateTimeInputIn(tz),
+		"cost":    func(f *float64) string { return bmoneyP(f, currency) },
+		"costf":   func(f float64) string { return bmoney(f, currency) },
 	})
 
 	var buf bytes.Buffer
@@ -253,23 +250,6 @@ func dateTimeInput(t *time.Time) string {
 		return ""
 	}
 	return t.Local().Format("2006-01-02T15:04")
-}
-
-func fmtDateTime(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	return t.Local().Format("02.01.2006 15:04")
-}
-
-// fmtDateTimeIn formats a timestamp for display in the given timezone.
-func fmtDateTimeIn(loc *time.Location) func(*time.Time) string {
-	return func(t *time.Time) string {
-		if t == nil {
-			return ""
-		}
-		return t.In(loc).Format("02.01.2006 15:04")
-	}
 }
 
 // dateTimeInputIn formats a timestamp for a datetime-local input in the given timezone.

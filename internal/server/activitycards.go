@@ -33,13 +33,6 @@ func (s *Server) legBetween(ctx context.Context, from, to *route.Point) (distM, 
 	return d, d / (activityDriveKmh * 1000 / 3600), true, true
 }
 
-// sameDate reports whether two times fall on the same calendar day.
-func sameDate(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
-}
-
 // lodgingForDay returns the located lodging covering the given day (check-in day
 // through check-out day, inclusive), or nil when none has coordinates that day.
 func lodgingForDay(lodgings []models.Lodging, day time.Time) *models.Lodging {
@@ -217,51 +210,6 @@ func (s *Server) dayCardMap(ctx context.Context, loc *i18n.Localizer, v *models.
 			continue
 		}
 		out[key] = s.dayCards(ctx, loc, day, v, items)
-	}
-	return out
-}
-
-// weekCardGroup is one calendar week's activity cards for the week card list.
-type weekCardGroup struct {
-	Label string
-	Cards []overviewActivity
-}
-
-// weekCardGroups groups the per-day cards into calendar weeks (matching the week
-// calendar's Mon–Sun rows), labelling each week with its trip date range.
-func weekCardGroups(mondayStart bool, v *models.Vacation, cardMap map[string][]overviewActivity) []weekCardGroup {
-	type acc struct {
-		first, last time.Time
-		cards       []overviewActivity
-	}
-	var order []string
-	accs := make(map[string]*acc)
-	for _, d := range v.Days() {
-		col := weekdayCol(d, mondayStart)
-		key := d.AddDate(0, 0, -col).Format("2006-01-02")
-		a := accs[key]
-		if a == nil {
-			a = &acc{first: d, last: d}
-			accs[key] = a
-			order = append(order, key)
-		}
-		if d.Before(a.first) {
-			a.first = d
-		}
-		if d.After(a.last) {
-			a.last = d
-		}
-		a.cards = append(a.cards, cardMap[d.Format("2006-01-02")]...)
-	}
-	out := make([]weekCardGroup, 0, len(order))
-	for _, key := range order {
-		a := accs[key]
-		sort.SliceStable(a.cards, func(i, j int) bool { return a.cards[i].sortKey.Before(a.cards[j].sortKey) })
-		label := fmtDate(a.first)
-		if !sameDate(a.first, a.last) {
-			label += " – " + fmtDate(a.last)
-		}
-		out = append(out, weekCardGroup{Label: label, Cards: a.cards})
 	}
 	return out
 }

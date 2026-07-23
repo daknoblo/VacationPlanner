@@ -477,16 +477,3 @@ func modeSpeedKmh(mode string) float64 {
 		return 60
 	}
 }
-
-func (s *Server) handleDeleteTravel(w http.ResponseWriter, r *http.Request) {
-	id, err := urlUUID(r, "travelID")
-	if err != nil {
-		s.notFound(w, r)
-		return
-	}
-	if err := s.store.DeleteTravelSegment(r.Context(), id); err != nil && !isNotFound(err) {
-		s.serverError(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}

@@ -81,7 +81,6 @@ func TestRenderPages(t *testing.T) {
 			Origins: []originOption{{Value: "", Label: "Automatic (previous stop)", Selected: true}, {Value: "hotel", Label: "🛏 Hotel Central"}},
 		}},
 	}
-	sampleWeekCards := []weekCardGroup{{Label: "02.08.2026", Cards: sampleCards["2026-08-02"]}}
 	arrivalTotal := travelTotalFor(v, models.TravelArrival, false)
 	departureTotal := travelTotalFor(v, models.TravelDeparture, false)
 
@@ -92,8 +91,8 @@ func TestRenderPages(t *testing.T) {
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{*v}}}},
 		{"index", viewData{Title: "t", Data: map[string]any{"Vacations": []models.Vacation{}}}},
 		{"about", viewData{Title: "t", Data: aboutView{Version: "dev", RepoURL: aboutRepoURL, DocsURL: aboutDocsURL}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards, "WeekCards": sampleWeekCards}}},
-		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards, "WeekCards": sampleWeekCards}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": true, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{{Name: "Activity", Icon: "🎯"}}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards}}},
+		{"vacation", viewData{Title: "t", Data: map[string]any{"Vacation": v, "AIEnabled": false, "Budget": newBudgetView(v, v.Items, nil, "€", "Lodging", "Travel"), "Categories": []models.Category{}, "ArrivalTravel": arrivalEditor, "DepartureTravel": departureEditor, "ArrivalTotal": arrivalTotal, "DepartureTotal": departureTotal, "CalTravel": calTravel, "CalLodging": calLodging, "Lodgings": lodgingList, "WeekCalendar": weekCal, "WeekHeaders": weekHeaders, "HourRows": hourRows, "DayCards": sampleCards}}},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
@@ -119,7 +118,6 @@ func TestRenderFragments(t *testing.T) {
 	}{
 		{"vacation_card", dashboardCard{Vacation: *v, HasBudget: true, Percent: 42, Countdown: "in 17 days"}},
 		{"item_row", v.Items[0]},
-		{"travel_item", v.TravelSegments[0]},
 		{"travel_out", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), DistLabel: "1860 km", DurLabel: "2 h 20 min", ArriveLabel: "01.08.2026 11:50"}},
 		{"travel_step", travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, Multi: true, Home: "Hamburg"}},
 		{"travel_block", travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Multi: true, Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0, Multi: true}}}},
@@ -131,8 +129,6 @@ func TestRenderFragments(t *testing.T) {
 		{"activity_card", overviewActivity{DateLabel: "01.08.2026", TimeLabel: "15:00", Weekday: "Saturday", Title: "Hotel Central", Category: "Accommodation", IsLodging: true, Detail: "→ 05.08.2026 · 3 nights"}},
 		{"activity_cards", []overviewActivity{{DateLabel: "02.08.2026", Weekday: "Sunday", Title: "Belém", Category: "POI"}}},
 		{"activity_cards", []overviewActivity(nil)},
-		{"week_cards", []weekCardGroup{{Label: "02.08.2026 – 08.08.2026", Cards: []overviewActivity{{DateLabel: "02.08.2026", Weekday: "Sunday", Title: "Belém"}}}}},
-		{"week_cards", []weekCardGroup(nil)},
 		{"travel_total", travelTotalView{Kind: models.TravelArrival, DistLabel: "1860 km", DurLabel: "2 h 20 min"}},
 		{"travel_saved", map[string]any{"Step": travelEditorView{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, DistLabel: "1860 km", DurLabel: "2 h 20 min"}, "Total": travelTotalView{Kind: models.TravelArrival, DistLabel: "1860 km", DurLabel: "2 h 20 min", OOB: true}}},
 		{"travel_block_wrap", map[string]any{"Block": travelBlockView{Kind: models.TravelArrival, VID: v.ID.String(), Steps: []travelEditorView{{Seg: &v.TravelSegments[0], VID: v.ID.String(), Kind: models.TravelArrival, Number: 1, StepOrder: 0}}}, "Total": travelTotalView{Kind: models.TravelArrival, OOB: true}}},

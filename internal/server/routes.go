@@ -79,7 +79,6 @@ func (s *Server) routes() {
 			r.Get("/api/budget", s.handleBudgetFragment)
 			r.Get("/api/overview", s.handleOverviewFragment)
 			r.Get("/api/daycards", s.handleDayCards)
-			r.Get("/api/weekcards", s.handleWeekCards)
 			r.Get("/api/ideas", s.handleIdeasFragment)
 			r.Get("/api/destination-info", s.handleDestinationInfo)
 			r.Post("/items", s.handleCreateItem)
@@ -105,10 +104,6 @@ func (s *Server) routes() {
 		r.Post("/origin", s.handleSetItemOrigin)
 		r.Post("/visited", s.handleToggleVisited)
 		r.Delete("/", s.handleDeleteItem)
-	})
-
-	r.Route("/travel/{travelID}", func(r chi.Router) {
-		r.Delete("/", s.handleDeleteTravel)
 	})
 
 	r.Route("/lodging/{lodgingID}", func(r chi.Router) {
