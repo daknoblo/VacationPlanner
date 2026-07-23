@@ -1,38 +1,40 @@
 {{define "item_row"}}
 <li class="item-row{{if .Visited}} is-visited{{end}}" id="item-{{.ID}}" data-id="{{.ID}}">
-  <div class="item-row__head">
-    <div class="item-row__title">
-      <img class="item-row__thumb" src="/api/destination-image?q={{.Title}}" alt="" loading="lazy" width="40" height="40">
-      {{if .Timed}}<span class="item-row__time">{{.StartLabel}}–{{.EndLabel}}</span>{{end}}
-      <strong>{{.Title}}</strong>
-      {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
-      {{if .Visited}}<span class="badge badge--ok">{{t "sight.visited"}}</span>{{end}}
+  <div class="item-row__main">
+    <div class="item-row__head">
+      <div class="item-row__title">
+        {{if .Timed}}<span class="item-row__time">{{.StartLabel}}–{{.EndLabel}}</span>{{end}}
+        <strong>{{.Title}}</strong>
+        {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+        {{if .Visited}}<span class="badge badge--ok">{{t "sight.visited"}}</span>{{end}}
+      </div>
     </div>
-    <div class="item-row__actions">
-      <button class="btn btn--sm" title="{{t "sight.mark_visited"}}"
-              hx-post="/items/{{.ID}}/visited"
-              hx-target="closest .item-row"
-              hx-swap="outerHTML">{{if .Visited}}↩︎{{else}}✓{{end}}</button>
-      <button class="btn btn--sm" title="{{t "action.edit"}}"
-              hx-get="/items/{{.ID}}/edit"
-              hx-target="closest .item-row"
-              hx-swap="outerHTML">✎</button>
-      <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
-              hx-delete="/items/{{.ID}}"
-              hx-target="closest .item-row"
-              hx-swap="outerHTML"
-              hx-confirm="{{t "item.confirm_delete"}}">✕</button>
-    </div>
+    {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
+    {{if or .Cost .HasCoords}}
+    <p class="muted small">
+      {{if .Cost}}💶 {{cost .Cost}}{{end}}
+      {{if .HasCoords}}{{if .Cost}} · {{end}}📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
+    </p>
+    {{end}}
+    {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
+    {{template "attachments_box" (printf "/items/%s/documents" .ID)}}
   </div>
-  {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
-  {{if or .Cost .HasCoords}}
-  <p class="muted small">
-    {{if .Cost}}💶 {{cost .Cost}}{{end}}
-    {{if .HasCoords}}{{if .Cost}} · {{end}}📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
-  </p>
-  {{end}}
-  {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
-  {{template "attachments_box" (printf "/items/%s/documents" .ID)}}
+  <img class="item-row__thumb" src="/api/destination-image?q={{.Title}}" alt="" loading="lazy" width="170" height="120">
+  <div class="item-row__actions">
+    <button class="btn btn--sm" title="{{t "sight.mark_visited"}}"
+            hx-post="/items/{{.ID}}/visited"
+            hx-target="closest .item-row"
+            hx-swap="outerHTML">{{if .Visited}}↩︎{{else}}✓{{end}}</button>
+    <button class="btn btn--sm" title="{{t "action.edit"}}"
+            hx-get="/items/{{.ID}}/edit"
+            hx-target="closest .item-row"
+            hx-swap="outerHTML">✎</button>
+    <button class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
+            hx-delete="/items/{{.ID}}"
+            hx-target="closest .item-row"
+            hx-swap="outerHTML"
+            hx-confirm="{{t "item.confirm_delete"}}">✕</button>
+  </div>
 </li>
 {{end}}
 

@@ -5,7 +5,6 @@
 <div class="suggestions">
   {{range .Suggestions}}
   <article class="suggestion">
-    <img class="suggestion__img" src="/api/destination-image?q={{.Name}}" alt="" loading="lazy" width="400" height="140">
     <div class="suggestion__body">
       <h4>{{.Name}}</h4>
       {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
@@ -20,6 +19,7 @@
         <button class="btn btn--sm" type="submit">{{t "ai.add_sight"}}</button>
       </form>
     </div>
+    <img class="suggestion__img" src="/api/destination-image?q={{.Name}}" alt="" loading="lazy" width="170" height="120">
   </article>
   {{end}}
 </div>
