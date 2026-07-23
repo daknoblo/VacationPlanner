@@ -26,7 +26,7 @@
   {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
   {{if or .Cost .HasCoords}}
   <p class="muted small">
-    {{if .Cost}}💶 {{money .Cost}}{{end}}
+    {{if .Cost}}💶 {{cost .Cost}}{{end}}
     {{if .HasCoords}}{{if .Cost}} · {{end}}📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
   </p>
   {{end}}

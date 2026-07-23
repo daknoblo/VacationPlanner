@@ -1,34 +1,37 @@
 {{define "weekcal"}}
 <div class="weekcal">
-  {{range .Weeks}}
-  <div class="weekcal__week">
-    <div class="weekcal__axis">
-      <div class="weekcal__corner"></div>
-      {{range $.HourRows}}<div class="weekcal__hour" style="height:{{.Px}}px"><span>{{.Label}}</span></div>{{end}}
-    </div>
-    {{range $ci, $col := .Days}}
-    {{$hd := index $.Headers $ci}}
-    <div class="weekcal__day{{if $hd.Weekend}} is-weekend{{end}}{{if not $col}} is-empty{{end}}">
-      <div class="weekcal__dayhead">
-        <span class="weekcal__dow">{{$hd.Label}}</span>
-        {{if $col}}<button type="button" class="weekcal__date" data-goto-day="{{$col.DayIndex}}" title="{{t "tagesplan.view.day"}}">{{fmtDate $col.Date}}</button>{{end}}
+  {{range $wi, $week := .Weeks}}
+  <details class="weekcal__wk" open>
+    <summary class="weekcal__wk-sum">{{t "tab.week"}} {{add $wi 1}}</summary>
+    <div class="weekcal__week">
+      <div class="weekcal__axis">
+        <div class="weekcal__corner"></div>
+        {{range $.HourRows}}<div class="weekcal__hour" style="height:{{.Px}}px"><span>{{.Label}}</span></div>{{end}}
       </div>
-      <div class="weekcal__col"{{if $col}} data-weekcol data-day="{{dateInput $col.Date}}"{{end}}>
-        {{range $.HourRows}}<div class="weekcal__slot" style="height:{{.Px}}px"></div>{{end}}
-        {{if $col}}{{range $col.Lodging}}
-        <div class="weekcal-lodging" style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}"><span class="weekcal-lodging__icon" aria-hidden="true">🛏</span></div>
-        {{end}}{{end}}
-        {{if $col}}{{range $col.Blocks}}
-        <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"
-             style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
-          <span class="weekcal-block__time">{{.Label}}</span>
-          <span class="weekcal-block__title">{{if .Travel}}✈ {{end}}{{.Title}}</span>
+      {{range $ci, $col := $week.Days}}
+      {{$hd := index $.Headers $ci}}
+      <div class="weekcal__day{{if $hd.Weekend}} is-weekend{{end}}{{if not $col}} is-empty{{end}}">
+        <div class="weekcal__dayhead">
+          <span class="weekcal__dow">{{$hd.Label}}</span>
+          {{if $col}}<button type="button" class="weekcal__date" data-goto-day="{{$col.DayIndex}}" title="{{t "tagesplan.view.day"}}">{{fmtDate $col.Date}}</button>{{end}}
         </div>
-        {{end}}{{end}}
+        <div class="weekcal__col"{{if $col}} data-weekcol data-day="{{dateInput $col.Date}}"{{end}}>
+          {{range $.HourRows}}<div class="weekcal__slot" style="height:{{.Px}}px"></div>{{end}}
+          {{if $col}}{{range $col.Lodging}}
+          <div class="weekcal-lodging" style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}"><span class="weekcal-lodging__icon" aria-hidden="true">🛏</span></div>
+          {{end}}{{end}}
+          {{if $col}}{{range $col.Blocks}}
+          <div class="weekcal-block{{if .Travel}} weekcal-block--travel{{end}}"
+               style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
+            <span class="weekcal-block__time">{{.Label}}</span>
+            <span class="weekcal-block__title">{{if .Travel}}✈ {{end}}{{.Title}}</span>
+          </div>
+          {{end}}{{end}}
+        </div>
       </div>
+      {{end}}
     </div>
-    {{end}}
-  </div>
+  </details>
   {{end}}
 </div>
 {{end}}

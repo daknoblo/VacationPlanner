@@ -476,6 +476,7 @@ code {
 .activity-item--travel { border-left: 3px solid var(--primary); }
 .activity-item__lodging { color: var(--muted); font-size: 0.8rem; }
 .activity-item--lodging { border-left: 3px solid #f59e0b; }
+.activity-item__cost { display: block; color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .activity-item__origin { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.15rem; }
 .activity-item__origin-lbl { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .activity-item__origin select {
@@ -673,6 +674,18 @@ code {
 
 /* Week calendar — calendar weeks (Mon–Sun rows) */
 .weekcal { display: flex; flex-direction: column; gap: 1.25rem; width: 100%; }
+.weekcal__wk { width: 100%; }
+.weekcal__wk-sum {
+  list-style: none; cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.25rem 0.3rem; margin-bottom: 0.45rem;
+  font-weight: 600; font-size: 0.85rem; color: var(--ink);
+  border-radius: 6px;
+}
+.weekcal__wk-sum:hover { background: #f1f5f9; }
+.weekcal__wk-sum::-webkit-details-marker { display: none; }
+.weekcal__wk-sum::before { content: "▾"; color: var(--muted); font-size: 0.8rem; }
+.weekcal__wk:not([open]) > .weekcal__wk-sum::before { content: "▸"; }
 .weekcal__week {
   display: flex;
   width: 100%;

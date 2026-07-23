@@ -177,6 +177,7 @@ func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, day time.Tim
 			TimeLabel: tm,
 			Title:     it.Title,
 			Category:  it.Category,
+			Cost:      it.Cost,
 			DayKey:    dayKey,
 			Origins:   originOptionsFor(loc, ordered, it, hotelLabel),
 			Latitude:  it.Latitude,

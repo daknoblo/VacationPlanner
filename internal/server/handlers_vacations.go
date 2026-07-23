@@ -390,6 +390,7 @@ type overviewActivity struct {
 	IsTravel      bool
 	IsLodging     bool           // accommodation row (check-in), shows nights instead of legs
 	Detail        string         // lodging rows: pre-formatted summary (checkout · nights)
+	Cost          *float64       // item/lodging cost, shown with the configured currency
 	DayKey        string         // dateInput of the item's day (scopes the origin picker)
 	Origins       []originOption // predecessor options for the origin picker (item rows)
 	Latitude      *float64
@@ -714,6 +715,7 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 			Category:  loc.T("tab.lodging"),
 			IsLodging: true,
 			Detail:    detail,
+			Cost:      lo.Cost,
 			Latitude:  lo.Latitude,
 			Longitude: lo.Longitude,
 			HasCoords: lo.HasCoords(),

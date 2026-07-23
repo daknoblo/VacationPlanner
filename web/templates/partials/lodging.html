@@ -91,5 +91,5 @@
 {{end}}
 
 {{define "lodging_out"}}
-<p class="travel-computed">🛏 {{.Nights}} {{t "vacation.nights"}}{{if .Cost}} · 💶 {{money .Cost}}{{if .CostPerNight}} ({{money .CostPerNight}} {{t "lodging.per_night"}}){{end}}{{end}}</p>
+<p class="travel-computed">🛏 {{.Nights}} {{t "vacation.nights"}}{{if .Cost}} · 💶 {{cost .Cost}}{{if .CostPerNight}} ({{cost .CostPerNight}} {{t "lodging.per_night"}}){{end}}{{end}}</p>
 {{end}}

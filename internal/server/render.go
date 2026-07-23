@@ -52,15 +52,19 @@ var funcMap = template.FuncMap{
 	"moneyF":      moneyF,
 	"bmoney":      bmoney,
 	"bmoneyp":     bmoneyP,
-	"dict":        dict,
-	"add":         addInt,
-	"sub":         subInt,
-	"mod":         modInt,
-	"div":         divInt,
-	"seq":         seq,
-	"weekday":     weekdayKey,
-	"sameDay":     sameDay,
-	"catclass":    catClass,
+	// cost/costf format an amount with the configured currency symbol; they are
+	// bound per request (placeholders here so templates parse).
+	"cost":     func(*float64) string { return "" },
+	"costf":    func(float64) string { return "" },
+	"dict":     dict,
+	"add":      addInt,
+	"sub":      subInt,
+	"mod":      modInt,
+	"div":      divInt,
+	"seq":      seq,
+	"weekday":  weekdayKey,
+	"sameDay":  sameDay,
+	"catclass": catClass,
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
 }
@@ -115,7 +119,7 @@ func assetVersion() string {
 	return hex.EncodeToString(h.Sum(nil))[:10]
 }
 
-func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location) error {
+func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location, currency string) error {
 	tmpl, ok := r.pages[name]
 	if !ok {
 		return fmt.Errorf("server: unknown page %q", name)
@@ -128,6 +132,8 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 		"t":           loc.T,
 		"fmtDateTime": fmtDateTimeIn(tz),
 		"dtInput":     dateTimeInputIn(tz),
+		"cost":        func(f *float64) string { return bmoneyP(f, currency) },
+		"costf":       func(f float64) string { return bmoney(f, currency) },
 	})
 
 	var buf bytes.Buffer
@@ -139,7 +145,7 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 	return err
 }
 
-func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Localizer, data any, tz *time.Location) error {
+func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Localizer, data any, tz *time.Location, currency string) error {
 	clone, err := r.fragments.Clone()
 	if err != nil {
 		return fmt.Errorf("server: cloning fragments: %w", err)
@@ -148,6 +154,8 @@ func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Locali
 		"t":           loc.T,
 		"fmtDateTime": fmtDateTimeIn(tz),
 		"dtInput":     dateTimeInputIn(tz),
+		"cost":        func(f *float64) string { return bmoneyP(f, currency) },
+		"costf":       func(f float64) string { return bmoney(f, currency) },
 	})
 
 	var buf bytes.Buffer
@@ -175,7 +183,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string
 		CurrentID: chi.URLParam(r, "vacationID"),
 		Data:      data,
 	}
-	if err := s.render.page(w, name, loc, vd, tz); err != nil {
+	if err := s.render.page(w, name, loc, vd, tz, s.currencySymbol(r.Context())); err != nil {
 		s.serverError(w, r, err)
 	}
 }
@@ -183,7 +191,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, name, title string
 func (s *Server) fragment(w http.ResponseWriter, r *http.Request, name string, data any) {
 	loc := i18n.FromContext(r.Context())
 	_, tz := s.regionSettings(r.Context())
-	if err := s.render.fragment(w, name, loc, data, tz); err != nil {
+	if err := s.render.fragment(w, name, loc, data, tz, s.currencySymbol(r.Context())); err != nil {
 		s.serverError(w, r, err)
 	}
 }

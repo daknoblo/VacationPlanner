@@ -19,7 +19,7 @@
 {{end}}
 
 {{define "budget_pie"}}
-<span class="budget-pie{{if .Over}} is-over{{end}}" title="{{t "budget.spent"}}: {{moneyF .Spent}} / {{money .Budget}} ({{.Percent}}%)">
+<span class="budget-pie{{if .Over}} is-over{{end}}" title="{{t "budget.spent"}}: {{costf .Spent}} / {{cost .Budget}} ({{.Percent}}%)">
   <svg viewBox="0 0 36 36" width="42" height="42" aria-hidden="true">
     <circle class="budget-pie__bg" cx="18" cy="18" r="15.915" fill="none" stroke-width="3.6"></circle>
     <circle class="budget-pie__fg" cx="18" cy="18" r="15.915" fill="none" stroke-width="3.6"
