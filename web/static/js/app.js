@@ -664,6 +664,7 @@
   // ---- Day planner (drag + resize activity blocks) ----
   var PLANNER_PPM = 0.8;   // px per minute (must match CSS --ppm)
   var PLANNER_SNAP = 5;    // snap to 5-minute steps
+  var WEEK_SNAP = 30;      // week view snaps to 30-minute steps (coarser, easier)
 
   function plLabel(m) {
     m = m < 0 ? 0 : (m > 1440 ? 1440 : m | 0);
@@ -769,7 +770,7 @@
       var day = col.getAttribute("data-day");
       if (!day) return;
       var rect = col.getBoundingClientRect();
-      var minutes = Math.round(calPxToMin(e.clientY - rect.top) / PLANNER_SNAP) * PLANNER_SNAP;
+      var minutes = Math.round(calPxToMin(e.clientY - rect.top) / WEEK_SNAP) * WEEK_SNAP;
       minutes = plClamp(minutes, 0, 1440 - 60);
       var chip = document.querySelector('.idea-chip[data-id="' + id + '"]');
       var title = chip ? (chip.getAttribute("data-title") || "") : "";
@@ -845,7 +846,7 @@
     if (!target) return;
     if (target !== weekDrag.block.parentNode) { target.appendChild(weekDrag.block); weekDrag.col = target; }
     var rect = target.getBoundingClientRect();
-    var minutes = Math.round(calPxToMin(e.clientY - rect.top) / PLANNER_SNAP) * PLANNER_SNAP;
+    var minutes = Math.round(calPxToMin(e.clientY - rect.top) / WEEK_SNAP) * WEEK_SNAP;
     minutes = plClamp(minutes, 0, 1440 - weekDrag.dur);
     weekDrag.start = minutes;
     var top = calMinToPx(minutes), bottom = calMinToPx(minutes + weekDrag.dur);
