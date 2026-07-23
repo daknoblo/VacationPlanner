@@ -127,6 +127,7 @@ func TestRenderFragments(t *testing.T) {
 		{"overview_list", []overviewActivity{{DateLabel: "01.08.2026", TimeLabel: "09:00", Weekday: "Saturday", Title: "Test", Category: "POI"}}},
 		{"activity_card", overviewActivity{ItemID: v.Items[0].ID.String(), DateLabel: "02.08.2026", TimeLabel: "09:00", Weekday: "Sunday", Title: "Belém", Category: "POI", OriginLabel: "🛏 Hotel", DistanceLabel: "2.1 km", DurationLabel: "6 min", Approx: true, HasCoords: true, Origins: []originOption{{Value: "", Label: "Auto", Selected: true}, {Value: "hotel", Label: "🛏 Hotel"}}}},
 		{"activity_card", overviewActivity{DateLabel: "02.08.2026", Weekday: "Sunday", Title: "Arrival · BER → LIS", Category: "flight", DistanceLabel: "1860 km", DurationLabel: "2 h 20 min", IsTravel: true}},
+		{"activity_card", overviewActivity{DateLabel: "01.08.2026", TimeLabel: "15:00", Weekday: "Saturday", Title: "Hotel Central", Category: "Accommodation", IsLodging: true, Detail: "→ 05.08.2026 · 3 nights"}},
 		{"activity_cards", []overviewActivity{{DateLabel: "02.08.2026", Weekday: "Sunday", Title: "Belém", Category: "POI"}}},
 		{"activity_cards", []overviewActivity(nil)},
 		{"week_cards", []weekCardGroup{{Label: "02.08.2026 – 08.08.2026", Cards: []overviewActivity{{DateLabel: "02.08.2026", Weekday: "Sunday", Title: "Belém"}}}}},

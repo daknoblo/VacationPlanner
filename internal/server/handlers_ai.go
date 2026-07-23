@@ -54,6 +54,7 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		StartDate:   v.StartDate.Format("2006-01-02"),
 		EndDate:     v.EndDate.Format("2006-01-02"),
 		Interests:   interests,
+		RadiusKm:    formInt(r, "radius", 25),
 		Existing:    existing,
 	}
 

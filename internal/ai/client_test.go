@@ -41,6 +41,17 @@ func TestParseSuggestionsInvalid(t *testing.T) {
 	}
 }
 
+func TestParseSuggestionsEmbedded(t *testing.T) {
+	in := "Sure! Here are some ideas for you:\n{\"suggestions\":[{\"name\":\"Sé\"}]}\nHope that helps!"
+	got, err := parseSuggestions(in)
+	if err != nil {
+		t.Fatalf("parseSuggestions: %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "Sé" {
+		t.Fatalf("unexpected result: %+v", got)
+	}
+}
+
 func TestClientDisabled(t *testing.T) {
 	c := New("")
 	if c.Enabled() {

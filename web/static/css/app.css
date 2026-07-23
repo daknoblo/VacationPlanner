@@ -474,6 +474,8 @@ code {
 .activity-item__title { font-weight: 600; line-height: 1.3; }
 .activity-item__travel { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .activity-item--travel { border-left: 3px solid var(--primary); }
+.activity-item__lodging { color: var(--muted); font-size: 0.8rem; }
+.activity-item--lodging { border-left: 3px solid #f59e0b; }
 .activity-item__origin { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.15rem; }
 .activity-item__origin-lbl { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .activity-item__origin select {
@@ -713,7 +715,7 @@ code {
 .weekcal__slot:first-child { border-top: none; }
 .weekcal-block {
   position: absolute;
-  left: 8px;
+  left: 18px;
   right: 2px;
   min-height: 12px;
   background: var(--primary);
@@ -727,9 +729,12 @@ code {
   box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
 }
 .weekcal-lodging {
-  position: absolute; left: 1px; width: 5px;
+  position: absolute; left: 1px; width: 14px;
   background: #f59e0b; border-radius: 3px;
+  display: flex; justify-content: center; align-items: flex-start;
+  overflow: hidden;
 }
+.weekcal-lodging__icon { font-size: 0.68rem; line-height: 1; padding-top: 2px; }
 .weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.6rem; display: block; }
 .weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .weekcal-block--travel { background: #0ea5e9; }

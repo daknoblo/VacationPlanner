@@ -56,6 +56,7 @@ type RecommendInput struct {
 	StartDate   string
 	EndDate     string
 	Interests   string
+	RadiusKm    int
 	Existing    []string
 }
 
@@ -80,10 +81,11 @@ type chatResponse struct {
 }
 
 const systemPrompt = `You are a concise travel assistant. ` +
-	`Given a destination and trip context, suggest points of interest. ` +
+	`Given a destination and trip context, suggest real, notable points of interest that are located AT or NEAR that destination — ` +
+	`in the SAME city/region and the SAME country. Never suggest places in a different country or a far-away region. ` +
 	`Respond with STRICT JSON only, no markdown, in this exact shape: ` +
 	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"..."}]}. ` +
-	`Provide between 3 and 6 suggestions. Keep description and reason to one short sentence each.`
+	`Provide between 4 and 6 suggestions. Keep description and reason to one short sentence each.`
 
 // Recommend asks the model for points of interest for the given trip. baseURL,
 // model and apiVersion may be empty, in which case the package defaults / a
@@ -163,37 +165,62 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 func buildUserPrompt(in RecommendInput) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Destination: %s\n", in.Destination)
+	fmt.Fprintf(&b, "Only suggest places within about %d km of %s, in the same country and region.\n",
+		radiusOrDefault(in.RadiusKm), in.Destination)
 	if in.StartDate != "" || in.EndDate != "" {
 		fmt.Fprintf(&b, "Travel dates: %s to %s\n", in.StartDate, in.EndDate)
 	}
 	if strings.TrimSpace(in.Interests) != "" {
-		fmt.Fprintf(&b, "Interests: %s\n", in.Interests)
+		fmt.Fprintf(&b, "Focus on these interests: %s\n", in.Interests)
+	} else {
+		b.WriteString("No specific interests were given: suggest the most notable sights and points of interest for this area.\n")
 	}
 	if len(in.Existing) > 0 {
 		fmt.Fprintf(&b, "Already planned (do not repeat): %s\n", strings.Join(in.Existing, ", "))
 	}
-	b.WriteString("Suggest additional points of interest.")
+	b.WriteString("Suggest points of interest.")
 	return b.String()
 }
 
+// radiusOrDefault clamps the search radius (km) to a sensible range.
+func radiusOrDefault(km int) int {
+	switch {
+	case km <= 0:
+		return 25
+	case km > 500:
+		return 500
+	default:
+		return km
+	}
+}
+
 // parseSuggestions tolerantly extracts suggestions from a model reply that may
-// be wrapped in markdown fences or returned as a bare array.
+// be wrapped in markdown fences or returned as a bare array or embedded in prose.
 func parseSuggestions(content string) ([]Suggestion, error) {
 	content = stripCodeFence(strings.TrimSpace(content))
+	if s := tryParseSuggestions(content); s != nil {
+		return s, nil
+	}
+	if inner := extractJSON(content); inner != "" && inner != content {
+		if s := tryParseSuggestions(inner); s != nil {
+			return s, nil
+		}
+	}
+	return nil, fmt.Errorf("ai: could not parse suggestions from model reply")
+}
 
+func tryParseSuggestions(content string) []Suggestion {
 	var wrapper struct {
 		Suggestions []Suggestion `json:"suggestions"`
 	}
 	if err := json.Unmarshal([]byte(content), &wrapper); err == nil && len(wrapper.Suggestions) > 0 {
-		return clamp(wrapper.Suggestions), nil
+		return clamp(wrapper.Suggestions)
 	}
-
 	var list []Suggestion
 	if err := json.Unmarshal([]byte(content), &list); err == nil && len(list) > 0 {
-		return clamp(list), nil
+		return clamp(list)
 	}
-
-	return nil, fmt.Errorf("ai: could not parse suggestions from model reply")
+	return nil
 }
 
 func clamp(s []Suggestion) []Suggestion {
@@ -213,4 +240,46 @@ func stripCodeFence(s string) string {
 	}
 	s = strings.TrimSuffix(strings.TrimSpace(s), "```")
 	return strings.TrimSpace(s)
+}
+
+// extractJSON returns the substring spanning the first JSON object or array in s
+// (from the first '{' or '[' to its matching close), or "" if none is found. It
+// is a best-effort recovery for models that wrap the JSON in explanatory prose.
+func extractJSON(s string) string {
+	start := strings.IndexAny(s, "{[")
+	if start < 0 {
+		return ""
+	}
+	openCh := s[start]
+	closeCh := byte('}')
+	if openCh == '[' {
+		closeCh = ']'
+	}
+	depth, inStr, esc := 0, false, false
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if inStr {
+			switch {
+			case esc:
+				esc = false
+			case c == '\\':
+				esc = true
+			case c == '"':
+				inStr = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case openCh:
+			depth++
+		case closeCh:
+			depth--
+			if depth == 0 {
+				return s[start : i+1]
+			}
+		}
+	}
+	return ""
 }

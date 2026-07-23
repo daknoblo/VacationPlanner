@@ -388,6 +388,8 @@ type overviewActivity struct {
 	OriginLabel   string // item rows: the resolved start point (e.g. "🛏 Hotel Lisboa")
 	Approx        bool   // duration is a straight-line estimate (item rows)
 	IsTravel      bool
+	IsLodging     bool           // accommodation row (check-in), shows nights instead of legs
+	Detail        string         // lodging rows: pre-formatted summary (checkout · nights)
 	DayKey        string         // dateInput of the item's day (scopes the origin picker)
 	Origins       []originOption // predecessor options for the origin picker (item rows)
 	Latitude      *float64
@@ -696,6 +698,27 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 		if it.Day == nil {
 			ideas = append(ideas, it)
 		}
+	}
+	// Accommodations, shown on their check-in day.
+	for i := range v.Lodgings {
+		lo := v.Lodgings[i]
+		ci := lo.CheckIn.In(tz)
+		co := lo.CheckOut.In(tz)
+		nights := lo.Nights()
+		detail := fmt.Sprintf("→ %s · %d %s", fmtDate(co), nights, loc.T("vacation.nights"))
+		activities = append(activities, overviewActivity{
+			Weekday:   weekdayLabel(loc, ci),
+			DateLabel: fmtDate(ci),
+			TimeLabel: ci.Format("15:04"),
+			Title:     lo.Name,
+			Category:  loc.T("tab.lodging"),
+			IsLodging: true,
+			Detail:    detail,
+			Latitude:  lo.Latitude,
+			Longitude: lo.Longitude,
+			HasCoords: lo.HasCoords(),
+			sortKey:   lo.CheckIn,
+		})
 	}
 	for _, cards := range cardMap {
 		activities = append(activities, cards...)

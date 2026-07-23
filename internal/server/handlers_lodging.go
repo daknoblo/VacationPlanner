@@ -189,6 +189,7 @@ type lodgingEditorView struct {
 	CheckOutDate string
 	CheckOutTime string
 	Cost         *float64
+	CostPerNight *float64
 	Notes        string
 	Nights       int
 }
@@ -196,6 +197,12 @@ type lodgingEditorView struct {
 func newLodgingEditorView(tz *time.Location, v *models.Vacation, lo *models.Lodging) lodgingEditorView {
 	ci := lo.CheckIn.In(tz)
 	co := lo.CheckOut.In(tz)
+	nights := lo.Nights()
+	var perNight *float64
+	if lo.Cost != nil && nights > 0 {
+		pn := *lo.Cost / float64(nights)
+		perNight = &pn
+	}
 	return lodgingEditorView{
 		ID:           lo.ID.String(),
 		VID:          v.ID.String(),
@@ -210,8 +217,9 @@ func newLodgingEditorView(tz *time.Location, v *models.Vacation, lo *models.Lodg
 		CheckOutDate: co.Format("2006-01-02"),
 		CheckOutTime: co.Format("15:04"),
 		Cost:         lo.Cost,
+		CostPerNight: perNight,
 		Notes:        lo.Notes,
-		Nights:       lo.Nights(),
+		Nights:       nights,
 	}
 }
 

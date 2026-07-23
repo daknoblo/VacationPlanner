@@ -55,6 +55,41 @@
     }
   });
 
+  // Live value display for range sliders (e.g. the AI search radius).
+  document.addEventListener("input", function (e) {
+    var input = e.target;
+    if (!input || !input.matches || !input.matches("[data-range]")) return;
+    var field = input.closest(".field") || input.parentNode;
+    var out = field ? field.querySelector("[data-range-value]") : null;
+    if (out) { out.textContent = input.value; }
+  });
+
+  // Chain travel legs: when a leg's destination changes, default the next leg's
+  // start to that destination (location + coordinates) and re-save it.
+  document.addEventListener("change", function (e) {
+    var input = e.target;
+    if (!input || !input.matches) return;
+    if (!input.matches('.travel-step [name="to_location"], .travel-step [name="to_lat"], .travel-step [name="to_lng"]')) return;
+    var form = input.closest("form.travel-step");
+    var wrap = form ? form.closest(".travel-step-wrap") : null;
+    if (!wrap) return;
+    var next = wrap.nextElementSibling;
+    while (next && !(next.classList && next.classList.contains("travel-step-wrap"))) { next = next.nextElementSibling; }
+    var nextForm = next ? next.querySelector("form.travel-step") : null;
+    if (!nextForm) return;
+    var to = form.querySelector('[name="to_location"]');
+    var nFrom = nextForm.querySelector('[name="from_location"]');
+    if (!to || !nFrom || nFrom.value === to.value) return;
+    nFrom.value = to.value;
+    var toLat = form.querySelector('[name="to_lat"]');
+    var toLng = form.querySelector('[name="to_lng"]');
+    var nLat = nextForm.querySelector('[name="from_lat"]');
+    var nLng = nextForm.querySelector('[name="from_lng"]');
+    if (nLat && toLat) { nLat.value = toLat.value; }
+    if (nLng && toLng) { nLng.value = toLng.value; }
+    nextForm.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
   // ---- Leaflet map ----
   var map = null;
   var markerLayer = null;

@@ -41,18 +41,29 @@ func (c *Client) SuggestActivities(ctx context.Context, baseURL, model, apiVersi
 
 func parseActivities(content string) ([]ActivitySuggestion, error) {
 	content = stripCodeFence(strings.TrimSpace(content))
+	if a := tryParseActivities(content); a != nil {
+		return a, nil
+	}
+	if inner := extractJSON(content); inner != "" && inner != content {
+		if a := tryParseActivities(inner); a != nil {
+			return a, nil
+		}
+	}
+	return nil, fmt.Errorf("ai: could not parse activities from model reply")
+}
 
+func tryParseActivities(content string) []ActivitySuggestion {
 	var wrapper struct {
 		Activities []ActivitySuggestion `json:"activities"`
 	}
 	if err := json.Unmarshal([]byte(content), &wrapper); err == nil && len(wrapper.Activities) > 0 {
-		return clampActivities(wrapper.Activities), nil
+		return clampActivities(wrapper.Activities)
 	}
 	var list []ActivitySuggestion
 	if err := json.Unmarshal([]byte(content), &list); err == nil && len(list) > 0 {
-		return clampActivities(list), nil
+		return clampActivities(list)
 	}
-	return nil, fmt.Errorf("ai: could not parse activities from model reply")
+	return nil
 }
 
 func clampActivities(a []ActivitySuggestion) []ActivitySuggestion {

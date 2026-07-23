@@ -143,6 +143,7 @@ var messages = map[Lang]map[string]string{
 		"lodging.add":                    "Add accommodation",
 		"lodging.untitled":               "New accommodation",
 		"lodging.summary":                "Overview",
+		"lodging.per_night":              "/ night",
 		"lodging.confirm_delete":         "Delete this accommodation?",
 		"placeholder.lodging.name":       "Hotel, apartment, …",
 		"placeholder.lodging.location":   "Address or area",
@@ -213,6 +214,8 @@ var messages = map[Lang]map[string]string{
 		// AI
 		"ai.interests_label":       "What are you in the mood for?",
 		"ai.interests_placeholder": "Viewpoints, local food, museums …",
+		"ai.radius_label":          "Search radius",
+		"ai.empty_hint":            "Leave the field empty for notable sights near your destination; add interests to focus the ideas.",
 		"ai.generate":              "Generate recommendations",
 		"ai.disabled_pre":          "AI recommendations are disabled. Set",
 		"ai.disabled_post":         " to enable them.",
@@ -489,6 +492,7 @@ var messages = map[Lang]map[string]string{
 		"lodging.add":                    "Unterkunft hinzufügen",
 		"lodging.untitled":               "Neue Unterkunft",
 		"lodging.summary":                "Übersicht",
+		"lodging.per_night":              "/ Nacht",
 		"lodging.confirm_delete":         "Diese Unterkunft löschen?",
 		"placeholder.lodging.name":       "Hotel, Ferienwohnung, …",
 		"placeholder.lodging.location":   "Adresse oder Gegend",
@@ -559,6 +563,8 @@ var messages = map[Lang]map[string]string{
 		// AI
 		"ai.interests_label":       "Worauf hast du Lust?",
 		"ai.interests_placeholder": "Aussichtspunkte, lokale Küche, Museen …",
+		"ai.radius_label":          "Suchradius",
+		"ai.empty_hint":            "Lass das Feld leer für sehenswerte Orte in der Nähe deines Reiseziels; gib Interessen ein, um die Ideen zu fokussieren.",
 		"ai.generate":              "Empfehlungen generieren",
 		"ai.disabled_pre":          "KI-Empfehlungen sind deaktiviert. Setze",
 		"ai.disabled_post":         ", um sie zu aktivieren.",
