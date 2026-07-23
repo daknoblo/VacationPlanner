@@ -5,18 +5,21 @@
 <div class="suggestions">
   {{range .Suggestions}}
   <article class="suggestion">
-    <h4>{{.Name}}</h4>
-    {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
-    {{if .Description}}<p class="small">{{.Description}}</p>{{end}}
-    {{if .Reason}}<p class="muted small">💡 {{.Reason}}</p>{{end}}
-    <form hx-post="/vacations/{{$.VacationID}}/items"
-          hx-target="#ideen-list"
-          hx-swap="beforeend">
-      <input type="hidden" name="title" value="{{.Name}}">
-      <input type="hidden" name="category" value="{{.Category}}">
-      <input type="hidden" name="description" value="{{.Description}}">
-      <button class="btn btn--sm" type="submit">{{t "ai.add_sight"}}</button>
-    </form>
+    <img class="suggestion__img" src="/api/destination-image?q={{.Name}}" alt="" loading="lazy" width="400" height="140">
+    <div class="suggestion__body">
+      <h4>{{.Name}}</h4>
+      {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+      {{if .Description}}<p class="small">{{.Description}}</p>{{end}}
+      {{if .Reason}}<p class="muted small">💡 {{.Reason}}</p>{{end}}
+      <form hx-post="/vacations/{{$.VacationID}}/items"
+            hx-target="#ideen-list"
+            hx-swap="beforeend">
+        <input type="hidden" name="title" value="{{.Name}}">
+        <input type="hidden" name="category" value="{{.Category}}">
+        <input type="hidden" name="description" value="{{.Description}}">
+        <button class="btn btn--sm" type="submit">{{t "ai.add_sight"}}</button>
+      </form>
+    </div>
   </article>
   {{end}}
 </div>

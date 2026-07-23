@@ -1155,9 +1155,17 @@ textarea { resize: vertical; }
 .suggestion {
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 0.85rem;
+  overflow: hidden;
   background: #fff;
 }
+.suggestion__img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+.suggestion__body { padding: 0.85rem; }
 .suggestion h4 { margin: 0 0 0.4rem; }
 .suggestion form { margin-top: 0.6rem; }
 
