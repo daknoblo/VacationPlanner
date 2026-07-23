@@ -2,6 +2,7 @@
 <li class="item-row{{if .Visited}} is-visited{{end}}" id="item-{{.ID}}" data-id="{{.ID}}">
   <div class="item-row__head">
     <div class="item-row__title">
+      <img class="item-row__thumb" src="/api/destination-image?q={{.Title}}" alt="" loading="lazy" width="40" height="40">
       {{if .Timed}}<span class="item-row__time">{{.StartLabel}}–{{.EndLabel}}</span>{{end}}
       <strong>{{.Title}}</strong>
       {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
