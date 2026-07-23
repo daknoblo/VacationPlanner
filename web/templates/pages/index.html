@@ -6,7 +6,10 @@
   </div>
   <button type="button" class="btn btn--primary hero__new"
           data-toggle="new-vacation" aria-controls="new-vacation"
-          aria-expanded="{{if not .Data.Cards}}true{{else}}false{{end}}">{{t "index.new"}}</button>
+          aria-expanded="{{if not .Data.Cards}}true{{else}}false{{end}}"
+          title="{{t "index.new"}}" aria-label="{{t "index.new"}}">
+    <span aria-hidden="true">+</span>
+  </button>
 </section>
 
 <section id="new-vacation" class="panel new-vacation"{{if .Data.Cards}} hidden{{end}}>

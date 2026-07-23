@@ -87,7 +87,18 @@ code {
 .hero__text { flex: 1 1 16rem; min-width: 0; }
 .hero h1 { margin: 0.5rem 0 0.25rem; font-size: 2rem; }
 .hero p { margin: 0; }
-.hero__new { flex: 0 0 auto; }
+.hero__new {
+  flex: 0 0 auto;
+  width: 2.9rem;
+  height: 2.9rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.7rem;
+  line-height: 1;
+  border-radius: 8px;
+}
 
 .back { display: inline-block; margin-bottom: 1rem; }
 
