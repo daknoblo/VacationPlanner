@@ -48,6 +48,17 @@
     initGeoLiteInputs();
   });
 
+  // Once an AI suggestion has been added to the trip, remove its tile so it is
+  // not offered again in the current list.
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    var form = e.target && e.target.closest ? e.target.closest("[data-suggestion-add]") : null;
+    if (!form) return;
+    if (e.detail && e.detail.successful) {
+      var card = form.closest(".suggestion");
+      if (card) { card.remove(); }
+    }
+  });
+
   // The travel/lodging editors auto-save on change; suppress native submission.
   document.addEventListener("submit", function (e) {
     if (e.target && e.target.matches && e.target.matches("[data-travel-editor], [data-lodging-editor]")) {

@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -45,8 +46,10 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	existing := make([]string, 0, len(items))
+	seen := make(map[string]bool, len(items))
 	for _, it := range items {
 		existing = append(existing, it.Title)
+		seen[strings.ToLower(strings.TrimSpace(it.Title))] = true
 	}
 
 	input := ai.RecommendInput{
@@ -73,7 +76,16 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		)
 		view.Error = loc.T("ai.failed")
 	default:
-		view.Suggestions = suggestions
+		// Drop anything already on the trip so added suggestions don't reappear
+		// (the model is also told not to repeat them, but this guarantees it).
+		out := make([]ai.Suggestion, 0, len(suggestions))
+		for _, sg := range suggestions {
+			if seen[strings.ToLower(strings.TrimSpace(sg.Name))] {
+				continue
+			}
+			out = append(out, sg)
+		}
+		view.Suggestions = out
 	}
 
 	s.fragment(w, r, "ai_suggestions", view)
