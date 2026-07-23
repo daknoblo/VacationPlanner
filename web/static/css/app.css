@@ -825,6 +825,7 @@ code {
 .travel-step__grid .field { flex: 1 1 150px; min-width: 0; }
 .travel-step__grid .field--mode { flex: 1 1 115px; }
 .travel-step__grid .field--when { flex: 1 1 210px; }
+.travel-step__grid .field--cost { flex: 1 1 110px; }
 .travel-step__grid .field--out { flex: 2 1 220px; align-self: flex-start; }
 .travel-step__grid .field--note { flex: 1 1 100%; }
 .travel-step__grid .field--out .travel-out { display: flex; }

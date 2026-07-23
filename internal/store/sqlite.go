@@ -248,11 +248,11 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO travel_segments
 			(id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
-			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.VacationID, string(t.Kind), t.StepOrder, t.Mode, t.FromLocation, t.ToLocation,
 		t.FromLat, t.FromLng, t.ToLat, t.ToLng, dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt),
-		t.DistanceM, t.DurationS, t.Notes, dbTime(t.CreatedAt))
+		t.DistanceM, t.DurationS, t.Cost, t.Notes, dbTime(t.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating travel segment: %w", err)
 	}
@@ -275,10 +275,10 @@ func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegmen
 			UPDATE travel_segments SET
 				mode = ?, from_location = ?, to_location = ?, from_lat = ?, from_lng = ?,
 				to_lat = ?, to_lng = ?, depart_at = ?, arrive_at = ?, distance_m = ?,
-				duration_s = ?, notes = ?
+				duration_s = ?, cost = ?, notes = ?
 			WHERE id = ?`,
 			t.Mode, t.FromLocation, t.ToLocation, t.FromLat, t.FromLng, t.ToLat, t.ToLng,
-			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Notes, t.ID)
+			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Cost, t.Notes, t.ID)
 		if uerr != nil {
 			return fmt.Errorf("store: updating travel segment: %w", uerr)
 		}
@@ -293,7 +293,7 @@ func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegmen
 func (s *SQLite) ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
-		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, notes, created_at
+		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, notes, created_at
 		FROM travel_segments WHERE vacation_id = ? ORDER BY kind ASC, step_order ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing travel segments: %w", err)
@@ -771,7 +771,7 @@ func scanTravel(sc rowScanner, t *models.TravelSegment) error {
 	var depart, arrive sql.NullString
 	if err := sc.Scan(&t.ID, &t.VacationID, &kind, &t.StepOrder, &t.Mode, &t.FromLocation,
 		&t.ToLocation, &t.FromLat, &t.FromLng, &t.ToLat, &t.ToLng, &depart, &arrive,
-		&t.DistanceM, &t.DurationS, &t.Notes, &created); err != nil {
+		&t.DistanceM, &t.DurationS, &t.Cost, &t.Notes, &created); err != nil {
 		return err
 	}
 	t.Kind = models.TravelKind(kind)

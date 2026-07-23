@@ -94,6 +94,7 @@ type TravelSegment struct {
 	ArriveAt     *time.Time
 	DistanceM    *float64
 	DurationS    *int
+	Cost         *float64
 	Notes        string
 	CreatedAt    time.Time
 }

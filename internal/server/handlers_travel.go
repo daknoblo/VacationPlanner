@@ -195,6 +195,11 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, errTarget, loc.T("error.depart_invalid"))
 		return
 	}
+	cost, err := parseCostPtr(r, loc)
+	if err != nil {
+		s.formError(w, r, errTarget, err.Error())
+		return
+	}
 	fromLat, fromLng, _ := parseCoords(r, "from_lat", "from_lng")
 	toLat, toLng, _ := parseCoords(r, "to_lat", "to_lng")
 
@@ -210,6 +215,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		ToLat:        toLat,
 		ToLng:        toLng,
 		DepartAt:     departAt,
+		Cost:         cost,
 		Notes:        notes,
 	}
 	s.computeTravel(r.Context(), seg)

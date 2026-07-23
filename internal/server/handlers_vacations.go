@@ -159,7 +159,7 @@ type budgetExpense struct {
 
 // newBudgetView computes the budget breakdown and spending statistics for a
 // vacation from its items. icons maps lower-cased category names to emoji.
-func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency, lodgingLabel string) budgetView {
+func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency, lodgingLabel, travelLabel string) budgetView {
 	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
 
 	catAmount := map[string]float64{}
@@ -214,6 +214,43 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		})
 	}
 
+	// Travel legs (flights, trains, ferries, …) count toward the budget under a
+	// single travel category.
+	for _, ts := range v.TravelSegments {
+		if ts.Cost == nil {
+			continue
+		}
+		amt := *ts.Cost
+		b.Spent += amt
+		b.ExpenseCount++
+		if amt > b.TopAmount {
+			b.TopAmount = amt
+		}
+		if _, ok := catAmount[travelLabel]; !ok {
+			catOrder = append(catOrder, travelLabel)
+		}
+		catAmount[travelLabel] += amt
+		title := travelLabel
+		switch {
+		case ts.FromLocation != "" && ts.ToLocation != "":
+			title = ts.FromLocation + " → " + ts.ToLocation
+		case ts.ToLocation != "":
+			title = ts.ToLocation
+		case ts.FromLocation != "":
+			title = ts.FromLocation
+		}
+		day := ""
+		if ts.DepartAt != nil {
+			day = fmtDate(*ts.DepartAt)
+		}
+		b.Expenses = append(b.Expenses, budgetExpense{
+			Title:    title,
+			Icon:     "✈",
+			DayLabel: day,
+			Amount:   amt,
+		})
+	}
+
 	if b.ExpenseCount > 0 {
 		b.AvgExpense = b.Spent / float64(b.ExpenseCount)
 	}
@@ -233,6 +270,9 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		icon := icons[strings.ToLower(name)]
 		if name == lodgingLabel {
 			icon = "🛏"
+		}
+		if name == travelLabel {
+			icon = "✈"
 		}
 		b.Categories = append(b.Categories, budgetCategory{
 			Name: name, Icon: icon, Amount: amt, Percent: pct,
@@ -308,7 +348,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
-		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging")),
+		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging"), loc.T("tab.travel")),
 		"Currency":        currency,
 		"Categories":      categories,
 		"HomeAddress":     s.homeAddress(r.Context()),
@@ -626,7 +666,8 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 		}
 		var distM float64
 		var durS int
-		var haveDist, haveDur bool
+		var costSum float64
+		var haveDist, haveDur, haveCost bool
 		for _, ts := range legs {
 			if ts.DistanceM != nil {
 				distM += *ts.DistanceM
@@ -635,6 +676,10 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 			if ts.DurationS != nil {
 				durS += *ts.DurationS
 				haveDur = true
+			}
+			if ts.Cost != nil {
+				costSum += *ts.Cost
+				haveCost = true
 			}
 		}
 		first, last := legs[0], legs[len(legs)-1]
@@ -691,6 +736,10 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 		}
 		if haveDur {
 			oa.DurationLabel = formatDuration(float64(durS))
+		}
+		if haveCost {
+			c := costSum
+			oa.Cost = &c
 		}
 		activities = append(activities, oa)
 	}
@@ -757,8 +806,12 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	if v.TravelSegments, err = s.store.ListTravelSegments(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	loc := i18n.FromContext(r.Context())
-	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging")))
+	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging"), loc.T("tab.travel")))
 }
 
 // handleOverviewFragment re-renders the overview activity list.

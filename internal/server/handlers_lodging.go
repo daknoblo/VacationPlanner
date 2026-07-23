@@ -39,7 +39,7 @@ func (s *Server) lodgingFromForm(r *http.Request, tz *time.Location) (*models.Lo
 	if err != nil {
 		return nil, err
 	}
-	cost, err := parseCostPtr(r, "cost", loc)
+	cost, err := parseCostPtr(r, loc)
 	if err != nil {
 		return nil, err
 	}

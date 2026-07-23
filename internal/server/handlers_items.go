@@ -52,7 +52,7 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	cost, err := parseCostPtr(r, "cost", loc)
+	cost, err := parseCostPtr(r, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,9 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	}, nil
 }
 
-// parseCostPtr reads an optional, non-negative monetary amount.
-func parseCostPtr(r *http.Request, field string, loc *i18n.Localizer) (*float64, error) {
-	v := strings.TrimSpace(formStr(r, field))
+// parseCostPtr reads an optional, non-negative monetary amount from the "cost" field.
+func parseCostPtr(r *http.Request, loc *i18n.Localizer) (*float64, error) {
+	v := strings.TrimSpace(formStr(r, "cost"))
 	if v == "" {
 		return nil, nil
 	}
@@ -260,7 +260,7 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "#item-error", loc.T("error.planned_invalid"))
 		return
 	}
-	cost, err := parseCostPtr(r, "cost", loc)
+	cost, err := parseCostPtr(r, loc)
 	if err != nil {
 		s.formError(w, r, "#item-error", err.Error())
 		return
