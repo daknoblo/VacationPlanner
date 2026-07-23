@@ -83,8 +83,11 @@ code {
 }
 
 /* Hero */
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.hero__text { flex: 1 1 16rem; min-width: 0; }
 .hero h1 { margin: 0.5rem 0 0.25rem; font-size: 2rem; }
-.hero p { margin: 0 0 1rem; }
+.hero p { margin: 0; }
+.hero__new { flex: 0 0 auto; }
 
 .back { display: inline-block; margin-bottom: 1rem; }
 
@@ -1016,9 +1019,6 @@ textarea { resize: vertical; }
 .btn--danger:hover { background: #fef2f2; }
 .btn--ghost { background: transparent; }
 .btn--sm { padding: 0.3rem 0.55rem; font-size: 0.85rem; border-radius: 8px; }
-
-.new-vacation summary { display: inline-block; list-style: none; }
-.new-vacation summary::-webkit-details-marker { display: none; }
 
 /* Cards */
 .cards {

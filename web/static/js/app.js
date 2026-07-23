@@ -301,6 +301,23 @@
     }
   }, true);
 
+  // Generic show/hide toggle for a panel referenced by [data-toggle="panel-id"]
+  // (e.g. the dashboard "new vacation" form).
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest("[data-toggle]") : null;
+    if (!btn) return;
+    var panel = document.getElementById(btn.getAttribute("data-toggle"));
+    if (!panel) return;
+    var show = panel.hasAttribute("hidden");
+    if (show) { panel.removeAttribute("hidden"); } else { panel.setAttribute("hidden", ""); }
+    btn.setAttribute("aria-expanded", show ? "true" : "false");
+    if (show) {
+      window.setTimeout(function () {
+        for (var i = 0; i < locationMaps.length; i++) { locationMaps[i].invalidateSize(); }
+      }, 60);
+    }
+  });
+
   // Open the native date/time picker as soon as the field is clicked.
   document.addEventListener("click", function (e) {
     var el = e.target;
