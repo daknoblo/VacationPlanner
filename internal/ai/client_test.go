@@ -65,6 +65,44 @@ func TestClientDisabled(t *testing.T) {
 	}
 }
 
+func TestBuildEndpoint(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		model   string
+		apiVer  string
+		want    string
+	}{
+		{
+			name:    "openai compatible",
+			baseURL: "https://api.openai.com/v1",
+			model:   "gpt-4o-mini",
+			want:    "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			name:    "azure adds deployment path",
+			baseURL: "https://ddf6-msfoundry.openai.azure.com",
+			model:   "model-router",
+			apiVer:  "2025-01-01-preview",
+			want:    "https://ddf6-msfoundry.openai.azure.com/openai/deployments/model-router/chat/completions?api-version=2025-01-01-preview",
+		},
+		{
+			name:    "azure base already has deployment",
+			baseURL: "https://x.openai.azure.com/openai/deployments/dep",
+			model:   "dep",
+			apiVer:  "2024-02-15-preview",
+			want:    "https://x.openai.azure.com/openai/deployments/dep/chat/completions?api-version=2024-02-15-preview",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := buildEndpoint(tc.baseURL, tc.model, tc.apiVer); got != tc.want {
+				t.Fatalf("buildEndpoint = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDoChatErrorSurfacesEndpointAndBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

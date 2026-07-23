@@ -104,6 +104,25 @@ func (c *Client) Recommend(ctx context.Context, baseURL, model, apiVersion strin
 	return parseSuggestions(content)
 }
 
+// buildEndpoint constructs the chat-completions URL for the request. When
+// apiVersion is set it targets Azure OpenAI, where the deployment name (passed
+// as the model) is part of the path — unless the base URL already points at a
+// deployment — and an ?api-version query parameter is required. Otherwise it
+// uses the standard OpenAI-compatible "{baseURL}/chat/completions" path.
+func buildEndpoint(baseURL, model, apiVersion string) string {
+	apiVer := strings.TrimSpace(apiVersion)
+	var endpoint string
+	if apiVer != "" && !strings.Contains(baseURL, "/deployments/") {
+		endpoint = baseURL + "/openai/deployments/" + url.PathEscape(model) + "/chat/completions"
+	} else {
+		endpoint = baseURL + "/chat/completions"
+	}
+	if apiVer != "" {
+		endpoint += "?api-version=" + url.QueryEscape(apiVer)
+	}
+	return endpoint
+}
+
 // doChat performs a chat-completion request and returns the assistant message
 // content. When apiVersion is set it targets an Azure OpenAI-style endpoint
 // (?api-version=... plus the api-key header) alongside the Bearer token.
@@ -121,10 +140,7 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 		return "", fmt.Errorf("ai: encoding request: %w", err)
 	}
 
-	endpoint := baseURL + "/chat/completions"
-	if v := strings.TrimSpace(apiVersion); v != "" {
-		endpoint += "?api-version=" + url.QueryEscape(v)
-	}
+	endpoint := buildEndpoint(baseURL, model, apiVersion)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("ai: building request: %w", err)
