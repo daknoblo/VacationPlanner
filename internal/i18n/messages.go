@@ -222,7 +222,7 @@ var messages = map[Lang]map[string]string{
 		"ai.add_sight":             "+ Add to sights",
 		"ai.none":                  "No recommendations received. Try different interests.",
 		"ai.not_configured":        "AI recommendations are not configured. Set VP_API_KEY to enable them.",
-		"ai.failed":                "The AI recommendations could not be loaded right now. Please try again later.",
+		"ai.failed":                "The AI endpoint could not be reached. Check the endpoint URL, model and API key under Settings → External data (details are in the log under Settings → Logs & diagnostics).",
 
 		// Settings
 		"page.settings.title":    "Settings",
@@ -571,7 +571,7 @@ var messages = map[Lang]map[string]string{
 		"ai.add_sight":             "+ Zu Sehenswürdigkeiten",
 		"ai.none":                  "Keine Empfehlungen erhalten. Versuche es mit anderen Interessen.",
 		"ai.not_configured":        "KI-Empfehlungen sind nicht konfiguriert. Setze VP_API_KEY, um sie zu aktivieren.",
-		"ai.failed":                "Die KI-Empfehlungen konnten gerade nicht geladen werden. Bitte später erneut versuchen.",
+		"ai.failed":                "Der KI-Endpunkt konnte nicht erreicht werden. Prüfe Endpunkt-URL, Modell und API-Schlüssel unter Einstellungen → Externe Daten (Details im Log unter Einstellungen → Logs & Diagnose).",
 
 		// Settings
 		"page.settings.title":    "Einstellungen",

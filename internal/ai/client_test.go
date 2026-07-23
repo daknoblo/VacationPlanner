@@ -1,6 +1,12 @@
 package ai
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
 func TestParseSuggestionsObject(t *testing.T) {
 	in := `{"suggestions":[{"name":"Castelo","category":"Burg","description":"d","reason":"r"}]}`
@@ -56,5 +62,26 @@ func TestClientDisabled(t *testing.T) {
 	c := New("")
 	if c.Enabled() {
 		t.Fatal("client without API key must be disabled")
+	}
+}
+
+func TestDoChatErrorSurfacesEndpointAndBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":{"message":"The model gpt-x does not exist"}}`))
+	}))
+	defer srv.Close()
+
+	c := New("test-key")
+	_, err := c.doChat(context.Background(), srv.URL, "gpt-x", "",
+		[]chatMessage{{Role: "user", Content: "hi"}}, 0.5)
+	if err == nil {
+		t.Fatal("expected an error for a 404 response")
+	}
+	msg := err.Error()
+	for _, want := range []string{"404", "gpt-x", "does not exist", srv.URL} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("error %q should contain %q", msg, want)
+		}
 	}
 }

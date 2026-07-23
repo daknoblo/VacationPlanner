@@ -64,7 +64,13 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ai.ErrDisabled):
 		view.Error = loc.T("ai.not_configured")
 	case err != nil:
-		s.log.Warn("ai recommendation failed", "err", err, "vacation_id", vacationID)
+		s.log.Warn("ai recommendation failed",
+			"err", err,
+			"vacation_id", vacationID,
+			"base_url", baseURL,
+			"model", model,
+			"api_version_set", apiVersion != "",
+		)
 		view.Error = loc.T("ai.failed")
 	default:
 		view.Suggestions = suggestions

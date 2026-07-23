@@ -146,7 +146,16 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 		return "", fmt.Errorf("ai: reading response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ai: endpoint returned status %d", resp.StatusCode)
+		// Surface the endpoint and the endpoint's own error message/body so a
+		// misconfiguration (wrong base URL, model or deployment) is diagnosable
+		// from the logs. The API key travels in headers, never in the URL.
+		detail := bodySnippet(body)
+		var parsed chatResponse
+		if json.Unmarshal(body, &parsed) == nil && parsed.Error != nil && strings.TrimSpace(parsed.Error.Message) != "" {
+			detail = oneLine(parsed.Error.Message)
+		}
+		return "", fmt.Errorf("ai: %s POST %s returned status %d: %s",
+			model, endpoint, resp.StatusCode, detail)
 	}
 
 	var parsed chatResponse
@@ -160,6 +169,25 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 		return "", fmt.Errorf("ai: endpoint returned no choices")
 	}
 	return parsed.Choices[0].Message.Content, nil
+}
+
+// oneLine collapses whitespace so a value is safe to embed in a single-line log
+// or error message (also mitigates log injection).
+func oneLine(s string) string {
+	return strings.NewReplacer("\n", " ", "\r", " ", "\t", " ").Replace(strings.TrimSpace(s))
+}
+
+// bodySnippet returns a compact, length-capped view of a response body.
+func bodySnippet(b []byte) string {
+	s := oneLine(string(b))
+	if s == "" {
+		return "(empty body)"
+	}
+	const maxLen = 300
+	if r := []rune(s); len(r) > maxLen {
+		s = string(r[:maxLen]) + "…"
+	}
+	return s
 }
 
 func buildUserPrompt(in RecommendInput) string {
