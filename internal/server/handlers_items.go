@@ -219,7 +219,7 @@ func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	categories, _ := s.store.ListCategories(r.Context())
-	participants, _ := s.store.ListVacationParticipants(r.Context(), item.VacationID)
+	participants := s.formPayerOptions(r.Context(), item.VacationID)
 	s.fragment(w, r, "item_edit", map[string]any{
 		"Item":         item,
 		"Cats":         categories,

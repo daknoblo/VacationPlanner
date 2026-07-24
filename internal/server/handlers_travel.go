@@ -91,7 +91,7 @@ func travelTotalFor(v *models.Vacation, kind models.TravelKind, oob bool) travel
 // it renders a single blank step pre-filled with sensible endpoint defaults.
 func (s *Server) travelBlock(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelBlockView {
 	if v.Participants == nil {
-		v.Participants, _ = s.store.ListVacationParticipants(ctx, v.ID)
+		v.Participants = s.formPayerOptions(ctx, v.ID)
 	}
 	steps := stepsForKind(v, kind)
 	multi := len(steps) > 1
@@ -235,7 +235,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), vacationID)
+	v.Participants = s.formPayerOptions(r.Context(), vacationID)
 	s.fragment(w, r, "travel_saved", map[string]any{
 		"Step":  s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false),
 		"Total": travelTotalFor(v, kind, true),

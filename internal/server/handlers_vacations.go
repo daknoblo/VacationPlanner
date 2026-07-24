@@ -194,13 +194,18 @@ type budgetExpense struct {
 
 // newBudgetView computes the budget breakdown and spending statistics for a
 // vacation from its items. icons maps lower-cased category names to emoji.
-func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency, lodgingLabel, travelLabel string) budgetView {
+func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.Person, icons map[string]string, currency, lodgingLabel, travelLabel string) budgetView {
 	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
 
 	// Cost attribution: track how much each person paid, plus the unassigned
-	// total. personByID resolves a payer reference to a display name and color.
+	// total. personByID resolves a payer reference to a display name and color;
+	// it spans all defined people so a payer is named even when the trip has no
+	// explicit participants yet.
 	paidByPerson := map[uuid.UUID]float64{}
-	personByID := make(map[uuid.UUID]models.Person, len(v.Participants))
+	personByID := make(map[uuid.UUID]models.Person, len(allPeople)+len(v.Participants))
+	for _, p := range allPeople {
+		personByID[p.ID] = p
+	}
 	for _, p := range v.Participants {
 		personByID[p.ID] = p
 	}
@@ -348,12 +353,22 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 	sort.SliceStable(b.Categories, func(i, j int) bool { return b.Categories[i].Amount > b.Categories[j].Amount })
 	sort.SliceStable(b.Expenses, func(i, j int) bool { return b.Expenses[i].Amount > b.Expenses[j].Amount })
 
-	// Per-person balances: each attributed expense is split equally among all
-	// participants. A person's balance is what they paid minus their share.
-	if len(v.Participants) > 0 {
+	// Per-person balances: each attributed expense is split equally among the
+	// split group. That group is the trip's participants when any are selected;
+	// otherwise it falls back to the people who actually paid something, so the
+	// breakdown still works before participants have been chosen.
+	splitPeople := v.Participants
+	if len(splitPeople) == 0 {
+		for _, p := range allPeople {
+			if _, paid := paidByPerson[p.ID]; paid {
+				splitPeople = append(splitPeople, p)
+			}
+		}
+	}
+	if len(splitPeople) > 0 {
 		b.HasPeople = true
-		share := b.AttributedTotal / float64(len(v.Participants))
-		for _, p := range v.Participants {
+		share := b.AttributedTotal / float64(len(splitPeople))
+		for _, p := range splitPeople {
 			paid := paidByPerson[p.ID]
 			bp := budgetPerson{
 				ID:      p.ID.String(),
@@ -489,10 +504,20 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	activities, ideas := overviewFromCards(loc, tz, v, cardMap)
 	currency := s.currencySymbol(r.Context())
 
+	// The budget split is based on the true participants (or the payers, as a
+	// fallback). Compute it before offering all people as paid-by options below.
+	budget := newBudgetView(v, v.Items, allPeople, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging"), loc.T("tab.travel"))
+
+	// Paid-by dropdowns offer the trip's participants, or all defined people when
+	// none are selected yet, so the field is usable before participants are chosen.
+	if len(v.Participants) == 0 {
+		v.Participants = allPeople
+	}
+
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
-		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging"), loc.T("tab.travel")),
+		"Budget":          budget,
 		"Currency":        currency,
 		"Categories":      categories,
 		"People":          allPeople,
@@ -959,8 +984,9 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
+	allPeople, _ := s.store.ListPeople(r.Context())
 	loc := i18n.FromContext(r.Context())
-	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging"), loc.T("tab.travel")))
+	s.fragment(w, r, "budget_panel", newBudgetView(v, items, allPeople, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging"), loc.T("tab.travel")))
 }
 
 // handleOverviewFragment re-renders the overview activity list.
@@ -1305,6 +1331,18 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		Budget:      budget,
 		People:      people,
 	}, nil
+}
+
+// formPayerOptions returns the people offered in a trip's "paid by" dropdowns:
+// its participants when any are selected, otherwise all defined people so the
+// field stays usable before participants have been chosen.
+func (s *Server) formPayerOptions(ctx context.Context, vacationID uuid.UUID) []models.Person {
+	parts, _ := s.store.ListVacationParticipants(ctx, vacationID)
+	if len(parts) > 0 {
+		return parts
+	}
+	people, _ := s.store.ListPeople(ctx)
+	return people
 }
 
 // selectedParticipants reads the checked "participant" person IDs from the form,

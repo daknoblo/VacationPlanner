@@ -92,7 +92,7 @@ func (s *Server) handleCreateLodging(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
+	v.Participants = s.formPayerOptions(r.Context(), id)
 	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "lodging_editor", newLodgingEditorView(tz, v, lo))
 }
