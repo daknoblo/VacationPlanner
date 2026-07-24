@@ -663,6 +663,14 @@ code {
 .ideas-backlog__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .ideas-backlog__chips--cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; align-items: start; }
 .ideas-backlog__chips--cols .idea-chip { display: flex; }
+/* In the week view, keep the ideas backlog pinned just below the sticky top
+   bar while scrolling, so ideas can be dragged onto weeks further down. */
+.weekview .ideas-backlog {
+  position: sticky;
+  top: 3.25rem;
+  z-index: 400;
+  box-shadow: 0 8px 12px -8px rgba(2, 6, 23, 0.28);
+}
 /* Separator between the ideas backlog and the day/week calendar. */
 .tp-divider { border-top: 2px solid var(--line); margin: 0.4rem 0 1.25rem; }
 .idea-chip {
