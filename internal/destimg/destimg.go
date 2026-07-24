@@ -160,18 +160,103 @@ func (c *Client) Fetch(ctx context.Context, destination, lang string) (data []by
 }
 
 func (c *Client) fetch(ctx context.Context, title, lang string) ([]byte, string, bool) {
-	summaryURL := fmt.Sprintf("https://%s.wikipedia.org/api/rest_v1/page/summary/%s",
-		lang, url.PathEscape(title))
-	thumb, err := c.thumbnailURL(ctx, summaryURL)
-	if err != nil || thumb == "" {
+	// Try, in order of decreasing precision: the exact-title Wikipedia summary
+	// thumbnail in the UI language, then in English, then a search-based page
+	// image (handles compound or slightly-off names that have no exact article)
+	// in the UI language, then in English. Everything stays on Wikimedia hosts.
+	langs := []string{lang}
+	if lang != "en" {
+		langs = append(langs, "en")
+	}
+	for _, lg := range langs {
+		summaryURL := fmt.Sprintf("https://%s.wikipedia.org/api/rest_v1/page/summary/%s",
+			lg, url.PathEscape(title))
+		if thumb, err := c.thumbnailURL(ctx, summaryURL); err == nil {
+			if data, ctype, ok := c.downloadThumbnail(ctx, thumb); ok {
+				return data, ctype, true
+			}
+		}
+	}
+	for _, lg := range langs {
+		if thumb := c.searchThumbnailURL(ctx, title, lg); thumb != "" {
+			if data, ctype, ok := c.downloadThumbnail(ctx, thumb); ok {
+				return data, ctype, true
+			}
+		}
+	}
+	return nil, "", false
+}
+
+// downloadThumbnail validates that a thumbnail URL is hosted on Wikimedia (SSRF
+// guard) and downloads it. An empty URL yields ok=false.
+func (c *Client) downloadThumbnail(ctx context.Context, thumb string) ([]byte, string, bool) {
+	if thumb == "" {
 		return nil, "", false
 	}
-	// SSRF guard: only download images hosted on Wikimedia.
 	u, err := url.Parse(thumb)
 	if err != nil || !isWikimediaHost(u.Host) {
 		return nil, "", false
 	}
 	return c.download(ctx, thumb)
+}
+
+// searchThumbnailURL finds the best-matching Wikipedia article for the query via
+// the MediaWiki search generator and returns its page image. This recovers an
+// image when the exact-title summary lookup fails (e.g. compound POI names).
+func (c *Client) searchThumbnailURL(ctx context.Context, title, lang string) string {
+	q := url.Values{}
+	q.Set("action", "query")
+	q.Set("format", "json")
+	q.Set("generator", "search")
+	q.Set("gsrsearch", title)
+	q.Set("gsrlimit", "5")
+	q.Set("gsrnamespace", "0")
+	q.Set("prop", "pageimages")
+	q.Set("piprop", "thumbnail")
+	q.Set("pithumbsize", "640")
+	q.Set("redirects", "1")
+	apiURL := fmt.Sprintf("https://%s.wikipedia.org/w/api.php?%s", lang, q.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	var payload struct {
+		Query struct {
+			Pages map[string]struct {
+				Index     int `json:"index"`
+				Thumbnail struct {
+					Source string `json:"source"`
+				} `json:"thumbnail"`
+			} `json:"pages"`
+		} `json:"query"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&payload); err != nil {
+		return ""
+	}
+	// Pick the thumbnail of the highest-ranked search result (lowest index).
+	best, bestIndex := "", 0
+	for _, p := range payload.Query.Pages {
+		if p.Thumbnail.Source == "" {
+			continue
+		}
+		if best == "" || p.Index < bestIndex {
+			best, bestIndex = p.Thumbnail.Source, p.Index
+		}
+	}
+	return best
 }
 
 func (c *Client) thumbnailURL(ctx context.Context, summaryURL string) (string, error) {

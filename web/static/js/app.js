@@ -249,7 +249,14 @@
     }
     if (hasPoint) setPoint(lat, lng, hasStoredZoom ? storedZoom : 6, false);
 
-    lmap.on("click", function (e) { setPoint(e.latlng.lat, e.latlng.lng, null, true); });
+    // When the picker clears its label on manual clicks (e.g. the AI search
+    // center), a raw map click sets a new point without a matching name, so drop
+    // the stale label — the coordinates alone then define the location.
+    var clearLabelOnClick = pk.hasAttribute("data-geocode-clear-on-click");
+    lmap.on("click", function (e) {
+      setPoint(e.latlng.lat, e.latlng.lng, null, true);
+      if (clearLabelOnClick && input) { input.value = ""; }
+    });
     window.setTimeout(function () { lmap.invalidateSize(); }, 200);
 
     function hideList() { if (list) { list.hidden = true; list.innerHTML = ""; } }

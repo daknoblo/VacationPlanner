@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
@@ -148,7 +147,7 @@ func TestRenderFragments(t *testing.T) {
 		{"attachments", attachmentsView{ListURL: "/items/x/documents", CSRF: "tok", Error: "too large"}},
 		{"ai_suggestions", aiSuggestionsView{
 			VacationID:  v.ID.String(),
-			Suggestions: []ai.Suggestion{{Name: "Castelo", Category: "Burg", Description: "d", Reason: "r"}},
+			Suggestions: []suggestionView{{Name: "Castelo", Category: "Burg", Description: "d", Reason: "r", MapsURL: "https://www.google.com/maps/search/?api=1&query=Castelo", Website: "https://example.com"}},
 		}},
 		{"ai_suggestions", aiSuggestionsView{VacationID: v.ID.String(), Error: "deaktiviert"}},
 	}

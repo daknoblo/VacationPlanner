@@ -251,6 +251,18 @@
           <label for="ai-interests">{{t "ai.interests_label"}} <span class="muted">{{t "label.optional"}}</span></label>
           <input id="ai-interests" name="interests" maxlength="500" placeholder="{{t "ai.interests_placeholder"}}">
         </div>
+        <div class="field field--wide location-picker ai-location-picker" data-geocode-clear-on-click>
+          <label for="ai-location">{{t "ai.location_label"}}</label>
+          <div class="location-picker__field">
+            <input id="ai-location" name="ai_location" autocomplete="off" maxlength="200"
+                   data-geocode-input value="{{$v.Destination}}">
+            <div class="suggest" data-geocode-list hidden></div>
+          </div>
+          <input type="hidden" name="ai_lat" data-geocode-lat value="{{coord $v.Latitude}}">
+          <input type="hidden" name="ai_lng" data-geocode-lng value="{{coord $v.Longitude}}">
+          <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
+          <p class="muted small">{{t "ai.location_hint"}}</p>
+        </div>
         <div class="field field--wide">
           <label for="ai-radius">{{t "ai.radius_label"}} (<span class="range-value" data-range-value>25</span> km)</label>
           <input id="ai-radius" name="radius" type="range" min="1" max="300" step="1" value="25" data-range>

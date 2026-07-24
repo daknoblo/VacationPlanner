@@ -10,6 +10,10 @@
       {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
       {{if .Description}}<p class="small">{{.Description}}</p>{{end}}
       {{if .Reason}}<p class="muted small">💡 {{.Reason}}</p>{{end}}
+      <div class="suggestion__links">
+        <a class="suggestion__link" href="{{.MapsURL}}" target="_blank" rel="noopener noreferrer">⭐ {{t "ai.google_maps"}}</a>
+        {{if .Website}}<a class="suggestion__link" href="{{.Website}}" target="_blank" rel="noopener noreferrer">🔗 {{t "ai.website"}}</a>{{end}}
+      </div>
       <form hx-post="/vacations/{{$.VacationID}}/items"
             hx-target="#ideen-list"
             hx-swap="beforeend"

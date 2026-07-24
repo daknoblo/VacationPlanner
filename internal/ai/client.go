@@ -48,6 +48,7 @@ type Suggestion struct {
 	Category    string `json:"category"`
 	Description string `json:"description"`
 	Reason      string `json:"reason"`
+	Website     string `json:"website"`
 }
 
 // RecommendInput carries the trip context used to build the prompt.
@@ -58,6 +59,14 @@ type RecommendInput struct {
 	Interests   string
 	RadiusKm    int
 	Existing    []string
+	// Origin is the search center chosen by the user (a label such as a place
+	// name). When HasOrigin is set, OriginLat/OriginLng give its exact
+	// coordinates and the radius is measured from that point instead of the
+	// trip destination.
+	Origin    string
+	OriginLat float64
+	OriginLng float64
+	HasOrigin bool
 }
 
 type chatMessage struct {
@@ -81,10 +90,12 @@ type chatResponse struct {
 }
 
 const systemPrompt = `You are a concise travel assistant. ` +
-	`Given a destination and trip context, suggest real, notable points of interest that are located AT or NEAR that destination — ` +
-	`in the SAME city/region and the SAME country. Never suggest places in a different country or a far-away region. ` +
+	`Given a search center and trip context, suggest real, notable points of interest that are located AT or NEAR that search center — ` +
+	`within the given radius, in the SAME country. Never suggest places in a different country or far outside the radius. ` +
+	`When coordinates are given, treat them as the authoritative center. ` +
 	`Respond with STRICT JSON only, no markdown, in this exact shape: ` +
-	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"..."}]}. ` +
+	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"...","website":"..."}]}. ` +
+	`Set "website" to the official website URL (starting with https://) when you are confident it is correct, otherwise use an empty string; never invent a URL. ` +
 	`Provide between 4 and 6 suggestions. Keep description and reason to one short sentence each.`
 
 // Recommend asks the model for points of interest for the given trip. baseURL,
@@ -208,9 +219,20 @@ func bodySnippet(b []byte) string {
 
 func buildUserPrompt(in RecommendInput) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Destination: %s\n", in.Destination)
-	fmt.Fprintf(&b, "Only suggest places within about %d km of %s, in the same country and region.\n",
-		radiusOrDefault(in.RadiusKm), in.Destination)
+	fmt.Fprintf(&b, "Trip destination: %s\n", in.Destination)
+	center := strings.TrimSpace(in.Origin)
+	if center == "" {
+		center = in.Destination
+	}
+	if in.HasOrigin {
+		fmt.Fprintf(&b, "Search center: %s (latitude %.5f, longitude %.5f). Use these coordinates as the authoritative center.\n",
+			center, in.OriginLat, in.OriginLng)
+		fmt.Fprintf(&b, "Only suggest places within about %d km of that search center, in the same country.\n",
+			radiusOrDefault(in.RadiusKm))
+	} else {
+		fmt.Fprintf(&b, "Only suggest places within about %d km of %s, in the same country and region.\n",
+			radiusOrDefault(in.RadiusKm), center)
+	}
 	if in.StartDate != "" || in.EndDate != "" {
 		fmt.Fprintf(&b, "Travel dates: %s to %s\n", in.StartDate, in.EndDate)
 	}

@@ -137,6 +137,8 @@ code {
   border-radius: 10px;
   z-index: 0;
 }
+/* The AI search-center picker uses a larger, half-page map. */
+.ai-location-picker .location-map { height: 360px; }
 .suggest {
   position: absolute;
   top: 100%;
@@ -1169,6 +1171,19 @@ textarea { resize: vertical; }
 .suggestion__body { flex: 1 1 auto; min-width: 0; padding: 0.85rem; }
 .suggestion h4 { margin: 0 0 0.4rem; }
 .suggestion form { margin-top: 0.6rem; }
+.suggestion__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin-top: 0.55rem;
+}
+.suggestion__link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+.suggestion__link:hover { text-decoration: underline; }
 
 /* Narrow screens: shrink the right-hand thumbnail strip */
 @media (max-width: 560px) {
