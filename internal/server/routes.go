@@ -49,6 +49,8 @@ func (s *Server) routes() {
 	r.Get("/settings/logs", s.handleLogs)
 	r.Post("/settings/categories", s.handleCreateCategory)
 	r.Delete("/settings/categories/{categoryID}", s.handleDeleteCategory)
+	r.Post("/settings/people", s.handleCreatePerson)
+	r.Delete("/settings/people/{personID}", s.handleDeletePerson)
 	r.Post("/settings/optimize", s.handleOptimizeDB)
 	r.Post("/settings/autovacuum", s.handleUpdateAutoVacuum)
 	r.Delete("/settings/vacations/{vacationID}", s.handleDeleteVacationSettings)

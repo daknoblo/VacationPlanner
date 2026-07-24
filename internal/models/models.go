@@ -28,6 +28,7 @@ type Vacation struct {
 	TravelSegments []TravelSegment
 	Items          []Item
 	Lodgings       []Lodging
+	Participants   []Person
 }
 
 // Nights returns the number of nights between start and end date.
@@ -95,6 +96,7 @@ type TravelSegment struct {
 	DistanceM    *float64
 	DurationS    *int
 	Cost         *float64
+	PaidBy       *uuid.UUID
 	Notes        string
 	CreatedAt    time.Time
 }
@@ -121,6 +123,7 @@ type Item struct {
 	StartMin    int
 	EndMin      int
 	Cost        *float64
+	PaidBy      *uuid.UUID
 	Visited     bool
 	Notes       string
 	// OriginRef is a soft reference to the start point used for the distance and
@@ -175,6 +178,16 @@ type Category struct {
 	CreatedAt time.Time
 }
 
+// Person is a trip companion that costs can be attributed to. People are managed
+// globally (like categories) and selected per trip as participants.
+type Person struct {
+	ID        uuid.UUID
+	Name      string
+	Color     string
+	SortOrder int
+	CreatedAt time.Time
+}
+
 // Lodging is a place to stay for part of the trip, spanning a check-in to a
 // check-out date and time. It is shown as a narrow strip on the day/week
 // planner over the hours it covers on each day.
@@ -188,6 +201,7 @@ type Lodging struct {
 	CheckIn    time.Time
 	CheckOut   time.Time
 	Cost       *float64
+	PaidBy     *uuid.UUID
 	Notes      string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

@@ -26,19 +26,20 @@ type travelBlockView struct {
 
 // travelEditorView is the data for one inline arrival/departure step editor.
 type travelEditorView struct {
-	Seg         *models.TravelSegment
-	VID         string
-	Kind        models.TravelKind
-	Number      int  // 1-based position shown to the user
-	StepOrder   int  // stable key within the kind
-	Multi       bool // block has more than one step (shows connectors + remove)
-	Home        string
-	DepartDate  string // date input value (YYYY-MM-DD), defaulted to the trip start/end
-	DepartTime  string // time input value (HH:MM), empty until the user sets it
-	DistLabel   string // formatted distance, e.g. "210 km" (empty when unknown)
-	DurLabel    string // formatted duration, e.g. "2 h 10 min" (empty when unknown)
-	ArriveLabel string // formatted computed arrival (empty when unknown)
-	Approx      bool   // duration is a straight-line estimate (not routed)
+	Seg          *models.TravelSegment
+	VID          string
+	Kind         models.TravelKind
+	Number       int  // 1-based position shown to the user
+	StepOrder    int  // stable key within the kind
+	Multi        bool // block has more than one step (shows connectors + remove)
+	Home         string
+	DepartDate   string // date input value (YYYY-MM-DD), defaulted to the trip start/end
+	DepartTime   string // time input value (HH:MM), empty until the user sets it
+	DistLabel    string // formatted distance, e.g. "210 km" (empty when unknown)
+	DurLabel     string // formatted duration, e.g. "2 h 10 min" (empty when unknown)
+	ArriveLabel  string // formatted computed arrival (empty when unknown)
+	Approx       bool   // duration is a straight-line estimate (not routed)
+	Participants []models.Person
 }
 
 // stepsForKind returns the vacation's travel legs of a kind, ordered by step_order.
@@ -89,6 +90,9 @@ func travelTotalFor(v *models.Vacation, kind models.TravelKind, oob bool) travel
 // travelBlock builds the multi-stop editor for one kind. When no leg exists yet
 // it renders a single blank step pre-filled with sensible endpoint defaults.
 func (s *Server) travelBlock(ctx context.Context, tz *time.Location, v *models.Vacation, kind models.TravelKind) travelBlockView {
+	if v.Participants == nil {
+		v.Participants, _ = s.store.ListVacationParticipants(ctx, v.ID)
+	}
 	steps := stepsForKind(v, kind)
 	multi := len(steps) > 1
 	bv := travelBlockView{Kind: kind, VID: v.ID.String(), Multi: multi}
@@ -111,14 +115,15 @@ func (s *Server) travelBlock(ctx context.Context, tz *time.Location, v *models.V
 func (s *Server) newTravelStepView(ctx context.Context, tz *time.Location, v *models.Vacation, seg *models.TravelSegment, number int, multi bool) travelEditorView {
 	_, routed := routeProfileForMode(seg.Mode)
 	ev := travelEditorView{
-		Seg:       seg,
-		VID:       seg.VacationID.String(),
-		Kind:      seg.Kind,
-		Number:    number,
-		StepOrder: seg.StepOrder,
-		Multi:     multi,
-		Home:      s.homeAddress(ctx),
-		Approx:    !routed || !s.routing.Enabled(),
+		Seg:          seg,
+		VID:          seg.VacationID.String(),
+		Kind:         seg.Kind,
+		Number:       number,
+		StepOrder:    seg.StepOrder,
+		Multi:        multi,
+		Home:         s.homeAddress(ctx),
+		Approx:       !routed || !s.routing.Enabled(),
+		Participants: v.Participants,
 	}
 	if seg.DistanceM != nil {
 		ev.DistLabel = formatDistance(*seg.DistanceM)
@@ -216,6 +221,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		ToLng:        toLng,
 		DepartAt:     departAt,
 		Cost:         cost,
+		PaidBy:       parsePaidBy(r),
 		Notes:        notes,
 	}
 	s.computeTravel(r.Context(), seg)
@@ -229,6 +235,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), vacationID)
 	s.fragment(w, r, "travel_saved", map[string]any{
 		"Step":  s.newTravelStepView(r.Context(), tz, v, seg, stepOrder+1, false),
 		"Total": travelTotalFor(v, kind, true),

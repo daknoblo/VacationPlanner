@@ -75,6 +75,46 @@
     if (out) { out.textContent = input.value; }
   });
 
+  // Participant picker: reflect the chosen people in the summary line.
+  function updateParticipantSummaries(root) {
+    var pickers = (root || document).querySelectorAll("[data-participant-picker]");
+    for (var i = 0; i < pickers.length; i++) { updateParticipantSummary(pickers[i]); }
+  }
+  function updateParticipantSummary(pk) {
+    var out = pk.querySelector("[data-participant-summary]");
+    if (!out) return;
+    if (out.dataset.placeholder == null) { out.dataset.placeholder = out.textContent; }
+    var names = [];
+    var cbs = pk.querySelectorAll("[data-participant-cb]");
+    for (var i = 0; i < cbs.length; i++) {
+      if (cbs[i].checked) { names.push(cbs[i].getAttribute("data-person-name") || ""); }
+    }
+    out.textContent = names.length ? names.join(", ") : out.dataset.placeholder;
+  }
+  document.addEventListener("change", function (e) {
+    var cb = e.target && e.target.closest ? e.target.closest("[data-participant-cb]") : null;
+    if (!cb) return;
+    var pk = cb.closest("[data-participant-picker]");
+    if (pk) { updateParticipantSummary(pk); }
+  });
+
+  // Budget: filter the expense list by who paid (client-side).
+  document.addEventListener("click", function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest("[data-payer-filter]") : null;
+    if (!chip) return;
+    var wrap = chip.closest("[data-budget-filter]");
+    if (!wrap) return;
+    var want = chip.getAttribute("data-payer-filter") || "";
+    var chips = wrap.querySelectorAll("[data-payer-filter]");
+    for (var i = 0; i < chips.length; i++) { chips[i].classList.toggle("is-active", chips[i] === chip); }
+    var scope = wrap.closest(".budget") || document;
+    var rows = scope.querySelectorAll(".budget-exp[data-payer]");
+    for (var j = 0; j < rows.length; j++) {
+      var show = want === "" || rows[j].getAttribute("data-payer") === want;
+      rows[j].classList.toggle("is-hidden", !show);
+    }
+  });
+
   // Chain travel legs: when a leg's destination changes, default the next leg's
   // start to that destination (location + coordinates) and re-save it.
   document.addEventListener("change", function (e) {
@@ -1122,6 +1162,7 @@
     initTabs();
     initViewToggle();
     initDateRanges();
+    updateParticipantSummaries();
   }
 
   if (document.readyState !== "loading") {

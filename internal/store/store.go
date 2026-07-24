@@ -39,6 +39,12 @@ type Store interface {
 	CreateCategory(ctx context.Context, c *models.Category) error
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 
+	ListPeople(ctx context.Context) ([]models.Person, error)
+	CreatePerson(ctx context.Context, p *models.Person) error
+	DeletePerson(ctx context.Context, id uuid.UUID) error
+	ListVacationParticipants(ctx context.Context, vacationID uuid.UUID) ([]models.Person, error)
+	SetVacationParticipants(ctx context.Context, vacationID uuid.UUID, personIDs []uuid.UUID) error
+
 	CreateLodging(ctx context.Context, l *models.Lodging) error
 	UpdateLodging(ctx context.Context, l *models.Lodging) error
 	GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error)

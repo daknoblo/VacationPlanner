@@ -1,0 +1,26 @@
+{{define "participant_picker"}}
+{{/* dict: "People" ([]models.Person, all), optional "Selected" (map[string]bool) */}}
+{{$sel := .Selected}}
+<div class="participant-picker" data-participant-picker>
+  <details>
+    <summary class="participant-picker__summary">
+      <span class="participant-picker__label">{{t "field.participants"}}</span>
+      <span class="participant-picker__chosen" data-participant-summary>{{t "participant.choose"}}</span>
+      <span class="participant-picker__caret" aria-hidden="true">▾</span>
+    </summary>
+    <div class="participant-picker__menu">
+      {{if .People}}
+      {{range .People}}
+      <label class="participant-option">
+        <input type="checkbox" name="participant" value="{{.ID}}"{{if $sel}}{{if index $sel .ID.String}} checked{{end}}{{end}} data-participant-cb data-person-name="{{.Name}}">
+        <span class="person-dot" {{colorStyle .Color}}></span>
+        <span class="participant-option__name">{{.Name}}</span>
+      </label>
+      {{end}}
+      {{else}}
+      <p class="muted small participant-picker__empty">{{t "participant.none"}} <a href="/settings#people">{{t "participant.manage"}}</a></p>
+      {{end}}
+    </div>
+  </details>
+</div>
+{{end}}

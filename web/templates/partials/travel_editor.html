@@ -91,6 +91,8 @@
         <input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="{{coord .Seg.Cost}}" placeholder="0.00">
       </div>
 
+      {{template "paid_by_select" (dict "People" .Participants "Selected" (uuidStr .Seg.PaidBy))}}
+
       <div class="field field--out">
         <label>{{t "travel.distance"}}</label>
         <div id="travel-out-{{.Kind}}-{{.StepOrder}}" class="travel-out">{{template "travel_out" .}}</div>

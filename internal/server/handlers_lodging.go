@@ -52,6 +52,7 @@ func (s *Server) lodgingFromForm(r *http.Request, tz *time.Location) (*models.Lo
 		CheckIn:   *checkIn,
 		CheckOut:  *checkOut,
 		Cost:      cost,
+		PaidBy:    parsePaidBy(r),
 		Notes:     notes,
 	}, nil
 }
@@ -91,6 +92,7 @@ func (s *Server) handleCreateLodging(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
 	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "lodging_editor", newLodgingEditorView(tz, v, lo))
 }
@@ -190,6 +192,8 @@ type lodgingEditorView struct {
 	CheckOutTime string
 	Cost         *float64
 	CostPerNight *float64
+	PaidBy       string // current payer person ID ("" = unassigned)
+	Participants []models.Person
 	Notes        string
 	Nights       int
 }
@@ -218,6 +222,8 @@ func newLodgingEditorView(tz *time.Location, v *models.Vacation, lo *models.Lodg
 		CheckOutTime: co.Format("15:04"),
 		Cost:         lo.Cost,
 		CostPerNight: perNight,
+		PaidBy:       uuidString(lo.PaidBy),
+		Participants: v.Participants,
 		Notes:        lo.Notes,
 		Nights:       nights,
 	}

@@ -49,8 +49,8 @@
       <input id="budget" name="budget" type="number" min="0" step="0.01" inputmode="decimal" placeholder="{{t "placeholder.budget"}}">
     </div>
     <div class="field">
-      <label for="people">{{t "field.people"}}</label>
-      <input id="people" name="people" type="number" min="1" step="1" value="1">
+      <label>{{t "field.participants"}}</label>
+      {{template "participant_picker" (dict "People" .Data.People)}}
     </div>
     <div class="field field--wide">
       <label for="notes">{{t "field.notes"}}</label>

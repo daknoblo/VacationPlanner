@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/web"
@@ -53,19 +54,57 @@ var funcMap = template.FuncMap{
 	"bmoneyp":    bmoneyP,
 	// cost/costf format an amount with the configured currency symbol; they are
 	// bound per request (placeholders here so templates parse).
-	"cost":     func(*float64) string { return "" },
-	"costf":    func(float64) string { return "" },
-	"dict":     dict,
-	"add":      addInt,
-	"sub":      subInt,
-	"mod":      modInt,
-	"div":      divInt,
-	"seq":      seq,
-	"weekday":  weekdayKey,
-	"sameDay":  sameDay,
-	"catclass": catClass,
+	"cost":       func(*float64) string { return "" },
+	"costf":      func(float64) string { return "" },
+	"dict":       dict,
+	"add":        addInt,
+	"sub":        subInt,
+	"mod":        modInt,
+	"div":        divInt,
+	"seq":        seq,
+	"weekday":    weekdayKey,
+	"sameDay":    sameDay,
+	"catclass":   catClass,
+	"colorStyle": colorStyleAttr,
+	"uuidStr":    uuidString,
+	"neg":        func(f float64) float64 { return -f },
 	// t is a per-request placeholder; the real translator is bound at render time.
 	"t": func(key string, _ ...any) string { return key },
+}
+
+// uuidString renders an optional UUID pointer as a plain string ("" when nil),
+// used to preselect the current payer in a paid-by dropdown.
+func uuidString(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+	return id.String()
+}
+
+// colorStyleAttr returns a safe inline style setting the --pc custom property to
+// a validated hex color, used to tint person markers/badges. Invalid input
+// yields an empty attribute so nothing unsafe is ever emitted.
+func colorStyleAttr(hex string) template.HTMLAttr {
+	if !isHexColor(hex) {
+		return ""
+	}
+	return template.HTMLAttr(`style="--pc:` + hex + `"`) //nolint:gosec // hex validated below
+}
+
+func isHexColor(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for _, c := range s[1:] {
+		if !isHexDigit(c) {
+			return false
+		}
+	}
+	return true
+}
+
+func isHexDigit(c rune) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
 func newRenderer() (*renderer, error) {

@@ -539,3 +539,69 @@ func TestStatsBackupRestore(t *testing.T) {
 		t.Fatalf("GetSettings after restore: %v", err)
 	}
 }
+
+func TestPeopleAndParticipants(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	alice := &models.Person{Name: "Alice", Color: "#2563eb"}
+	bob := &models.Person{Name: "Bob", Color: "#db2777"}
+	if err := st.CreatePerson(ctx, alice); err != nil {
+		t.Fatalf("CreatePerson: %v", err)
+	}
+	if err := st.CreatePerson(ctx, bob); err != nil {
+		t.Fatalf("CreatePerson: %v", err)
+	}
+	people, err := st.ListPeople(ctx)
+	if err != nil || len(people) != 2 {
+		t.Fatalf("ListPeople: err=%v len=%d", err, len(people))
+	}
+
+	v := &models.Vacation{Title: "x", Destination: "y", StartDate: time.Now().UTC(), EndDate: time.Now().UTC()}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatalf("CreateVacation: %v", err)
+	}
+	if err := st.SetVacationParticipants(ctx, v.ID, []uuid.UUID{alice.ID, bob.ID}); err != nil {
+		t.Fatalf("SetVacationParticipants: %v", err)
+	}
+	parts, err := st.ListVacationParticipants(ctx, v.ID)
+	if err != nil || len(parts) != 2 {
+		t.Fatalf("ListVacationParticipants: err=%v len=%d", err, len(parts))
+	}
+	// Replace the participant set with just Alice.
+	if err := st.SetVacationParticipants(ctx, v.ID, []uuid.UUID{alice.ID}); err != nil {
+		t.Fatalf("SetVacationParticipants (replace): %v", err)
+	}
+	if parts, _ = st.ListVacationParticipants(ctx, v.ID); len(parts) != 1 || parts[0].ID != alice.ID {
+		t.Fatalf("participant replace failed: %+v", parts)
+	}
+
+	// An item paid by Bob loses its attribution when Bob is deleted (SET NULL),
+	// but the item (and its cost) survives.
+	cost := 80.0
+	it := &models.Item{VacationID: v.ID, Title: "Dinner", Cost: &cost, PaidBy: &bob.ID}
+	if err := st.CreateItem(ctx, it); err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+	got, _ := st.GetItem(ctx, it.ID)
+	if got.PaidBy == nil || *got.PaidBy != bob.ID {
+		t.Fatalf("paid_by round-trip mismatch: %+v", got.PaidBy)
+	}
+	if err := st.DeletePerson(ctx, bob.ID); err != nil {
+		t.Fatalf("DeletePerson: %v", err)
+	}
+	got, _ = st.GetItem(ctx, it.ID)
+	if got == nil {
+		t.Fatal("item should survive person deletion")
+	}
+	if got.PaidBy != nil {
+		t.Fatalf("paid_by should be cleared after payer deletion, got %v", got.PaidBy)
+	}
+	if got.Cost == nil || *got.Cost != 80 {
+		t.Fatalf("cost should survive, got %v", got.Cost)
+	}
+	// Deleting the person also removed them from the participant set (CASCADE).
+	if parts, _ = st.ListVacationParticipants(ctx, v.ID); len(parts) != 1 {
+		t.Fatalf("participants after delete: %+v", parts)
+	}
+}

@@ -165,11 +165,11 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO items
-			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.VacationID, i.Category, i.Title, i.Description, i.Location,
 		i.Latitude, i.Longitude, dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost,
-		i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
+		dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating item: %w", err)
 	}
@@ -178,7 +178,7 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at
 		FROM items WHERE id = ?`, id)
 	var it models.Item
 	if err := scanItem(row, &it); err != nil {
@@ -192,7 +192,7 @@ func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error
 
 func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, visited, notes, origin_ref, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at
 		FROM items WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing items: %w", err)
@@ -218,10 +218,10 @@ func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, title = ?, description = ?, location = ?, latitude = ?, longitude = ?,
-		    day = ?, start_min = ?, end_min = ?, cost = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?
+		    day = ?, start_min = ?, end_min = ?, cost = ?, paid_by = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?
 		WHERE id = ?`,
 		i.Category, i.Title, i.Description, i.Location, i.Latitude, i.Longitude,
-		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, i.Visited, i.Notes, i.OriginRef,
+		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef,
 		dbTime(i.UpdatedAt), i.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating item: %w", err)
@@ -248,11 +248,11 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO travel_segments
 			(id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
-			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, paid_by, notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.VacationID, string(t.Kind), t.StepOrder, t.Mode, t.FromLocation, t.ToLocation,
 		t.FromLat, t.FromLng, t.ToLat, t.ToLng, dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt),
-		t.DistanceM, t.DurationS, t.Cost, t.Notes, dbTime(t.CreatedAt))
+		t.DistanceM, t.DurationS, t.Cost, dbUUIDPtr(t.PaidBy), t.Notes, dbTime(t.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating travel segment: %w", err)
 	}
@@ -275,10 +275,10 @@ func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegmen
 			UPDATE travel_segments SET
 				mode = ?, from_location = ?, to_location = ?, from_lat = ?, from_lng = ?,
 				to_lat = ?, to_lng = ?, depart_at = ?, arrive_at = ?, distance_m = ?,
-				duration_s = ?, cost = ?, notes = ?
+				duration_s = ?, cost = ?, paid_by = ?, notes = ?
 			WHERE id = ?`,
 			t.Mode, t.FromLocation, t.ToLocation, t.FromLat, t.FromLng, t.ToLat, t.ToLng,
-			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Cost, t.Notes, t.ID)
+			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Cost, dbUUIDPtr(t.PaidBy), t.Notes, t.ID)
 		if uerr != nil {
 			return fmt.Errorf("store: updating travel segment: %w", uerr)
 		}
@@ -293,7 +293,7 @@ func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegmen
 func (s *SQLite) ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
-		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, notes, created_at
+		       to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, paid_by, notes, created_at
 		FROM travel_segments WHERE vacation_id = ? ORDER BY kind ASC, step_order ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing travel segments: %w", err)
@@ -415,6 +415,117 @@ func scanCategory(sc rowScanner, c *models.Category) error {
 	return nil
 }
 
+// ---- People ----
+
+func (s *SQLite) ListPeople(ctx context.Context) ([]models.Person, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, color, sort_order, created_at
+		FROM people ORDER BY sort_order ASC, name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing people: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Person
+	for rows.Next() {
+		var p models.Person
+		if err := scanPerson(rows, &p); err != nil {
+			return nil, fmt.Errorf("store: scanning person: %w", err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating people: %w", err)
+	}
+	return out, nil
+}
+
+func (s *SQLite) CreatePerson(ctx context.Context, p *models.Person) error {
+	if p.ID == uuid.Nil {
+		p.ID = uuid.New()
+	}
+	p.CreatedAt = time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO people (id, name, color, sort_order, created_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Color, p.SortOrder, dbTime(p.CreatedAt))
+	if err != nil {
+		return fmt.Errorf("store: creating person: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) DeletePerson(ctx context.Context, id uuid.UUID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM people WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting person: %w", err)
+	}
+	return checkAffected(res)
+}
+
+// ListVacationParticipants returns the people taking part in a trip.
+func (s *SQLite) ListVacationParticipants(ctx context.Context, vacationID uuid.UUID) ([]models.Person, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT p.id, p.name, p.color, p.sort_order, p.created_at
+		FROM people p
+		JOIN vacation_people vp ON vp.person_id = p.id
+		WHERE vp.vacation_id = ?
+		ORDER BY p.sort_order ASC, p.name ASC`, vacationID)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing participants: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Person
+	for rows.Next() {
+		var p models.Person
+		if err := scanPerson(rows, &p); err != nil {
+			return nil, fmt.Errorf("store: scanning participant: %w", err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating participants: %w", err)
+	}
+	return out, nil
+}
+
+// SetVacationParticipants replaces the participant set for a trip.
+func (s *SQLite) SetVacationParticipants(ctx context.Context, vacationID uuid.UUID, personIDs []uuid.UUID) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("store: begin set participants: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM vacation_people WHERE vacation_id = ?`, vacationID); err != nil {
+		return fmt.Errorf("store: clearing participants: %w", err)
+	}
+	for _, pid := range personIDs {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO vacation_people (vacation_id, person_id) VALUES (?, ?)`,
+			vacationID, pid); err != nil {
+			return fmt.Errorf("store: adding participant: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("store: commit set participants: %w", err)
+	}
+	return nil
+}
+
+func scanPerson(sc rowScanner, p *models.Person) error {
+	var created string
+	if err := sc.Scan(&p.ID, &p.Name, &p.Color, &p.SortOrder, &created); err != nil {
+		return err
+	}
+	var err error
+	if p.CreatedAt, err = time.Parse(dbTimeLayout, created); err != nil {
+		return fmt.Errorf("store: parsing person created_at: %w", err)
+	}
+	return nil
+}
+
 // ---- Lodging ----
 
 func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
@@ -425,10 +536,10 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 	l.CreatedAt, l.UpdatedAt = now, now
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO lodging (id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO lodging (id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.ID, l.VacationID, l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
-		l.Cost, l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
+		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: creating lodging: %w", err)
 	}
@@ -439,10 +550,10 @@ func (s *SQLite) UpdateLodging(ctx context.Context, l *models.Lodging) error {
 	l.UpdatedAt = time.Now().UTC()
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE lodging
-		SET name = ?, location = ?, latitude = ?, longitude = ?, check_in = ?, check_out = ?, cost = ?, notes = ?, updated_at = ?
+		SET name = ?, location = ?, latitude = ?, longitude = ?, check_in = ?, check_out = ?, cost = ?, paid_by = ?, notes = ?, updated_at = ?
 		WHERE id = ?`,
 		l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
-		l.Cost, l.Notes, dbTime(l.UpdatedAt), l.ID)
+		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.UpdatedAt), l.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating lodging: %w", err)
 	}
@@ -451,7 +562,7 @@ func (s *SQLite) UpdateLodging(ctx context.Context, l *models.Lodging) error {
 
 func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at
 		FROM lodging WHERE id = ?`, id)
 	var l models.Lodging
 	if err := scanLodging(row, &l); err != nil {
@@ -465,7 +576,7 @@ func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging,
 
 func (s *SQLite) ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at
 		FROM lodging WHERE vacation_id = ? ORDER BY check_in ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing lodging: %w", err)
@@ -496,9 +607,14 @@ func (s *SQLite) DeleteLodging(ctx context.Context, id uuid.UUID) error {
 
 func scanLodging(sc rowScanner, l *models.Lodging) error {
 	var checkIn, checkOut, created, updated string
+	var paidBy uuid.NullUUID
 	if err := sc.Scan(&l.ID, &l.VacationID, &l.Name, &l.Location, &l.Latitude, &l.Longitude,
-		&checkIn, &checkOut, &l.Cost, &l.Notes, &created, &updated); err != nil {
+		&checkIn, &checkOut, &l.Cost, &paidBy, &l.Notes, &created, &updated); err != nil {
 		return err
+	}
+	if paidBy.Valid {
+		id := paidBy.UUID
+		l.PaidBy = &id
 	}
 	var err error
 	if l.CheckIn, err = time.Parse(dbTimeLayout, checkIn); err != nil {
@@ -743,11 +859,16 @@ func scanVacation(sc rowScanner, v *models.Vacation) error {
 
 func scanItem(sc rowScanner, it *models.Item) error {
 	var day sql.NullString
+	var paidBy uuid.NullUUID
 	var created, updated string
 	if err := sc.Scan(&it.ID, &it.VacationID, &it.Category, &it.Title, &it.Description,
 		&it.Location, &it.Latitude, &it.Longitude, &day, &it.StartMin, &it.EndMin,
-		&it.Cost, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated); err != nil {
+		&it.Cost, &paidBy, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated); err != nil {
 		return err
+	}
+	if paidBy.Valid {
+		id := paidBy.UUID
+		it.PaidBy = &id
 	}
 	if day.Valid {
 		t, err := time.Parse(dbDateLayout, day.String)
@@ -769,10 +890,15 @@ func scanItem(sc rowScanner, it *models.Item) error {
 func scanTravel(sc rowScanner, t *models.TravelSegment) error {
 	var kind, created string
 	var depart, arrive sql.NullString
+	var paidBy uuid.NullUUID
 	if err := sc.Scan(&t.ID, &t.VacationID, &kind, &t.StepOrder, &t.Mode, &t.FromLocation,
 		&t.ToLocation, &t.FromLat, &t.FromLng, &t.ToLat, &t.ToLng, &depart, &arrive,
-		&t.DistanceM, &t.DurationS, &t.Cost, &t.Notes, &created); err != nil {
+		&t.DistanceM, &t.DurationS, &t.Cost, &paidBy, &t.Notes, &created); err != nil {
 		return err
+	}
+	if paidBy.Valid {
+		id := paidBy.UUID
+		t.PaidBy = &id
 	}
 	t.Kind = models.TravelKind(kind)
 	if depart.Valid {

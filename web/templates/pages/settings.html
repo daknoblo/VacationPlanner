@@ -182,6 +182,26 @@
 </section>
 
 <section class="panel">
+  <h2>👥 {{t "settings.people.heading"}}</h2>
+  <p class="muted small">{{t "settings.people.hint"}}</p>
+  <ul id="person-list" class="person-list">
+    {{range .Data.People}}{{template "person_item" .}}{{end}}
+  </ul>
+  <form class="form cat-form"
+        method="post" action="/settings/people"
+        hx-post="/settings/people"
+        hx-target="#person-list" hx-swap="beforeend"
+        data-reset>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="cat-form__row">
+      <input id="person-name" name="name" required maxlength="60" autocomplete="off" placeholder="{{t "settings.people.name_placeholder"}}">
+      <button class="btn" type="submit">{{t "settings.people.add"}}</button>
+    </div>
+  </form>
+  <div id="person-error" class="form-error"></div>
+</section>
+
+<section class="panel">
   <h2>📊 {{t "settings.stats.heading"}}</h2>
   <ul class="stats">
     <li><span class="stats__num">{{.Data.Stats.Vacations}}</span> {{t "settings.stats.vacations"}}</li>

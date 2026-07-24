@@ -1,0 +1,11 @@
+{{define "person_item"}}
+<li class="person-item" id="person-{{.ID}}">
+  <span class="person-dot" {{colorStyle .Color}}></span>
+  <span class="person-item__name">{{.Name}}</span>
+  <button type="button" class="btn btn--sm btn--danger btn--ghost" title="{{t "action.delete"}}"
+          hx-delete="/settings/people/{{.ID}}"
+          hx-target="#person-{{.ID}}"
+          hx-swap="outerHTML"
+          hx-confirm="{{t "settings.people.confirm_delete"}}">✕</button>
+</li>
+{{end}}

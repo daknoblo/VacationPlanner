@@ -27,6 +27,47 @@
   </ul>
   {{end}}
 
+  {{if $b.HasPeople}}
+  <h3 class="budget__heading">{{t "budget.people_heading"}}</h3>
+  <div class="budget-people">
+    {{range $b.Persons}}
+    <div class="budget-person" {{colorStyle .Color}}>
+      <div class="budget-person__head">
+        <span class="person-dot"></span>
+        <span class="budget-person__name">{{.Name}}</span>
+        {{if gt .Balance 0.005}}
+        <span class="budget-person__balance is-positive">{{t "budget.gets_back"}} {{bmoney .Balance $b.Currency}}</span>
+        {{else if lt .Balance -0.005}}
+        <span class="budget-person__balance is-negative">{{t "budget.owes"}} {{bmoney (neg .Balance) $b.Currency}}</span>
+        {{else}}
+        <span class="budget-person__balance">{{t "budget.settled"}}</span>
+        {{end}}
+      </div>
+      <div class="budget-person__bar"><div class="budget-person__fill" style="width:{{.PaidPct}}%"></div></div>
+      <div class="budget-person__meta muted small">{{t "budget.paid"}} {{bmoney .Paid $b.Currency}} · {{t "budget.share"}} {{bmoney .Share $b.Currency}}</div>
+    </div>
+    {{end}}
+  </div>
+  {{if $b.Transfers}}
+  <h4 class="budget__subheading">{{t "budget.settlement"}}</h4>
+  <ul class="budget-settle">
+    {{range $b.Transfers}}
+    <li class="budget-settle__row">
+      <span class="person-dot" {{colorStyle .FromColor}}></span>
+      <span class="budget-settle__name">{{.FromName}}</span>
+      <span class="budget-settle__arrow" aria-hidden="true">→</span>
+      <span class="person-dot" {{colorStyle .ToColor}}></span>
+      <span class="budget-settle__name">{{.ToName}}</span>
+      <span class="budget-settle__amount">{{bmoney .Amount $b.Currency}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted small">{{t "budget.all_settled"}}</p>
+  {{end}}
+  {{if gt $b.Unassigned 0.005}}<p class="muted small">{{t "budget.unassigned_note"}}: {{bmoney $b.Unassigned $b.Currency}}</p>{{end}}
+  {{end}}
+
   {{if gt $b.ExpenseCount 0}}
   <h3 class="budget__heading">{{t "budget.stats"}}</h3>
   <div class="budget__stats">
@@ -70,10 +111,19 @@
   </ul>
 
   <h3 class="budget__heading">{{t "budget.expenses_list"}}</h3>
+  {{if $b.HasPeople}}
+  <div class="budget-filter" data-budget-filter>
+    <button type="button" class="budget-filter__chip is-active" data-payer-filter="">{{t "budget.filter_all"}}</button>
+    {{range $b.Persons}}
+    <button type="button" class="budget-filter__chip" data-payer-filter="{{.ID}}"><span class="person-dot" {{colorStyle .Color}}></span> {{.Name}}</button>
+    {{end}}
+  </div>
+  {{end}}
   <ul class="budget__expenses">
     {{range $b.Expenses}}
-    <li class="budget-exp">
+    <li class="budget-exp" data-payer="{{.PayerID}}">
       <span class="budget-exp__title">{{if .Icon}}{{.Icon}} {{end}}{{.Title}}</span>
+      {{if .PayerName}}<span class="budget-exp__payer"><span class="person-dot" {{colorStyle .PayerColor}}></span> {{.PayerName}}</span>{{end}}
       {{if .DayLabel}}<span class="budget-exp__day">{{.DayLabel}}</span>{{end}}
       <span class="budget-exp__amount">{{bmoney .Amount $b.Currency}}</span>
     </li>

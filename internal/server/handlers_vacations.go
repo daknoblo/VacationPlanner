@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
@@ -75,8 +77,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		cards = append(cards, card)
 	}
 
+	people, _ := s.store.ListPeople(r.Context())
 	s.page(w, r, "index", loc.T("page.vacations.title"), map[string]any{
-		"Cards": cards,
+		"Cards":  cards,
+		"People": people,
 	})
 }
 
@@ -139,6 +143,34 @@ type budgetView struct {
 	SpentPerNight  float64
 	Categories     []budgetCategory
 	Expenses       []budgetExpense
+
+	// Per-person cost attribution (who paid, who owes whom).
+	HasPeople       bool
+	AttributedTotal float64
+	Unassigned      float64
+	Persons         []budgetPerson
+	Transfers       []budgetTransfer
+}
+
+// budgetPerson is one participant's cost balance: what they paid versus their
+// equal share of the attributed spending.
+type budgetPerson struct {
+	ID      string
+	Name    string
+	Color   string
+	Paid    float64
+	Share   float64
+	Balance float64 // Paid - Share; positive = owed money, negative = owes
+	PaidPct int     // Paid as a share of the attributed total (for the bar)
+}
+
+// budgetTransfer is one suggested payment to settle the balances.
+type budgetTransfer struct {
+	FromName  string
+	FromColor string
+	ToName    string
+	ToColor   string
+	Amount    float64
 }
 
 // budgetCategory is the total spent within one category.
@@ -151,16 +183,39 @@ type budgetCategory struct {
 
 // budgetExpense is a single costed item shown in the spending overview.
 type budgetExpense struct {
-	Title    string
-	Icon     string
-	DayLabel string
-	Amount   float64
+	Title      string
+	Icon       string
+	DayLabel   string
+	Amount     float64
+	PayerID    string
+	PayerName  string
+	PayerColor string
 }
 
 // newBudgetView computes the budget breakdown and spending statistics for a
 // vacation from its items. icons maps lower-cased category names to emoji.
 func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]string, currency, lodgingLabel, travelLabel string) budgetView {
 	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
+
+	// Cost attribution: track how much each person paid, plus the unassigned
+	// total. personByID resolves a payer reference to a display name and color.
+	paidByPerson := map[uuid.UUID]float64{}
+	personByID := make(map[uuid.UUID]models.Person, len(v.Participants))
+	for _, p := range v.Participants {
+		personByID[p.ID] = p
+	}
+	recordPayer := func(pb *uuid.UUID, amt float64) (id, name, color string) {
+		if pb == nil {
+			b.Unassigned += amt
+			return "", "", ""
+		}
+		b.AttributedTotal += amt
+		paidByPerson[*pb] += amt
+		if p, ok := personByID[*pb]; ok {
+			return p.ID.String(), p.Name, p.Color
+		}
+		return pb.String(), "", ""
+	}
 
 	catAmount := map[string]float64{}
 	var catOrder []string
@@ -183,11 +238,15 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		if it.Day != nil {
 			day = fmtDate(*it.Day)
 		}
+		payerID, payerName, payerColor := recordPayer(it.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
-			Title:    it.Title,
-			Icon:     icons[strings.ToLower(it.Category)],
-			DayLabel: day,
-			Amount:   amt,
+			Title:      it.Title,
+			Icon:       icons[strings.ToLower(it.Category)],
+			DayLabel:   day,
+			Amount:     amt,
+			PayerID:    payerID,
+			PayerName:  payerName,
+			PayerColor: payerColor,
 		})
 	}
 
@@ -206,11 +265,15 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 			catOrder = append(catOrder, lodgingLabel)
 		}
 		catAmount[lodgingLabel] += amt
+		lpID, lpName, lpColor := recordPayer(lo.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
-			Title:    lo.Name,
-			Icon:     "🛏",
-			DayLabel: fmtDate(lo.CheckIn),
-			Amount:   amt,
+			Title:      lo.Name,
+			Icon:       "🛏",
+			DayLabel:   fmtDate(lo.CheckIn),
+			Amount:     amt,
+			PayerID:    lpID,
+			PayerName:  lpName,
+			PayerColor: lpColor,
 		})
 	}
 
@@ -243,11 +306,15 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		if ts.DepartAt != nil {
 			day = fmtDate(*ts.DepartAt)
 		}
+		tpID, tpName, tpColor := recordPayer(ts.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
-			Title:    title,
-			Icon:     "✈",
-			DayLabel: day,
-			Amount:   amt,
+			Title:      title,
+			Icon:       "✈",
+			DayLabel:   day,
+			Amount:     amt,
+			PayerID:    tpID,
+			PayerName:  tpName,
+			PayerColor: tpColor,
 		})
 	}
 
@@ -281,6 +348,29 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 	sort.SliceStable(b.Categories, func(i, j int) bool { return b.Categories[i].Amount > b.Categories[j].Amount })
 	sort.SliceStable(b.Expenses, func(i, j int) bool { return b.Expenses[i].Amount > b.Expenses[j].Amount })
 
+	// Per-person balances: each attributed expense is split equally among all
+	// participants. A person's balance is what they paid minus their share.
+	if len(v.Participants) > 0 {
+		b.HasPeople = true
+		share := b.AttributedTotal / float64(len(v.Participants))
+		for _, p := range v.Participants {
+			paid := paidByPerson[p.ID]
+			bp := budgetPerson{
+				ID:      p.ID.String(),
+				Name:    p.Name,
+				Color:   p.Color,
+				Paid:    paid,
+				Share:   share,
+				Balance: paid - share,
+			}
+			if b.AttributedTotal > 0 {
+				bp.PaidPct = int(paid / b.AttributedTotal * 100)
+			}
+			b.Persons = append(b.Persons, bp)
+		}
+		b.Transfers = settleDebts(b.Persons)
+	}
+
 	if v.Budget != nil {
 		total := *v.Budget
 		b.HasBudget = true
@@ -305,6 +395,51 @@ func newBudgetView(v *models.Vacation, items []models.Item, icons map[string]str
 		}
 	}
 	return b
+}
+
+// settleDebts turns per-person balances into a minimal set of "who pays whom"
+// transfers using a greedy match of the largest debtor to the largest creditor.
+func settleDebts(persons []budgetPerson) []budgetTransfer {
+	const eps = 0.005
+	type bal struct {
+		name, color string
+		amt         float64
+	}
+	var creditors, debtors []bal
+	for _, p := range persons {
+		switch {
+		case p.Balance > eps:
+			creditors = append(creditors, bal{p.Name, p.Color, p.Balance})
+		case p.Balance < -eps:
+			debtors = append(debtors, bal{p.Name, p.Color, -p.Balance})
+		}
+	}
+	sort.SliceStable(creditors, func(i, j int) bool { return creditors[i].amt > creditors[j].amt })
+	sort.SliceStable(debtors, func(i, j int) bool { return debtors[i].amt > debtors[j].amt })
+
+	var out []budgetTransfer
+	i, j := 0, 0
+	for i < len(debtors) && j < len(creditors) {
+		pay := math.Min(debtors[i].amt, creditors[j].amt)
+		if pay > eps {
+			out = append(out, budgetTransfer{
+				FromName:  debtors[i].name,
+				FromColor: debtors[i].color,
+				ToName:    creditors[j].name,
+				ToColor:   creditors[j].color,
+				Amount:    pay,
+			})
+		}
+		debtors[i].amt -= pay
+		creditors[j].amt -= pay
+		if debtors[i].amt <= eps {
+			i++
+		}
+		if creditors[j].amt <= eps {
+			j++
+		}
+	}
+	return out
 }
 
 func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
@@ -338,6 +473,15 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	categories, _ := s.store.ListCategories(r.Context())
+	allPeople, _ := s.store.ListPeople(r.Context())
+	if v.Participants, err = s.store.ListVacationParticipants(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	participantSet := make(map[string]bool, len(v.Participants))
+	for _, p := range v.Participants {
+		participantSet[p.ID.String()] = true
+	}
 	loc := i18n.FromContext(r.Context())
 	weekStart, tz := s.regionSettings(r.Context())
 	mondayStart := weekStart != "sunday"
@@ -351,6 +495,8 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"Budget":          newBudgetView(v, v.Items, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging"), loc.T("tab.travel")),
 		"Currency":        currency,
 		"Categories":      categories,
+		"People":          allPeople,
+		"ParticipantSet":  participantSet,
 		"HomeAddress":     s.homeAddress(r.Context()),
 		"ActivityList":    activities,
 		"Ideas":           ideas,
@@ -812,6 +958,7 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
 	loc := i18n.FromContext(r.Context())
 	s.fragment(w, r, "budget_panel", newBudgetView(v, items, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging"), loc.T("tab.travel")))
 }
@@ -944,7 +1091,15 @@ func (s *Server) handleCreateVacation(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "#form-error", err.Error())
 		return
 	}
+	participants := s.selectedParticipants(r)
+	if len(participants) > 0 {
+		v.People = len(participants)
+	}
 	if err := s.store.CreateVacation(r.Context(), v); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.store.SetVacationParticipants(r.Context(), v.ID, participants); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -982,7 +1137,16 @@ func (s *Server) handleUpdateVacation(w http.ResponseWriter, r *http.Request) {
 	}
 	updated.ID = existing.ID
 
+	participants := s.selectedParticipants(r)
+	if len(participants) > 0 {
+		updated.People = len(participants)
+	}
+
 	if err := s.store.UpdateVacation(r.Context(), updated); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.store.SetVacationParticipants(r.Context(), updated.ID, participants); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -1141,6 +1305,38 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 		Budget:      budget,
 		People:      people,
 	}, nil
+}
+
+// selectedParticipants reads the checked "participant" person IDs from the form,
+// keeping only IDs that refer to existing people (so tampering can't create
+// dangling references), de-duplicated and order-stable.
+func (s *Server) selectedParticipants(r *http.Request) []uuid.UUID {
+	if err := r.ParseForm(); err != nil {
+		return nil
+	}
+	raw := r.Form["participant"]
+	if len(raw) == 0 {
+		return nil
+	}
+	people, err := s.store.ListPeople(r.Context())
+	if err != nil {
+		return nil
+	}
+	valid := make(map[uuid.UUID]bool, len(people))
+	for _, p := range people {
+		valid[p.ID] = true
+	}
+	out := make([]uuid.UUID, 0, len(raw))
+	seen := make(map[uuid.UUID]bool, len(raw))
+	for _, str := range raw {
+		id, err := uuid.Parse(strings.TrimSpace(str))
+		if err != nil || !valid[id] || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out
 }
 
 // parseZoomPtr reads an optional Leaflet map zoom level (1–19); anything out of

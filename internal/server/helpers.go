@@ -95,6 +95,20 @@ func maxLen(s string, n int) bool {
 	return len([]rune(s)) <= n
 }
 
+// parsePaidBy reads the optional "paid_by" person reference from the form. An
+// empty or unparseable value yields nil (the expense is unassigned).
+func parsePaidBy(r *http.Request) *uuid.UUID {
+	raw := strings.TrimSpace(formStr(r, "paid_by"))
+	if raw == "" {
+		return nil
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return nil
+	}
+	return &id
+}
+
 // parseCoords reads optional latitude/longitude fields. Both must be present
 // together and within valid ranges.
 func parseCoords(r *http.Request, latKey, lngKey string) (lat, lng *float64, err error) {

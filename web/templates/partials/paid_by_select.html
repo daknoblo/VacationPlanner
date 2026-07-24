@@ -1,0 +1,15 @@
+{{define "paid_by_select"}}
+{{/* dict: "People" ([]models.Person participants), optional "Selected" (string person ID) */}}
+{{if .People}}
+{{$sel := .Selected}}
+<div class="field field--paidby">
+  <label>{{t "field.paid_by"}}</label>
+  <select name="paid_by">
+    <option value="">{{t "paid_by.unassigned"}}</option>
+    {{range .People}}
+    <option value="{{.ID}}"{{if and $sel (eq $sel .ID.String)}} selected{{end}}>{{.Name}}</option>
+    {{end}}
+  </select>
+</div>
+{{end}}
+{{end}}

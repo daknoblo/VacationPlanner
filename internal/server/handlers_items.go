@@ -68,6 +68,7 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 		StartMin:    startMin,
 		EndMin:      endMin,
 		Cost:        cost,
+		PaidBy:      parsePaidBy(r),
 		Notes:       notes,
 	}, nil
 }
@@ -218,10 +219,12 @@ func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	categories, _ := s.store.ListCategories(r.Context())
+	participants, _ := s.store.ListVacationParticipants(r.Context(), item.VacationID)
 	s.fragment(w, r, "item_edit", map[string]any{
-		"Item": item,
-		"Cats": categories,
-		"CSRF": s.ensureCSRFToken(w, r),
+		"Item":         item,
+		"Cats":         categories,
+		"Participants": participants,
+		"CSRF":         s.ensureCSRFToken(w, r),
 	})
 }
 
@@ -271,6 +274,7 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	existing.Description = description
 	existing.Day = day
 	existing.Cost = cost
+	existing.PaidBy = parsePaidBy(r)
 
 	startStr := strings.TrimSpace(formStr(r, "start"))
 	endStr := strings.TrimSpace(formStr(r, "end"))

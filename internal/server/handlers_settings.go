@@ -119,6 +119,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	stats, _ := s.store.Stats(r.Context())
 	categories, _ := s.store.ListCategories(r.Context())
+	people, _ := s.store.ListPeople(r.Context())
 	vacations, _ := s.store.ListVacations(r.Context())
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
 		"Languages":        i18n.Supported(),
@@ -143,6 +144,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"LogLevels":           applog.Levels(),
 		"Categories":          categories,
 		"CategoryIcons":       defaultCategoryIcons,
+		"People":              people,
 		"Stats":               stats,
 		"DBSize":              humanBytes(s.dbSizeBytes()),
 		"Backups":             s.listBackups(),
