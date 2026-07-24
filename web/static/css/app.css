@@ -139,6 +139,23 @@ code {
 }
 /* The AI search-center picker uses a larger, half-page map. */
 .ai-location-picker .location-map { height: 360px; }
+
+/* AI form: "interests" + "search center" on one 50/50 row above the map. */
+.ai-input-row { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+.ai-input-row__col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+/* AI form: the search-radius slider (wide) and the count dropdown (the rest)
+   on one row, split roughly 70/30. The compound selector keeps the row
+   direction from being overridden by the later base `.field` rule. */
+.field.ai-controls-row { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.9rem; }
+.ai-controls-row__radius { flex: 7 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.ai-controls-row__count { flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+@media (max-width: 560px) {
+  .ai-input-row__col,
+  .ai-controls-row__radius,
+  .ai-controls-row__count { flex: 1 1 100%; }
+}
 .suggest {
   position: absolute;
   top: 100%;
