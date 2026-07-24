@@ -83,3 +83,57 @@ func TestSearchAppendsAPIKey(t *testing.T) {
 		t.Fatalf("Search: %v", err)
 	}
 }
+
+func TestReversePhoton(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("lat") == "" || r.URL.Query().Get("lon") == "" {
+			t.Errorf("missing lat/lon parameters")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[{"geometry":{"type":"Point","coordinates":[12.9,41.46]},"properties":{"name":"Latina","country":"Italia","type":"city","osm_key":"place"}}]}`))
+	}))
+	defer srv.Close()
+
+	c := New("")
+	res, ok, err := c.Reverse(context.Background(), srv.URL, 41.46, 12.9, "en")
+	if err != nil {
+		t.Fatalf("Reverse: %v", err)
+	}
+	if !ok || res.DisplayName != "Latina, Italia" || res.Lat != 41.46 || res.Lng != 12.9 {
+		t.Fatalf("unexpected: ok=%v %+v", ok, res)
+	}
+}
+
+func TestReverseNominatimObject(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"display_name":"Latina, Italy","lat":"41.46","lon":"12.90","type":"city","class":"place"}`))
+	}))
+	defer srv.Close()
+
+	c := New("")
+	res, ok, err := c.Reverse(context.Background(), srv.URL, 41.46, 12.9, "en")
+	if err != nil {
+		t.Fatalf("Reverse: %v", err)
+	}
+	if !ok || res.DisplayName != "Latina, Italy" || res.Lat != 41.46 || res.Lng != 12.9 {
+		t.Fatalf("unexpected: ok=%v %+v", ok, res)
+	}
+}
+
+func TestReverseNoMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[]}`))
+	}))
+	defer srv.Close()
+
+	c := New("")
+	_, ok, err := c.Reverse(context.Background(), srv.URL, 0.1, 0.1, "en")
+	if err != nil {
+		t.Fatalf("Reverse: %v", err)
+	}
+	if ok {
+		t.Fatalf("expected ok=false for an empty result set")
+	}
+}

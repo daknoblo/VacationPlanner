@@ -146,8 +146,12 @@ func TestRenderFragments(t *testing.T) {
 		}},
 		{"attachments", attachmentsView{ListURL: "/items/x/documents", CSRF: "tok", Error: "too large"}},
 		{"ai_suggestions", aiSuggestionsView{
-			VacationID:  v.ID.String(),
-			Suggestions: []suggestionView{{Name: "Castelo", Category: "Burg", Description: "d", Reason: "r", MapsURL: "https://www.google.com/maps/search/?api=1&query=Castelo", Website: "https://example.com"}},
+			VacationID: v.ID.String(),
+			Suggestions: []suggestionView{{
+				Name: "Castelo", Category: "Burg", Description: "d", Reason: "r",
+				Rating: "4.5", Distance: "2.3 km",
+				Links: []suggestionLink{{Icon: "📍", Label: "Google Maps", URL: "https://www.google.com/maps/search/?api=1&query=Castelo"}},
+			}},
 		}},
 		{"ai_suggestions", aiSuggestionsView{VacationID: v.ID.String(), Error: "deaktiviert"}},
 	}

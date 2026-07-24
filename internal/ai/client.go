@@ -44,11 +44,14 @@ var ErrDisabled = fmt.Errorf("ai: no API key configured")
 
 // Suggestion is a single recommended point of interest.
 type Suggestion struct {
-	Name        string `json:"name"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	Reason      string `json:"reason"`
-	Website     string `json:"website"`
+	Name        string  `json:"name"`
+	Category    string  `json:"category"`
+	Description string  `json:"description"`
+	Reason      string  `json:"reason"`
+	Website     string  `json:"website"`
+	Rating      float64 `json:"rating"`
+	Latitude    float64 `json:"latitude"`
+	Longitude   float64 `json:"longitude"`
 }
 
 // RecommendInput carries the trip context used to build the prompt.
@@ -94,8 +97,10 @@ const systemPrompt = `You are a concise travel assistant. ` +
 	`within the given radius, in the SAME country. Never suggest places in a different country or far outside the radius. ` +
 	`When coordinates are given, treat them as the authoritative center. ` +
 	`Respond with STRICT JSON only, no markdown, in this exact shape: ` +
-	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"...","website":"..."}]}. ` +
+	`{"suggestions":[{"name":"...","category":"...","description":"...","reason":"...","website":"...","rating":4.5,"latitude":0.0,"longitude":0.0}]}. ` +
 	`Set "website" to the official website URL (starting with https://) when you are confident it is correct, otherwise use an empty string; never invent a URL. ` +
+	`Set "rating" to the place's typical visitor rating out of 5 with one decimal (e.g. 4.5) when it is well-known, otherwise 0. ` +
+	`Set "latitude" and "longitude" to the place's approximate WGS84 coordinates in decimal degrees when known, otherwise 0. ` +
 	`Provide between 4 and 6 suggestions. Keep description and reason to one short sentence each.`
 
 // Recommend asks the model for points of interest for the given trip. baseURL,

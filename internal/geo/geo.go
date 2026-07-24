@@ -140,6 +140,66 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	return results, nil
 }
 
+// Reverse resolves coordinates to the nearest place label. ok is false when no
+// match is found. baseURL may be empty (public Photon endpoint). Both Photon
+// (GeoJSON) and Nominatim (single object) reverse responses are handled.
+func (c *Client) Reverse(ctx context.Context, baseURL string, lat, lon float64, lang string) (Result, bool, error) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+	lang = strings.ToLower(strings.TrimSpace(lang))
+
+	key := "rev|" + baseURL + "|" + lang + "|" +
+		strconv.FormatFloat(lat, 'f', 5, 64) + "," + strconv.FormatFloat(lon, 'f', 5, 64)
+	if cached, ok := c.cachedResults(key); ok {
+		if len(cached) == 0 {
+			return Result{}, false, nil
+		}
+		return cached[0], true, nil
+	}
+
+	q := url.Values{}
+	q.Set("lat", strconv.FormatFloat(lat, 'f', 6, 64))
+	q.Set("lon", strconv.FormatFloat(lon, 'f', 6, 64))
+	if lang != "" {
+		q.Set("lang", lang)
+	}
+	q.Set("format", "jsonv2") // required by Nominatim; ignored by Photon
+	if c.apiKey != "" {
+		q.Set("key", c.apiKey)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/reverse?"+q.Encode(), nil)
+	if err != nil {
+		return Result{}, false, fmt.Errorf("geo: building reverse request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Result{}, false, fmt.Errorf("geo: reverse request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+		return Result{}, false, fmt.Errorf("geo: reverse unexpected status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return Result{}, false, fmt.Errorf("geo: reading reverse response: %w", err)
+	}
+
+	results := parseReverse(body)
+	c.store(key, results)
+	if len(results) == 0 {
+		return Result{}, false, nil
+	}
+	return results[0], true, nil
+}
+
 // parseResults auto-detects the response shape: a Photon/GeoJSON object or a
 // Nominatim-style array, so either provider can back the geocoder.
 func parseResults(body []byte) []Result {
@@ -151,6 +211,23 @@ func parseResults(body []byte) []Result {
 		return parsePhoton(body)
 	}
 	return parseNominatim(body)
+}
+
+// parseReverse handles a reverse-geocode response: a Photon GeoJSON object, a
+// Nominatim array, or a single Nominatim object (its reverse endpoint returns
+// one result rather than a list).
+func parseReverse(body []byte) []Result {
+	trimmed := bytes.TrimLeft(body, " \t\r\n")
+	if len(trimmed) == 0 {
+		return nil
+	}
+	if trimmed[0] == '[' {
+		return parseNominatim(body)
+	}
+	if r := parsePhoton(body); len(r) > 0 {
+		return r
+	}
+	return parseNominatimObject(body)
 }
 
 func parsePhoton(body []byte) []Result {
@@ -219,6 +296,27 @@ func parseNominatim(body []byte) []Result {
 		})
 	}
 	return out
+}
+
+// parseNominatimObject parses a single Nominatim result object, as returned by
+// the /reverse endpoint (a bare object, not an array).
+func parseNominatimObject(body []byte) []Result {
+	var r nominatimResult
+	if err := json.Unmarshal(body, &r); err != nil {
+		return nil
+	}
+	lat, err1 := strconv.ParseFloat(strings.TrimSpace(r.Lat), 64)
+	lng, err2 := strconv.ParseFloat(strings.TrimSpace(r.Lon), 64)
+	if err1 != nil || err2 != nil || strings.TrimSpace(r.DisplayName) == "" {
+		return nil
+	}
+	return []Result{{
+		DisplayName: r.DisplayName,
+		Lat:         lat,
+		Lng:         lng,
+		Type:        r.Type,
+		Class:       r.Class,
+	}}
 }
 
 // joinParts builds a display label from unique, non-empty location parts.

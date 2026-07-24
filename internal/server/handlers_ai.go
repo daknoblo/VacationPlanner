@@ -2,23 +2,35 @@ package server
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
+	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
-// suggestionView is one AI suggestion enriched with a validated website link and
-// a Google Maps search link (which surfaces the real Google rating on click).
+// suggestionLink is one labelled external link shown on a suggestion tile.
+type suggestionLink struct {
+	Icon  string
+	Label string
+	URL   string
+}
+
+// suggestionView is one AI suggestion enriched with a rating badge, a set of
+// labelled external links (Google Maps, website, Tripadvisor) and the straight-
+// line distance to the nearest accommodation.
 type suggestionView struct {
 	Name        string
 	Category    string
 	Description string
 	Reason      string
-	Website     string
-	MapsURL     string
+	Rating      string
+	Distance    string
+	Links       []suggestionLink
 }
 
 type aiSuggestionsView struct {
@@ -80,6 +92,20 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		seen[strings.ToLower(strings.TrimSpace(it.Title))] = true
 	}
 
+	// Accommodation points, used to show each suggestion's distance to the
+	// nearest hotel (straight-line).
+	lodgings, err := s.store.ListLodgings(r.Context(), vacationID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	hotels := make([]route.Point, 0, len(lodgings))
+	for _, lo := range lodgings {
+		if lo.HasCoords() {
+			hotels = append(hotels, route.Point{Lat: *lo.Latitude, Lng: *lo.Longitude})
+		}
+	}
+
 	input := ai.RecommendInput{
 		Destination: v.Destination,
 		StartDate:   v.StartDate.Format("2006-01-02"),
@@ -117,19 +143,63 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 			if seen[strings.ToLower(strings.TrimSpace(sg.Name))] {
 				continue
 			}
+			links := []suggestionLink{
+				{Icon: "📍", Label: loc.T("ai.google_maps"), URL: googleMapsSearchURL(sg.Name, v.Destination)},
+			}
+			if web := safeExternalURL(sg.Website); web != "" {
+				links = append(links, suggestionLink{Icon: "🔗", Label: loc.T("ai.website"), URL: web})
+			}
+			links = append(links, suggestionLink{Icon: "🧳", Label: loc.T("ai.tripadvisor"), URL: tripadvisorSearchURL(sg.Name, v.Destination)})
+
 			out = append(out, suggestionView{
 				Name:        sg.Name,
 				Category:    sg.Category,
 				Description: sg.Description,
 				Reason:      sg.Reason,
-				Website:     safeExternalURL(sg.Website),
-				MapsURL:     googleMapsSearchURL(sg.Name, v.Destination),
+				Rating:      formatRating(sg.Rating),
+				Distance:    nearestHotelDistance(sg, hotels),
+				Links:       links,
 			})
 		}
 		view.Suggestions = out
 	}
 
 	s.fragment(w, r, "ai_suggestions", view)
+}
+
+// formatRating renders a 0–5 rating with one decimal, or "" when unavailable or
+// out of range.
+func formatRating(rating float64) string {
+	if rating <= 0 || rating > 5 {
+		return ""
+	}
+	return fmt.Sprintf("%.1f", rating)
+}
+
+// nearestHotelDistance returns the straight-line distance from a suggestion to
+// the closest accommodation, or "" when the coordinates are missing or the model
+// returned an implausible point (far outside any plausible trip radius).
+func nearestHotelDistance(sg ai.Suggestion, hotels []route.Point) string {
+	if len(hotels) == 0 {
+		return ""
+	}
+	if sg.Latitude == 0 && sg.Longitude == 0 {
+		return ""
+	}
+	if sg.Latitude < -90 || sg.Latitude > 90 || sg.Longitude < -180 || sg.Longitude > 180 {
+		return ""
+	}
+	p := route.Point{Lat: sg.Latitude, Lng: sg.Longitude}
+	best := math.MaxFloat64
+	for _, h := range hotels {
+		if d := route.Haversine(p, h); d < best {
+			best = d
+		}
+	}
+	if best > 500_000 { // >500 km: coordinates are almost certainly wrong
+		return ""
+	}
+	return formatDistance(best)
 }
 
 // safeExternalURL returns raw only if it is a syntactically valid absolute
@@ -153,9 +223,19 @@ func safeExternalURL(raw string) string {
 // googleMapsSearchURL builds a Google Maps search link for a place. Opened in a
 // new tab, it shows the place together with its real Google rating and reviews.
 func googleMapsSearchURL(name, destination string) string {
+	return "https://www.google.com/maps/search/?api=1&query=" + url.QueryEscape(placeQuery(name, destination))
+}
+
+// tripadvisorSearchURL builds a Tripadvisor search link for a place.
+func tripadvisorSearchURL(name, destination string) string {
+	return "https://www.tripadvisor.com/Search?q=" + url.QueryEscape(placeQuery(name, destination))
+}
+
+// placeQuery combines a place name with its destination for an external search.
+func placeQuery(name, destination string) string {
 	q := strings.TrimSpace(name)
 	if d := strings.TrimSpace(destination); d != "" {
 		q += ", " + d
 	}
-	return "https://www.google.com/maps/search/?api=1&query=" + url.QueryEscape(q)
+	return q
 }

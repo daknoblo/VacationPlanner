@@ -59,6 +59,33 @@ func (s *Server) handleGeocode(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"results": results})
 }
 
+// handleReverseGeocode resolves a clicked map point to a place label via the
+// configured provider (server-side, keeping the strict CSP and any API key
+// off the client). Used by the AI search-center picker.
+func (s *Server) handleReverseGeocode(w http.ResponseWriter, r *http.Request) {
+	lat := queryFloat(r, "lat")
+	lon := queryFloat(r, "lon")
+	out := map[string]any{}
+	if (lat != 0 || lon != 0) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 {
+		loc := i18n.FromContext(r.Context())
+		res, ok, err := s.geo.Reverse(r.Context(), s.geoBaseURL(r.Context()), lat, lon, loc.Code())
+		if err != nil {
+			s.log.Warn("reverse geocode failed", "err", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": true})
+			return
+		}
+		if ok {
+			out["display_name"] = res.DisplayName
+			out["lat"] = res.Lat
+			out["lng"] = res.Lng
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
 // handleUpdateGeoSettings persists the geocoder base URL. The optional API key
 // is never stored here; it comes from GEOCODER_API_KEY.
 func (s *Server) handleUpdateGeoSettings(w http.ResponseWriter, r *http.Request) {

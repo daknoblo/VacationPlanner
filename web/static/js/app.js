@@ -214,6 +214,17 @@
     return 9;
   }
 
+  // Resolve a clicked point to a place name and fill the picker's text field.
+  // Shows the coordinates immediately, then upgrades to the resolved name.
+  function reverseGeocode(lat, lng, input) {
+    input.value = lat.toFixed(5) + ", " + lng.toFixed(5);
+    fetch("/api/reverse-geocode?lat=" + encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lng),
+      { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (data) { if (data && data.display_name) { input.value = data.display_name; } })
+      .catch(function () { /* keep the coordinate fallback */ });
+  }
+
   function initLocationPicker(pk) {
     var input = pk.querySelector("[data-geocode-input]");
     var list = pk.querySelector("[data-geocode-list]");
@@ -249,13 +260,13 @@
     }
     if (hasPoint) setPoint(lat, lng, hasStoredZoom ? storedZoom : 6, false);
 
-    // When the picker clears its label on manual clicks (e.g. the AI search
-    // center), a raw map click sets a new point without a matching name, so drop
-    // the stale label — the coordinates alone then define the location.
-    var clearLabelOnClick = pk.hasAttribute("data-geocode-clear-on-click");
+    // When the picker resolves clicks to a place name (e.g. the AI search
+    // center), a raw map click has no matching label, so reverse-geocode the
+    // point and fill the field with the resolved place name.
+    var reverseOnClick = pk.hasAttribute("data-geocode-reverse");
     lmap.on("click", function (e) {
       setPoint(e.latlng.lat, e.latlng.lng, null, true);
-      if (clearLabelOnClick && input) { input.value = ""; }
+      if (reverseOnClick && input) { reverseGeocode(e.latlng.lat, e.latlng.lng, input); }
     });
     window.setTimeout(function () { lmap.invalidateSize(); }, 200);
 
