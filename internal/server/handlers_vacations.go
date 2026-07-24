@@ -500,7 +500,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
 	weekStart, tz := s.regionSettings(r.Context())
 	mondayStart := weekStart != "sunday"
-	cardMap := s.dayCardMap(r.Context(), loc, v)
+	cardMap := s.dayCardMap(r.Context(), loc, tz, v)
 	activities, ideas := overviewFromCards(loc, tz, v, cardMap)
 	currency := s.currencySymbol(r.Context())
 
@@ -829,93 +829,99 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 // single entry whose distance and duration are the sum of its legs) with the
 // per-day item cards from cardMap, plus the unscheduled "ideas" bucket. The
 // activity list is returned sorted chronologically.
-func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, cardMap map[string][]overviewActivity) (activities []overviewActivity, ideas []models.Item) {
-	// Each travel direction (arrival/departure) is collapsed into a single entry
-	// whose distance and duration are the sum of all its legs.
-	for _, kind := range []models.TravelKind{models.TravelArrival, models.TravelDeparture} {
-		legs := stepsForKind(v, kind)
-		if len(legs) == 0 {
-			continue
-		}
-		var distM float64
-		var durS int
-		var costSum float64
-		var haveDist, haveDur, haveCost bool
-		for _, ts := range legs {
-			if ts.DistanceM != nil {
-				distM += *ts.DistanceM
-				haveDist = true
-			}
-			if ts.DurationS != nil {
-				durS += *ts.DurationS
-				haveDur = true
-			}
-			if ts.Cost != nil {
-				costSum += *ts.Cost
-				haveCost = true
-			}
-		}
-		first, last := legs[0], legs[len(legs)-1]
-
-		var date, tm string
-		var key, wd time.Time
-		switch {
-		case first.DepartAt != nil:
-			dep := first.DepartAt.In(tz)
-			date, tm, key, wd = fmtDate(dep), dep.Format("15:04"), *first.DepartAt, dep
-		case kind == models.TravelArrival:
-			date, key, wd = fmtDate(v.StartDate), v.StartDate, v.StartDate
-		default:
-			date, key, wd = fmtDate(v.EndDate), v.EndDate.Add(24*time.Hour-time.Minute), v.EndDate
-		}
-
-		title := loc.T("travel.kind." + string(kind))
-		switch {
-		case first.FromLocation != "" && last.ToLocation != "":
-			title += " · " + first.FromLocation + " → " + last.ToLocation
-		case last.ToLocation != "":
-			title += " · " + last.ToLocation
-		case first.FromLocation != "":
-			title += " · " + first.FromLocation
-		}
-
-		lat, lng := last.ToLat, last.ToLng
-		if lat == nil {
-			lat, lng = last.FromLat, last.FromLng
-		}
-		if lat == nil {
-			lat, lng = first.FromLat, first.FromLng
-		}
-
-		cat := modeLabel(loc, first.Mode)
-		if len(legs) > 1 {
-			cat = loc.T("overview.legs", len(legs))
-		}
-
-		oa := overviewActivity{
-			Weekday:   weekdayLabel(loc, wd),
-			DateLabel: date,
-			TimeLabel: tm,
-			Title:     title,
-			Category:  cat,
-			IsTravel:  true,
-			Latitude:  lat,
-			Longitude: lng,
-			HasCoords: lat != nil && lng != nil,
-			sortKey:   key,
-		}
-		if haveDist {
-			oa.DistanceLabel = formatDistance(distM)
-		}
-		if haveDur {
-			oa.DurationLabel = formatDuration(float64(durS))
-		}
-		if haveCost {
-			c := costSum
-			oa.Cost = &c
-		}
-		activities = append(activities, oa)
+// travelSummaryCard collapses one travel direction into a single overview card
+// with the summed distance, duration and cost of its legs. ok is false when the
+// direction has no legs. The returned card carries a natural date/time and sort
+// key; callers that place it on a specific day override those.
+func travelSummaryCard(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, kind models.TravelKind) (overviewActivity, bool) {
+	legs := stepsForKind(v, kind)
+	if len(legs) == 0 {
+		return overviewActivity{}, false
 	}
+	var distM float64
+	var durS int
+	var costSum float64
+	var haveDist, haveDur, haveCost bool
+	for _, ts := range legs {
+		if ts.DistanceM != nil {
+			distM += *ts.DistanceM
+			haveDist = true
+		}
+		if ts.DurationS != nil {
+			durS += *ts.DurationS
+			haveDur = true
+		}
+		if ts.Cost != nil {
+			costSum += *ts.Cost
+			haveCost = true
+		}
+	}
+	first, last := legs[0], legs[len(legs)-1]
+
+	var date, tm string
+	var key, wd time.Time
+	switch {
+	case first.DepartAt != nil:
+		dep := first.DepartAt.In(tz)
+		date, tm, key, wd = fmtDate(dep), dep.Format("15:04"), *first.DepartAt, dep
+	case kind == models.TravelArrival:
+		date, key, wd = fmtDate(v.StartDate), v.StartDate, v.StartDate
+	default:
+		date, key, wd = fmtDate(v.EndDate), v.EndDate.Add(24*time.Hour-time.Minute), v.EndDate
+	}
+
+	title := loc.T("travel.kind." + string(kind))
+	switch {
+	case first.FromLocation != "" && last.ToLocation != "":
+		title += " · " + first.FromLocation + " → " + last.ToLocation
+	case last.ToLocation != "":
+		title += " · " + last.ToLocation
+	case first.FromLocation != "":
+		title += " · " + first.FromLocation
+	}
+
+	lat, lng := last.ToLat, last.ToLng
+	if lat == nil {
+		lat, lng = last.FromLat, last.FromLng
+	}
+	if lat == nil {
+		lat, lng = first.FromLat, first.FromLng
+	}
+
+	cat := modeLabel(loc, first.Mode)
+	if len(legs) > 1 {
+		cat = loc.T("overview.legs", len(legs))
+	}
+
+	oa := overviewActivity{
+		Weekday:   weekdayLabel(loc, wd),
+		DateLabel: date,
+		TimeLabel: tm,
+		Title:     title,
+		Category:  cat,
+		IsTravel:  true,
+		Latitude:  lat,
+		Longitude: lng,
+		HasCoords: lat != nil && lng != nil,
+		sortKey:   key,
+	}
+	if haveDist {
+		oa.DistanceLabel = formatDistance(distM)
+	}
+	if haveDur {
+		oa.DurationLabel = formatDuration(float64(durS))
+	}
+	if haveCost {
+		c := costSum
+		oa.Cost = &c
+	}
+	return oa, true
+}
+
+func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, cardMap map[string][]overviewActivity) (activities []overviewActivity, ideas []models.Item) {
+	// Travel (arrival/departure) journeys are part of the per-day card map now
+	// (added on the trip's first and last day), so they arrive with the flattened
+	// day cards below rather than being added separately here.
 	// Item cards, grouped by day and already carrying their origin/leg info.
 	for _, it := range v.Items {
 		if it.Day == nil {
@@ -1019,7 +1025,7 @@ func (s *Server) handleOverviewFragment(w http.ResponseWriter, r *http.Request) 
 	}
 	loc := i18n.FromContext(r.Context())
 	_, tz := s.regionSettings(r.Context())
-	activities, _ := overviewFromCards(loc, tz, v, s.dayCardMap(r.Context(), loc, v))
+	activities, _ := overviewFromCards(loc, tz, v, s.dayCardMap(r.Context(), loc, tz, v))
 	s.fragment(w, r, "overview_list", activities)
 }
 
@@ -1051,7 +1057,8 @@ func (s *Server) handleDayCards(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	loc := i18n.FromContext(r.Context())
-	s.fragment(w, r, "activity_cards", s.dayCards(r.Context(), loc, *day, v, items))
+	_, tz := s.regionSettings(r.Context())
+	s.fragment(w, r, "activity_cards", s.dayCards(r.Context(), loc, tz, *day, v, items))
 }
 
 // handleIdeasFragment re-renders the unscheduled ideas backlog.

@@ -65,10 +65,11 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	loc := i18n.FromContext(r.Context())
+	_, tz := s.regionSettings(r.Context())
 	s.page(w, r, "export", loc.T("export.title"), map[string]any{
 		"Vacation": v,
 		"Day":      parseDayParam(r),
-		"DayCards": s.dayCardMap(r.Context(), loc, v),
+		"DayCards": s.dayCardMap(r.Context(), loc, tz, v),
 	})
 }
 

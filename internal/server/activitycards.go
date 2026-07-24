@@ -149,13 +149,15 @@ func orderDayItems(items []models.Item) []models.Item {
 }
 
 // dayCards builds the activity cards for a single day's items, resolving each
-// item's origin (start point) and the distance and time to reach it.
-func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, day time.Time, v *models.Vacation, items []models.Item) []overviewActivity {
+// item's origin (start point) and the distance and time to reach it. It also
+// prepends the arrival journey on the trip's first day and appends the departure
+// journey on its last day, so the route reflects the drives to/from the base.
+func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, tz *time.Location, day time.Time, v *models.Vacation, items []models.Item) []overviewActivity {
 	ordered := orderDayItems(items)
 	hotelPt, hotelLabel := dayHotel(loc, v, day)
 	dayKey := day.Format("2006-01-02")
 
-	cards := make([]overviewActivity, 0, len(ordered))
+	cards := make([]overviewActivity, 0, len(ordered)+2)
 	for idx, it := range ordered {
 		tm := ""
 		key := day.Add(23*time.Hour + 59*time.Minute) // untimed items sort last that day
@@ -189,12 +191,56 @@ func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, day time.Tim
 		}
 		cards = append(cards, card)
 	}
+
+	// The arrival lands you on the first day, the departure leaves on the last.
+	cards = append(cards, dayTravelCards(loc, tz, day, v)...)
+
+	sort.SliceStable(cards, func(i, j int) bool { return cards[i].sortKey.Before(cards[j].sortKey) })
 	return cards
 }
 
+// dayTravelCards returns the travel journeys that belong to the given day: the
+// arrival on the trip's first day and the departure on its last day. Each is a
+// single collapsed card, positioned by its departure time (or first/last).
+func dayTravelCards(loc *i18n.Localizer, tz *time.Location, day time.Time, v *models.Vacation) []overviewActivity {
+	dayKey := day.Format("2006-01-02")
+	var out []overviewActivity
+
+	add := func(kind models.TravelKind, belongsKey string) {
+		if dayKey != belongsKey {
+			return
+		}
+		card, ok := travelSummaryCard(loc, tz, v, kind)
+		if !ok {
+			return
+		}
+		card.Weekday = weekdayLabel(loc, day)
+		card.DateLabel = fmtDate(day)
+		legs := stepsForKind(v, kind)
+		switch {
+		case legs[0].DepartAt != nil:
+			dep := legs[0].DepartAt.In(tz)
+			card.TimeLabel = dep.Format("15:04")
+			card.sortKey = day.Add(time.Duration(dep.Hour())*time.Hour + time.Duration(dep.Minute())*time.Minute)
+		case kind == models.TravelArrival:
+			card.TimeLabel = ""
+			card.sortKey = day // arrival sorts first
+		default:
+			card.TimeLabel = ""
+			card.sortKey = day.Add(23*time.Hour + 59*time.Minute) // departure sorts last
+		}
+		out = append(out, card)
+	}
+
+	add(models.TravelArrival, v.StartDate.Format("2006-01-02"))
+	add(models.TravelDeparture, v.EndDate.Format("2006-01-02"))
+	return out
+}
+
 // dayCardMap groups a vacation's scheduled items by day (dateInput key) and
-// builds the activity cards for each day.
-func (s *Server) dayCardMap(ctx context.Context, loc *i18n.Localizer, v *models.Vacation) map[string][]overviewActivity {
+// builds the activity cards for each day. The trip's first and last day are
+// always included so the arrival/departure journeys show even with no items.
+func (s *Server) dayCardMap(ctx context.Context, loc *i18n.Localizer, tz *time.Location, v *models.Vacation) map[string][]overviewActivity {
 	byDay := make(map[string][]models.Item)
 	for _, it := range v.Items {
 		if it.Day == nil {
@@ -203,13 +249,27 @@ func (s *Server) dayCardMap(ctx context.Context, loc *i18n.Localizer, v *models.
 		key := it.Day.Format("2006-01-02")
 		byDay[key] = append(byDay[key], it)
 	}
+	if len(stepsForKind(v, models.TravelArrival)) > 0 {
+		if k := v.StartDate.Format("2006-01-02"); k != "" {
+			if _, ok := byDay[k]; !ok {
+				byDay[k] = nil
+			}
+		}
+	}
+	if len(stepsForKind(v, models.TravelDeparture)) > 0 {
+		if k := v.EndDate.Format("2006-01-02"); k != "" {
+			if _, ok := byDay[k]; !ok {
+				byDay[k] = nil
+			}
+		}
+	}
 	out := make(map[string][]overviewActivity, len(byDay))
 	for key, items := range byDay {
 		day, err := time.Parse("2006-01-02", key)
 		if err != nil {
 			continue
 		}
-		out[key] = s.dayCards(ctx, loc, day, v, items)
+		out[key] = s.dayCards(ctx, loc, tz, day, v, items)
 	}
 	return out
 }
