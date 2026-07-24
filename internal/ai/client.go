@@ -61,6 +61,7 @@ type RecommendInput struct {
 	EndDate     string
 	Interests   string
 	RadiusKm    int
+	Count       int
 	Existing    []string
 	// Origin is the search center chosen by the user (a label such as a place
 	// name). When HasOrigin is set, OriginLat/OriginLng give its exact
@@ -101,7 +102,7 @@ const systemPrompt = `You are a concise travel assistant. ` +
 	`Set "website" to the official website URL (starting with https://) when you are confident it is correct, otherwise use an empty string; never invent a URL. ` +
 	`Set "rating" to the place's typical visitor rating out of 5 with one decimal (e.g. 4.5) when it is well-known, otherwise 0. ` +
 	`Set "latitude" and "longitude" to the place's approximate WGS84 coordinates in decimal degrees when known, otherwise 0. ` +
-	`Provide between 4 and 6 suggestions. Keep description and reason to one short sentence each.`
+	`Keep description and reason to one short sentence each.`
 
 // Recommend asks the model for points of interest for the given trip. baseURL,
 // model and apiVersion may be empty, in which case the package defaults / a
@@ -249,8 +250,20 @@ func buildUserPrompt(in RecommendInput) string {
 	if len(in.Existing) > 0 {
 		fmt.Fprintf(&b, "Already planned (do not repeat): %s\n", strings.Join(in.Existing, ", "))
 	}
-	b.WriteString("Suggest points of interest.")
+	fmt.Fprintf(&b, "Suggest exactly %d points of interest.", countOrDefault(in.Count))
 	return b.String()
+}
+
+// countOrDefault clamps the requested number of suggestions to a sensible range.
+func countOrDefault(n int) int {
+	switch {
+	case n <= 0:
+		return 5
+	case n > 25:
+		return 25
+	default:
+		return n
+	}
 }
 
 // radiusOrDefault clamps the search radius (km) to a sensible range.
@@ -295,7 +308,7 @@ func tryParseSuggestions(content string) []Suggestion {
 }
 
 func clamp(s []Suggestion) []Suggestion {
-	const max = 8
+	const max = 25
 	if len(s) > max {
 		return s[:max]
 	}

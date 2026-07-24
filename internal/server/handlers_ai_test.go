@@ -71,3 +71,16 @@ func TestPlaceQuery(t *testing.T) {
 		t.Errorf("placeQuery no dest = %q", got)
 	}
 }
+
+func TestClampSuggestionCount(t *testing.T) {
+	cases := map[int]int{
+		5: 5, 10: 10, 25: 25,
+		0: 5, 4: 5, 26: 5, 100: 5, -3: 5,
+		7: 5, 12: 10, // snapped down to the nearest step of 5
+	}
+	for in, want := range cases {
+		if got := clampSuggestionCount(in); got != want {
+			t.Errorf("clampSuggestionCount(%d) = %d, want %d", in, got, want)
+		}
+	}
+}

@@ -140,6 +140,13 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	return results, nil
 }
 
+// isPhotonBaseURL reports whether the geocoder base URL points at a Photon
+// instance. Photon returns GeoJSON and rejects unknown query parameters (such
+// as "format"), which Nominatim-compatible providers require.
+func isPhotonBaseURL(baseURL string) bool {
+	return strings.Contains(strings.ToLower(baseURL), "photon")
+}
+
 // Reverse resolves coordinates to the nearest place label. ok is false when no
 // match is found. baseURL may be empty (public Photon endpoint). Both Photon
 // (GeoJSON) and Nominatim (single object) reverse responses are handled.
@@ -165,7 +172,12 @@ func (c *Client) Reverse(ctx context.Context, baseURL string, lat, lon float64, 
 	if lang != "" {
 		q.Set("lang", lang)
 	}
-	q.Set("format", "jsonv2") // required by Nominatim; ignored by Photon
+	// Nominatim-compatible providers default to XML and need an explicit JSON
+	// format; Photon returns GeoJSON and rejects an unknown "format" parameter,
+	// so only send it to non-Photon providers.
+	if !isPhotonBaseURL(baseURL) {
+		q.Set("format", "jsonv2")
+	}
 	if c.apiKey != "" {
 		q.Set("key", c.apiKey)
 	}

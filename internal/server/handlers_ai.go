@@ -112,6 +112,7 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		EndDate:     v.EndDate.Format("2006-01-02"),
 		Interests:   interests,
 		RadiusKm:    formInt(r, "radius", 25),
+		Count:       clampSuggestionCount(formInt(r, "count", 5)),
 		Existing:    existing,
 		Origin:      locationName,
 	}
@@ -165,6 +166,15 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.fragment(w, r, "ai_suggestions", view)
+}
+
+// clampSuggestionCount snaps the requested number of suggestions to the offered
+// range (5–25 in steps of 5), defaulting to 5 for out-of-range values.
+func clampSuggestionCount(n int) int {
+	if n < 5 || n > 25 {
+		return 5
+	}
+	return (n / 5) * 5
 }
 
 // formatRating renders a 0–5 rating with one decimal, or "" when unavailable or

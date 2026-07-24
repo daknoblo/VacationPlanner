@@ -137,3 +137,40 @@ func TestReverseNoMatch(t *testing.T) {
 		t.Fatalf("expected ok=false for an empty result set")
 	}
 }
+
+func TestReverseOmitsFormatForPhoton(t *testing.T) {
+	var sawFormat bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("format") {
+			sawFormat = true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[]}`))
+	}))
+	defer srv.Close()
+
+	// A base URL containing "photon" must not receive the format parameter,
+	// which the real Photon endpoint rejects.
+	c := New("")
+	if _, _, err := c.Reverse(context.Background(), srv.URL+"/photon", 41.4, 12.9, "en"); err != nil {
+		t.Fatalf("Reverse: %v", err)
+	}
+	if sawFormat {
+		t.Fatalf("format parameter must not be sent to a Photon base URL")
+	}
+}
+
+func TestIsPhotonBaseURL(t *testing.T) {
+	cases := map[string]bool{
+		"https://photon.komoot.io":      true,
+		"https://my-photon.example":     true,
+		"https://nominatim.example.org": false,
+		"https://locationiq.example":    false,
+		"":                              false,
+	}
+	for in, want := range cases {
+		if got := isPhotonBaseURL(in); got != want {
+			t.Errorf("isPhotonBaseURL(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
