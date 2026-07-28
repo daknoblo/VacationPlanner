@@ -327,6 +327,19 @@ code {
 }
 .budget__stat--sm { padding: 0.55rem 0.75rem; }
 .budget__stat--sm .budget__value { font-size: 1.1rem; }
+
+/* Cost-flow (Sankey) diagram: payers on the left, categories on the right */
+.sankey { margin: 0 0 0.5rem; }
+.sankey__scroll { overflow-x: auto; }
+.sankey__svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.sankey__link { fill: var(--pc, #94a3b8); fill-opacity: 0.3; transition: fill-opacity 0.12s ease; }
+.sankey__link:hover { fill-opacity: 0.6; }
+.sankey__node { fill: var(--pc, #64748b); }
+.sankey__node--cat { fill: var(--cat-fg, #64748b); }
+.sankey__label { font-size: 11px; fill: var(--ink); dominant-baseline: middle; }
+.sankey__amount { fill: var(--muted); font-variant-numeric: tabular-nums; }
+.sankey__axis { font-size: 10px; font-weight: 700; fill: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
 .budget__cats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .budget-cat__head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem; }
 .budget-cat__name { font-weight: 600; }

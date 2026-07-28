@@ -137,6 +137,9 @@ type budgetView struct {
 	Unassigned      float64
 	Persons         []budgetPerson
 	Transfers       []budgetTransfer
+
+	// Sankey is the payer-to-category cost flow, nil when there is nothing to draw.
+	Sankey *sankeyView
 }
 
 // budgetPerson is one participant's cost balance: what they paid versus their
@@ -172,6 +175,7 @@ type budgetCategory struct {
 type budgetExpense struct {
 	Title      string
 	Icon       string
+	Category   string // category key, matching budgetCategory.Name
 	DayLabel   string
 	Amount     float64
 	PayerID    string
@@ -183,13 +187,15 @@ type budgetExpense struct {
 // itself: the items to price, all known people (so any payer resolves to a
 // name), category icons, the display timezone and the localized section labels.
 type budgetInput struct {
-	Items        []models.Item
-	AllPeople    []models.Person
-	Icons        map[string]string
-	Currency     string
-	TZ           *time.Location
-	LodgingLabel string
-	TravelLabel  string
+	Items              []models.Item
+	AllPeople          []models.Person
+	Icons              map[string]string
+	Currency           string
+	TZ                 *time.Location
+	LodgingLabel       string
+	TravelLabel        string
+	UnassignedLabel    string
+	UncategorizedLabel string
 }
 
 // budgetInputFor assembles the request-scoped inputs for the budget view.
@@ -197,13 +203,15 @@ func (s *Server) budgetInputFor(ctx context.Context, items []models.Item, allPeo
 	loc := i18n.FromContext(ctx)
 	_, tz := s.regionSettings(ctx)
 	return budgetInput{
-		Items:        items,
-		AllPeople:    allPeople,
-		Icons:        s.categoryIcons(ctx),
-		Currency:     s.currencySymbol(ctx),
-		TZ:           tz,
-		LodgingLabel: loc.T("tab.lodging"),
-		TravelLabel:  loc.T("tab.travel"),
+		Items:              items,
+		AllPeople:          allPeople,
+		Icons:              s.categoryIcons(ctx),
+		Currency:           s.currencySymbol(ctx),
+		TZ:                 tz,
+		LodgingLabel:       loc.T("tab.lodging"),
+		TravelLabel:        loc.T("tab.travel"),
+		UnassignedLabel:    loc.T("paid_by.unassigned"),
+		UncategorizedLabel: loc.T("budget.uncategorized"),
 	}
 }
 
@@ -266,6 +274,7 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		b.Expenses = append(b.Expenses, budgetExpense{
 			Title:      it.Title,
 			Icon:       in.Icons[strings.ToLower(it.Category)],
+			Category:   it.Category,
 			DayLabel:   day,
 			Amount:     amt,
 			PayerID:    payerID,
@@ -293,6 +302,7 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		b.Expenses = append(b.Expenses, budgetExpense{
 			Title:      lo.Name,
 			Icon:       "🛏",
+			Category:   in.LodgingLabel,
 			DayLabel:   fmtDate(lo.CheckIn.In(tz)),
 			Amount:     amt,
 			PayerID:    lpID,
@@ -334,6 +344,7 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		b.Expenses = append(b.Expenses, budgetExpense{
 			Title:      title,
 			Icon:       "✈",
+			Category:   in.TravelLabel,
 			DayLabel:   day,
 			Amount:     amt,
 			PayerID:    tpID,
@@ -371,6 +382,9 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 	}
 	sort.SliceStable(b.Categories, func(i, j int) bool { return b.Categories[i].Amount > b.Categories[j].Amount })
 	sort.SliceStable(b.Expenses, func(i, j int) bool { return b.Expenses[i].Amount > b.Expenses[j].Amount })
+
+	// Cost flow: who paid how much, and which category it went into.
+	b.Sankey = buildSankey(b.Expenses, b.Categories, in.Currency, in.UnassignedLabel, in.UncategorizedLabel)
 
 	// Per-person balances: each attributed expense is split equally among the
 	// split group. That group is the trip's participants when any are selected;

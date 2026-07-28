@@ -97,6 +97,32 @@
     {{end}}
   </div>
 
+  {{with $b.Sankey}}
+  <h3 class="budget__heading">{{t "budget.flow_heading"}}</h3>
+  <figure class="sankey">
+    <div class="sankey__scroll">
+      <svg class="sankey__svg" viewBox="0 0 {{.Width}} {{.Height}}" role="img" aria-label="{{t "budget.flow_heading"}}">
+        <text class="sankey__axis" x="{{.LeftHeaderX}}" y="{{.HeaderY}}" text-anchor="end">{{t "budget.flow_payers"}}</text>
+        <text class="sankey__axis" x="{{.RightHeaderX}}" y="{{.HeaderY}}" text-anchor="start">{{t "budget.flow_categories"}}</text>
+        <g class="sankey__links">
+          {{range .Links}}
+          <path class="sankey__link" {{colorStyle .Color}} d="{{.D}}"><title>{{.Title}}</title></path>
+          {{end}}
+        </g>
+        <g class="sankey__nodes">
+          {{range .Nodes}}
+          <rect class="sankey__node{{if .CatClass}} sankey__node--cat {{.CatClass}}{{end}}" {{colorStyle .Color}} x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}" rx="2"><title>{{.Title}}</title></rect>
+          {{if .ShowLabel}}
+          <text class="sankey__label" x="{{.LabelX}}" y="{{.LabelY}}" text-anchor="{{.Anchor}}">{{.Label}}<tspan class="sankey__amount" dx="6">{{.Amount}}</tspan></text>
+          {{end}}
+          {{end}}
+        </g>
+      </svg>
+    </div>
+    <figcaption class="muted small">{{t "budget.flow_hint"}}</figcaption>
+  </figure>
+  {{end}}
+
   <h3 class="budget__heading">{{t "budget.by_category"}}</h3>
   <ul class="budget__cats">
     {{range $b.Categories}}
