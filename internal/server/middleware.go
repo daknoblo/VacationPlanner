@@ -91,11 +91,17 @@ func (s *Server) requestLogger(next http.Handler) http.Handler {
 	})
 }
 
-// staticHandler serves embedded assets with long-lived cache headers.
+// staticHandler serves embedded assets. Fingerprinted requests (?v=<content
+// hash>) and vendored libraries never change under the same URL, so they may be
+// cached indefinitely; anything else gets a short TTL.
 func staticHandler(fsys http.FileSystem) http.Handler {
 	fileServer := http.FileServer(fsys)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		if r.URL.Query().Get("v") != "" || strings.HasPrefix(strings.TrimPrefix(r.URL.Path, "/"), "vendor/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		}
 		fileServer.ServeHTTP(w, r)
 	})
 }

@@ -33,27 +33,46 @@ func newIPRateLimiter(perMinute, burst int) *ipRateLimiter {
 	}
 }
 
+// maxRateLimitClients caps the tracked client table. Sweeps only run every ten
+// minutes, so a burst from many distinct source addresses could otherwise grow
+// the map without bound before the next sweep.
+const maxRateLimitClients = 4096
+
 func (l *ipRateLimiter) allow(ip string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	now := time.Now()
 	if now.Sub(l.lastSweep) > 10*time.Minute {
-		for k, c := range l.clients {
-			if now.Sub(c.lastSeen) > 10*time.Minute {
-				delete(l.clients, k)
-			}
-		}
-		l.lastSweep = now
+		l.sweep(now, 10*time.Minute)
 	}
 
 	c, ok := l.clients[ip]
 	if !ok {
+		// A full table means the sweep window has not elapsed yet; drop the
+		// entries that are already idle, then start over if that freed nothing.
+		if len(l.clients) >= maxRateLimitClients {
+			l.sweep(now, time.Minute)
+			if len(l.clients) >= maxRateLimitClients {
+				l.clients = make(map[string]*clientLimiter, maxRateLimitClients)
+			}
+		}
 		c = &clientLimiter{limiter: rate.NewLimiter(l.rate, l.burst)}
 		l.clients[ip] = c
 	}
 	c.lastSeen = now
 	return c.limiter.Allow()
+}
+
+// sweep drops clients that have not been seen for the given idle period. The
+// caller must hold l.mu.
+func (l *ipRateLimiter) sweep(now time.Time, idle time.Duration) {
+	for k, c := range l.clients {
+		if now.Sub(c.lastSeen) > idle {
+			delete(l.clients, k)
+		}
+	}
+	l.lastSweep = now
 }
 
 func (s *Server) rateLimit(next http.Handler) http.Handler {

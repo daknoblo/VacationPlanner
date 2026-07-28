@@ -39,7 +39,7 @@ func TestNewBudgetViewPerPerson(t *testing.T) {
 		{Title: "Dinner", Category: "Food", Cost: &c100, PaidBy: &alice.ID},
 		{Title: "Tickets", Category: "Activity", Cost: &c50, PaidBy: &bob.ID},
 	}
-	b := newBudgetView(v, items, nil, nil, "€", "Lodging", "Travel")
+	b := newBudgetView(v, budgetInput{Items: items, Currency: "€", LodgingLabel: "Lodging", TravelLabel: "Travel"})
 
 	if !b.HasPeople || len(b.Persons) != 2 {
 		t.Fatalf("expected 2 persons, got HasPeople=%v Persons=%d", b.HasPeople, len(b.Persons))
@@ -70,7 +70,7 @@ func TestNewBudgetViewUnassigned(t *testing.T) {
 		{Title: "Paid", Cost: &c40, PaidBy: &alice.ID},
 		{Title: "Nobody", Cost: &c60}, // unassigned
 	}
-	b := newBudgetView(v, items, nil, nil, "€", "Lodging", "Travel")
+	b := newBudgetView(v, budgetInput{Items: items, Currency: "€", LodgingLabel: "Lodging", TravelLabel: "Travel"})
 	if b.Unassigned != 60 {
 		t.Fatalf("Unassigned = %v, want 60", b.Unassigned)
 	}
@@ -92,7 +92,7 @@ func TestNewBudgetViewFallbackToPayers(t *testing.T) {
 		{Title: "B", Cost: &c60, PaidBy: &bob.ID},
 	}
 	all := []models.Person{alice, bob, carol}
-	b := newBudgetView(v, items, all, nil, "€", "Lodging", "Travel")
+	b := newBudgetView(v, budgetInput{Items: items, AllPeople: all, Currency: "€", LodgingLabel: "Lodging", TravelLabel: "Travel"})
 
 	if !b.HasPeople || len(b.Persons) != 2 {
 		t.Fatalf("expected split among the 2 payers, got HasPeople=%v Persons=%d", b.HasPeople, len(b.Persons))

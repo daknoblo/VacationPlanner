@@ -247,43 +247,6 @@ code {
 .tab-panel { display: none; }
 .tab-panel.is-active { display: block; }
 
-/* Collapsible day selector (long trips) */
-.days-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  color: var(--ink);
-}
-.days-toggle__caret { color: var(--muted); transition: transform 0.15s ease; }
-.days-toggle[aria-expanded="true"] .days-toggle__caret { transform: rotate(180deg); }
-.days-panel {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.25rem;
-  width: 100%;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #f8fafc;
-}
-.days-panel[hidden] { display: none; }
-.days-panel .tabs__tab--day {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  margin-bottom: 0;
-}
-.days-panel .tabs__tab--day.is-active {
-  border-color: var(--primary);
-  background: #fff;
-}
 .days-week {
   flex-basis: 100%;
   width: 100%;
@@ -295,7 +258,6 @@ code {
   letter-spacing: 0.04em;
   color: var(--muted);
 }
-.days-panel .days-week { grid-column: 1 / -1; margin-top: 0.2rem; }
 .tabs__tab--day .tabs__wd { line-height: 1.15; }
 
 /* Home quick-fill chip */
@@ -469,8 +431,6 @@ code {
 .participant-option__name { flex: 1 1 auto; }
 .participant-picker__empty { margin: 0.3rem 0.5rem; }
 .cat-form .field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
-.cat-form .field--grow { flex: 1 1 14rem; }
-.cat-form__icon { width: 4.5rem; text-align: center; }
 .cat-form .field--wide { flex: 1 1 100%; }
 .icon-picker { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
 .icon-picker__btn {
@@ -512,7 +472,6 @@ code {
 }
 
 /* Day items (unified sights + activities) */
-.day-items { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 2px solid var(--line); }
 .list.items { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .item-row {
   border: 1px solid var(--line);
@@ -606,8 +565,6 @@ code {
 .panel-head__summary { color: var(--muted); font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* Day/week activity card lists (below the calendar grid) */
-.day-cards-wrap { margin: 1.25rem 0; }
-.day-cards-wrap > h3 { margin: 0 0 0.5rem; }
 .weekview { margin-top: 0.5rem; }
 
 /* Destination info (Wikipedia intro) */
@@ -854,7 +811,6 @@ code {
 .weekcal-block--travel { background: #0ea5e9; }
 .weekcal-block--move { cursor: grab; touch-action: none; }
 .weekcal-block--move.is-dragging { cursor: grabbing; opacity: 0.85; z-index: 5; box-shadow: 0 3px 10px rgba(2, 6, 23, 0.35); }
-.activity-form { margin-bottom: 1.5rem; }
 
 @media print {
   .topbar, .toast, .no-print { display: none !important; }
@@ -1163,25 +1119,6 @@ textarea { resize: vertical; }
 .budget-pie__fg { stroke: var(--primary); stroke-linecap: round; }
 .budget-pie.is-over .budget-pie__fg { stroke: var(--danger); }
 .budget-pie__pct { font-size: 10px; font-weight: 700; fill: var(--ink); }
-.card__delete {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.55);
-  color: #fff;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-}
-.card__delete:hover { background: var(--danger); }
 
 /* Settings: statistics & backups */
 .stats { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }

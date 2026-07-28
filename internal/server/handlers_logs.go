@@ -27,7 +27,7 @@ func (s *Server) handleUpdateLogSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.logs.SetLevel(lvl)
-	if err := s.store.PutSetting(r.Context(), settingLogLevel, s.logs.LevelName()); err != nil {
+	if err := s.putSetting(r.Context(), settingLogLevel, s.logs.LevelName()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

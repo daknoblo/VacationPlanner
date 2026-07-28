@@ -21,17 +21,37 @@ func TestLodgingForDay(t *testing.T) {
 		{Name: "Hotel", Latitude: fptr(1), Longitude: fptr(2), CheckIn: ci, CheckOut: co},
 	}
 	day := func(d int) time.Time { return time.Date(2026, 8, d, 0, 0, 0, 0, time.UTC) }
-	if l := lodgingForDay(lodgings, day(3)); l == nil || l.Name != "Hotel" {
+	if l := lodgingForDay(time.UTC, lodgings, day(3)); l == nil || l.Name != "Hotel" {
 		t.Fatalf("covered day: want Hotel, got %v", l)
 	}
-	if l := lodgingForDay(lodgings, day(2)); l == nil {
+	if l := lodgingForDay(time.UTC, lodgings, day(2)); l == nil {
 		t.Fatal("check-in day: want Hotel, got nil")
 	}
-	if l := lodgingForDay(lodgings, day(5)); l == nil {
+	if l := lodgingForDay(time.UTC, lodgings, day(5)); l == nil {
 		t.Fatal("check-out day: want Hotel, got nil")
 	}
-	if l := lodgingForDay(lodgings, day(6)); l != nil {
+	if l := lodgingForDay(time.UTC, lodgings, day(6)); l != nil {
 		t.Fatalf("after check-out: want nil, got %v", l)
+	}
+}
+
+func TestLodgingForDayUsesDisplayTimezone(t *testing.T) {
+	tz, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skipf("timezone not available: %v", err)
+	}
+	// A 00:30 local check-in is still the previous day in UTC, so matching on the
+	// raw UTC date would place the stay one day too early.
+	ci := time.Date(2026, 8, 3, 0, 30, 0, 0, tz).UTC()
+	co := time.Date(2026, 8, 5, 11, 0, 0, 0, tz).UTC()
+	lodgings := []models.Lodging{{Name: "Hotel", Latitude: fptr(1), Longitude: fptr(2), CheckIn: ci, CheckOut: co}}
+	day := func(d int) time.Time { return time.Date(2026, 8, d, 0, 0, 0, 0, time.UTC) }
+
+	if l := lodgingForDay(tz, lodgings, day(2)); l != nil {
+		t.Fatalf("day before check-in: want nil, got %v", l)
+	}
+	if l := lodgingForDay(tz, lodgings, day(3)); l == nil {
+		t.Fatal("local check-in day: want Hotel, got nil")
 	}
 }
 

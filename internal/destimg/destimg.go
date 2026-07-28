@@ -21,6 +21,11 @@ const (
 	negativeTTL  = 6 * time.Hour
 	cacheMaxSize = 512
 	maxImageSize = 3 << 20 // 3 MiB
+
+	// The image cache holds raw bytes, so it is bounded by total size as well as
+	// by entry count: 512 entries of up to 3 MiB would otherwise reach 1.5 GiB.
+	imgCacheMaxSize  = 256
+	imgCacheMaxBytes = 48 << 20 // 48 MiB
 )
 
 // Client resolves destinations to cached image bytes.
@@ -28,8 +33,9 @@ type Client struct {
 	http      *http.Client
 	userAgent string
 
-	mu    sync.Mutex
-	cache map[string]entry
+	mu         sync.Mutex
+	cache      map[string]entry
+	cacheBytes int
 
 	sumMu    sync.Mutex
 	sumCache map[string]sumEntry
@@ -88,11 +94,31 @@ func (c *Client) Summary(ctx context.Context, destination, lang string) (Summary
 	}
 	c.sumMu.Lock()
 	if len(c.sumCache) >= cacheMaxSize {
-		c.sumCache = make(map[string]sumEntry)
+		evictSummaries(c.sumCache)
 	}
 	c.sumCache[key] = sumEntry{s: sum, exp: time.Now().Add(ttl)}
 	c.sumMu.Unlock()
 	return sum, ok
+}
+
+// evictSummaries drops expired summaries and, when none are expired, the entry
+// closest to expiry, so a full cache degrades gradually instead of being wiped.
+func evictSummaries(m map[string]sumEntry) {
+	now := time.Now()
+	var soonestKey string
+	var soonest time.Time
+	for k, e := range m {
+		if now.After(e.exp) {
+			delete(m, k)
+			continue
+		}
+		if soonestKey == "" || e.exp.Before(soonest) {
+			soonestKey, soonest = k, e.exp
+		}
+	}
+	if len(m) >= cacheMaxSize && soonestKey != "" {
+		delete(m, soonestKey)
+	}
 }
 
 func (c *Client) fetchSummary(ctx context.Context, title, lang string) (Summary, bool) {
@@ -326,10 +352,40 @@ func (c *Client) cached(key string) (entry, bool) {
 func (c *Client) store(key string, data []byte, ctype string, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.cache) >= cacheMaxSize {
-		c.cache = make(map[string]entry)
+	if old, ok := c.cache[key]; ok {
+		c.cacheBytes -= len(old.data)
+		delete(c.cache, key)
 	}
+	c.evictLocked(len(data))
 	c.cache[key] = entry{data: data, ctype: ctype, exp: time.Now().Add(ttl)}
+	c.cacheBytes += len(data)
+}
+
+// evictLocked frees room for incoming bytes: expired entries go first, then the
+// entries closest to expiry, until both the entry and the byte budget fit.
+// The caller holds c.mu.
+func (c *Client) evictLocked(incoming int) {
+	now := time.Now()
+	for k, e := range c.cache {
+		if now.After(e.exp) {
+			c.cacheBytes -= len(e.data)
+			delete(c.cache, k)
+		}
+	}
+	for len(c.cache) >= imgCacheMaxSize || c.cacheBytes+incoming > imgCacheMaxBytes {
+		var soonestKey string
+		var soonest time.Time
+		for k, e := range c.cache {
+			if soonestKey == "" || e.exp.Before(soonest) {
+				soonestKey, soonest = k, e.exp
+			}
+		}
+		if soonestKey == "" {
+			return
+		}
+		c.cacheBytes -= len(c.cache[soonestKey].data)
+		delete(c.cache, soonestKey)
+	}
 }
 
 func firstSegment(s string) string {

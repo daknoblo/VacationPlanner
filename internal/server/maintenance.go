@@ -66,7 +66,7 @@ func (s *Server) StartMaintenance(ctx context.Context) {
 // maybeAutoVacuum runs a vacuum when auto-vacuum is enabled and the configured
 // interval has elapsed since the last (manual or automatic) run.
 func (s *Server) maybeAutoVacuum(ctx context.Context) {
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		return
 	}
@@ -83,7 +83,7 @@ func (s *Server) maybeAutoVacuum(ctx context.Context) {
 		s.log.Error("auto-vacuum failed", "err", err)
 		return
 	}
-	if err := s.store.PutSetting(ctx, settingAutoVacuumLast, time.Now().UTC().Format(time.RFC3339)); err != nil {
+	if err := s.putSetting(ctx, settingAutoVacuumLast, time.Now().UTC().Format(time.RFC3339)); err != nil {
 		s.log.Warn("recording auto-vacuum time", "err", err)
 	}
 	s.log.Info("auto-vacuum completed", "cadence", settings[settingAutoVacuum])
@@ -96,12 +96,12 @@ func (s *Server) handleUpdateAutoVacuum(w http.ResponseWriter, r *http.Request) 
 	if !validAutoVacuum(interval) {
 		interval = "off"
 	}
-	if err := s.store.PutSetting(r.Context(), settingAutoVacuum, interval); err != nil {
+	if err := s.putSetting(r.Context(), settingAutoVacuum, interval); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	if interval != "off" {
-		if err := s.store.PutSetting(r.Context(), settingAutoVacuumLast, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		if err := s.putSetting(r.Context(), settingAutoVacuumLast, time.Now().UTC().Format(time.RFC3339)); err != nil {
 			s.serverError(w, r, err)
 			return
 		}

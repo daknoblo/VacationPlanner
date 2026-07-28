@@ -15,7 +15,7 @@ const settingRouteBaseURL = "route.base_url"
 
 // routeBaseURL returns the configured routing base URL or the built-in default.
 func (s *Server) routeBaseURL(ctx context.Context) string {
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		return route.DefaultBaseURL
 	}
@@ -38,7 +38,7 @@ func (s *Server) handleUpdateRouteSettings(w http.ResponseWriter, r *http.Reques
 		s.formError(w, r, "#route-settings-error", loc.T("error.ai_base_url_invalid"))
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingRouteBaseURL, baseURL); err != nil {
+	if err := s.putSetting(r.Context(), settingRouteBaseURL, baseURL); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

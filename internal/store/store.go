@@ -23,6 +23,7 @@ type Store interface {
 	ListVacations(ctx context.Context) ([]models.Vacation, error)
 	UpdateVacation(ctx context.Context, v *models.Vacation) error
 	DeleteVacation(ctx context.Context, id uuid.UUID) error
+	SpendByVacation(ctx context.Context) (map[uuid.UUID]float64, error)
 
 	CreateItem(ctx context.Context, i *models.Item) error
 	GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error)

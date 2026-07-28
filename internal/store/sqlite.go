@@ -153,6 +153,39 @@ func (s *SQLite) DeleteVacation(ctx context.Context, id uuid.UUID) error {
 	return checkAffected(res)
 }
 
+// SpendByVacation returns the planned spend per vacation: the sum of every
+// item, accommodation and travel cost. The dashboard uses it to fill the budget
+// pies with a single query instead of one per card.
+func (s *SQLite) SpendByVacation(ctx context.Context) (map[uuid.UUID]float64, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT vacation_id, SUM(cost) FROM (
+			SELECT vacation_id, cost FROM items           WHERE cost IS NOT NULL
+			UNION ALL
+			SELECT vacation_id, cost FROM lodging         WHERE cost IS NOT NULL
+			UNION ALL
+			SELECT vacation_id, cost FROM travel_segments WHERE cost IS NOT NULL
+		)
+		GROUP BY vacation_id`)
+	if err != nil {
+		return nil, fmt.Errorf("store: summing vacation spend: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make(map[uuid.UUID]float64)
+	for rows.Next() {
+		var id uuid.UUID
+		var total float64
+		if err := rows.Scan(&id, &total); err != nil {
+			return nil, fmt.Errorf("store: scanning vacation spend: %w", err)
+		}
+		out[id] = total
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating vacation spend: %w", err)
+	}
+	return out, nil
+}
+
 // ---- Items ----
 
 func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {

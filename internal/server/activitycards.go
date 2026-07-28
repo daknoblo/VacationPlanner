@@ -35,7 +35,9 @@ func (s *Server) legBetween(ctx context.Context, from, to *route.Point) (distM, 
 
 // lodgingForDay returns the located lodging covering the given day (check-in day
 // through check-out day, inclusive), or nil when none has coordinates that day.
-func lodgingForDay(lodgings []models.Lodging, day time.Time) *models.Lodging {
+// Check-in/out are instants, so they are read in the display timezone — the same
+// way lodgingDayStrips places them on the planner.
+func lodgingForDay(tz *time.Location, lodgings []models.Lodging, day time.Time) *models.Lodging {
 	dy, dm, dd := day.Date()
 	target := time.Date(dy, dm, dd, 0, 0, 0, 0, time.UTC)
 	for i := range lodgings {
@@ -43,8 +45,8 @@ func lodgingForDay(lodgings []models.Lodging, day time.Time) *models.Lodging {
 		if !l.HasCoords() {
 			continue
 		}
-		ci := l.CheckIn
-		co := l.CheckOut
+		ci := l.CheckIn.In(tz)
+		co := l.CheckOut.In(tz)
 		in := time.Date(ci.Year(), ci.Month(), ci.Day(), 0, 0, 0, 0, time.UTC)
 		out := time.Date(co.Year(), co.Month(), co.Day(), 0, 0, 0, 0, time.UTC)
 		if !target.Before(in) && !target.After(out) {
@@ -56,8 +58,8 @@ func lodgingForDay(lodgings []models.Lodging, day time.Time) *models.Lodging {
 
 // dayHotel resolves the "base" for a day — the lodging active that day, or the
 // vacation destination — as a point and a display label. Either may be empty.
-func dayHotel(loc *i18n.Localizer, v *models.Vacation, day time.Time) (*route.Point, string) {
-	if l := lodgingForDay(v.Lodgings, day); l != nil {
+func dayHotel(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, day time.Time) (*route.Point, string) {
+	if l := lodgingForDay(tz, v.Lodgings, day); l != nil {
 		return &route.Point{Lat: *l.Latitude, Lng: *l.Longitude}, "🛏 " + l.Name
 	}
 	if v.HasCoords() {
@@ -154,7 +156,7 @@ func orderDayItems(items []models.Item) []models.Item {
 // journey on its last day, so the route reflects the drives to/from the base.
 func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, tz *time.Location, day time.Time, v *models.Vacation, items []models.Item) []overviewActivity {
 	ordered := orderDayItems(items)
-	hotelPt, hotelLabel := dayHotel(loc, v, day)
+	hotelPt, hotelLabel := dayHotel(loc, tz, v, day)
 	dayKey := day.Format("2006-01-02")
 
 	cards := make([]overviewActivity, 0, len(ordered)+2)
@@ -250,17 +252,15 @@ func (s *Server) dayCardMap(ctx context.Context, loc *i18n.Localizer, tz *time.L
 		byDay[key] = append(byDay[key], it)
 	}
 	if len(stepsForKind(v, models.TravelArrival)) > 0 {
-		if k := v.StartDate.Format("2006-01-02"); k != "" {
-			if _, ok := byDay[k]; !ok {
-				byDay[k] = nil
-			}
+		k := v.StartDate.Format("2006-01-02")
+		if _, ok := byDay[k]; !ok {
+			byDay[k] = nil
 		}
 	}
 	if len(stepsForKind(v, models.TravelDeparture)) > 0 {
-		if k := v.EndDate.Format("2006-01-02"); k != "" {
-			if _, ok := byDay[k]; !ok {
-				byDay[k] = nil
-			}
+		k := v.EndDate.Format("2006-01-02")
+		if _, ok := byDay[k]; !ok {
+			byDay[k] = nil
 		}
 	}
 	out := make(map[string][]overviewActivity, len(byDay))

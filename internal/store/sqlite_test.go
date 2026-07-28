@@ -197,6 +197,46 @@ func TestItemAndTravelRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSpendByVacation(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	withCosts := &models.Vacation{Title: "a", Destination: "y", StartDate: now, EndDate: now}
+	empty := &models.Vacation{Title: "b", Destination: "y", StartDate: now, EndDate: now}
+	for _, v := range []*models.Vacation{withCosts, empty} {
+		if err := st.CreateVacation(ctx, v); err != nil {
+			t.Fatalf("CreateVacation: %v", err)
+		}
+	}
+
+	itemCost, lodgingCost, travelCost := 20.5, 100.0, 30.0
+	if err := st.CreateItem(ctx, &models.Item{VacationID: withCosts.ID, Title: "Museum", Cost: &itemCost}); err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+	// An item without a cost must not affect the sum.
+	if err := st.CreateItem(ctx, &models.Item{VacationID: withCosts.ID, Title: "Walk"}); err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+	if err := st.CreateLodging(ctx, &models.Lodging{VacationID: withCosts.ID, Name: "Hotel", CheckIn: now, CheckOut: now.Add(24 * time.Hour), Cost: &lodgingCost}); err != nil {
+		t.Fatalf("CreateLodging: %v", err)
+	}
+	if err := st.CreateTravelSegment(ctx, &models.TravelSegment{VacationID: withCosts.ID, Kind: models.TravelArrival, Mode: "train", Cost: &travelCost}); err != nil {
+		t.Fatalf("CreateTravelSegment: %v", err)
+	}
+
+	spend, err := st.SpendByVacation(ctx)
+	if err != nil {
+		t.Fatalf("SpendByVacation: %v", err)
+	}
+	if got, want := spend[withCosts.ID], itemCost+lodgingCost+travelCost; got != want {
+		t.Fatalf("spend = %v, want %v", got, want)
+	}
+	if _, ok := spend[empty.ID]; ok {
+		t.Fatalf("vacation without costs must not appear: %v", spend)
+	}
+}
+
 func TestGetVacationNotFound(t *testing.T) {
 	st := newTestStore(t)
 	if _, err := st.GetVacation(context.Background(), uuid.New()); !errors.Is(err, ErrNotFound) {

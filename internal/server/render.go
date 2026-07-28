@@ -12,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -26,7 +27,24 @@ type renderer struct {
 	pages     map[string]*template.Template
 	fragments *template.Template
 	assetVer  string
+
+	mu    sync.Mutex
+	bound map[boundKey]*template.Template
 }
+
+// boundKey identifies a template set that already has the request-scoped helper
+// funcs applied. Those only depend on the language, the display timezone and
+// the currency symbol, so the bound sets can be shared across requests.
+type boundKey struct {
+	name     string // page name, or "" for the fragment set
+	lang     string
+	tz       string
+	currency string
+}
+
+// maxBoundTemplates caps the bound-template cache. Reaching it means the
+// settings changed a lot; the cache is simply dropped and refilled.
+const maxBoundTemplates = 64
 
 // viewData is the envelope passed to every full page render.
 type viewData struct {
@@ -46,14 +64,14 @@ var funcMap = template.FuncMap{
 	"fmtDatePtr": fmtDatePtr,
 	"dateInput":  dateInput,
 	"datePtrIn":  datePtrInput,
-	"dtInput":    dateTimeInput,
 	"coord":      coordValue,
 	"money":      money,
 	"moneyF":     moneyF,
 	"bmoney":     bmoney,
 	"bmoneyp":    bmoneyP,
-	// cost/costf format an amount with the configured currency symbol; they are
-	// bound per request (placeholders here so templates parse).
+	// dtInput, cost and costf depend on the request's timezone and currency; the
+	// real implementations are bound at render time (placeholders so templates parse).
+	"dtInput":    func(*time.Time) string { return "" },
 	"cost":       func(*float64) string { return "" },
 	"costf":      func(float64) string { return "" },
 	"dict":       dict,
@@ -141,7 +159,7 @@ func newRenderer() (*renderer, error) {
 		return nil, fmt.Errorf("server: parsing fragment templates: %w", err)
 	}
 
-	return &renderer{pages: pages, fragments: fragments, assetVer: assetVersion()}, nil
+	return &renderer{pages: pages, fragments: fragments, assetVer: assetVersion(), bound: make(map[boundKey]*template.Template)}, nil
 }
 
 // assetVersion returns a short content hash of the app's CSS and JS so their
@@ -157,14 +175,29 @@ func assetVersion() string {
 	return hex.EncodeToString(h.Sum(nil))[:10]
 }
 
-func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location, currency string) error {
-	tmpl, ok := r.pages[name]
-	if !ok {
-		return fmt.Errorf("server: unknown page %q", name)
+// bind returns the template set for name (empty name = the fragment set) with
+// the request-scoped helpers applied. Cloning a full set costs a deep copy of
+// every template, so the bound sets are cached; parsed templates are safe to
+// execute concurrently.
+func (r *renderer) bind(name string, loc *i18n.Localizer, tz *time.Location, currency string) (*template.Template, error) {
+	key := boundKey{name: name, lang: loc.Code(), tz: tz.String(), currency: currency}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if t, ok := r.bound[key]; ok {
+		return t, nil
 	}
-	clone, err := tmpl.Clone()
+
+	src := r.fragments
+	if name != "" {
+		var ok bool
+		if src, ok = r.pages[name]; !ok {
+			return nil, fmt.Errorf("server: unknown page %q", name)
+		}
+	}
+	clone, err := src.Clone()
 	if err != nil {
-		return fmt.Errorf("server: cloning page %q: %w", name, err)
+		return nil, fmt.Errorf("server: cloning template %q: %w", name, err)
 	}
 	clone.Funcs(template.FuncMap{
 		"t":       loc.T,
@@ -173,8 +206,21 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 		"costf":   func(f float64) string { return bmoney(f, currency) },
 	})
 
+	if len(r.bound) >= maxBoundTemplates {
+		r.bound = make(map[boundKey]*template.Template, maxBoundTemplates)
+	}
+	r.bound[key] = clone
+	return clone, nil
+}
+
+func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer, data viewData, tz *time.Location, currency string) error {
+	tmpl, err := r.bind(name, loc, tz, currency)
+	if err != nil {
+		return err
+	}
+
 	var buf bytes.Buffer
-	if err := clone.ExecuteTemplate(&buf, "base", data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		return fmt.Errorf("server: rendering page %q: %w", name, err)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -183,19 +229,13 @@ func (r *renderer) page(w http.ResponseWriter, name string, loc *i18n.Localizer,
 }
 
 func (r *renderer) fragment(w http.ResponseWriter, name string, loc *i18n.Localizer, data any, tz *time.Location, currency string) error {
-	clone, err := r.fragments.Clone()
+	tmpl, err := r.bind("", loc, tz, currency)
 	if err != nil {
-		return fmt.Errorf("server: cloning fragments: %w", err)
+		return err
 	}
-	clone.Funcs(template.FuncMap{
-		"t":       loc.T,
-		"dtInput": dateTimeInputIn(tz),
-		"cost":    func(f *float64) string { return bmoneyP(f, currency) },
-		"costf":   func(f float64) string { return bmoney(f, currency) },
-	})
 
 	var buf bytes.Buffer
-	if err := clone.ExecuteTemplate(&buf, name, data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
 		return fmt.Errorf("server: rendering fragment %q: %w", name, err)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -282,13 +322,6 @@ func datePtrInput(t *time.Time) string {
 		return ""
 	}
 	return t.Format("2006-01-02")
-}
-
-func dateTimeInput(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	return t.Local().Format("2006-01-02T15:04")
 }
 
 // dateTimeInputIn formats a timestamp for a datetime-local input in the given timezone.

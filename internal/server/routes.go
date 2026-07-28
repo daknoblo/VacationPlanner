@@ -23,6 +23,7 @@ func (s *Server) routes() {
 	r.Use(s.rateLimit)
 	r.Use(s.csrf)
 	r.Use(s.localize)
+	r.Use(s.settingsScope)
 
 	// Static assets (embedded).
 	staticFS, err := fs.Sub(web.Static, "static")

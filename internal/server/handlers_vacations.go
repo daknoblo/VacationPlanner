@@ -33,6 +33,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	// One aggregate for every card's budget pie, instead of a pair of queries
+	// per vacation.
+	spend, err := s.store.SpendByVacation(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	loc := i18n.FromContext(r.Context())
 	_, tz := s.regionSettings(r.Context())
 	now := time.Now().In(tz)
@@ -40,27 +47,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	cards := make([]dashboardCard, 0, len(vacations))
 	for i := range vacations {
 		v := vacations[i]
-		card := dashboardCard{Vacation: v}
-		items, ierr := s.store.ListItems(r.Context(), v.ID)
-		if ierr != nil {
-			s.serverError(w, r, ierr)
-			return
-		}
-		for _, it := range items {
-			if it.Cost != nil {
-				card.Spent += *it.Cost
-			}
-		}
-		lodgings, lerr := s.store.ListLodgings(r.Context(), v.ID)
-		if lerr != nil {
-			s.serverError(w, r, lerr)
-			return
-		}
-		for _, lo := range lodgings {
-			if lo.Cost != nil {
-				card.Spent += *lo.Cost
-			}
-		}
+		card := dashboardCard{Vacation: v, Spent: spend[v.ID]}
 		if v.Budget != nil && *v.Budget > 0 {
 			card.HasBudget = true
 			card.Over = card.Spent > *v.Budget
@@ -192,18 +179,50 @@ type budgetExpense struct {
 	PayerColor string
 }
 
+// budgetInput carries everything newBudgetView needs beyond the vacation
+// itself: the items to price, all known people (so any payer resolves to a
+// name), category icons, the display timezone and the localized section labels.
+type budgetInput struct {
+	Items        []models.Item
+	AllPeople    []models.Person
+	Icons        map[string]string
+	Currency     string
+	TZ           *time.Location
+	LodgingLabel string
+	TravelLabel  string
+}
+
+// budgetInputFor assembles the request-scoped inputs for the budget view.
+func (s *Server) budgetInputFor(ctx context.Context, items []models.Item, allPeople []models.Person) budgetInput {
+	loc := i18n.FromContext(ctx)
+	_, tz := s.regionSettings(ctx)
+	return budgetInput{
+		Items:        items,
+		AllPeople:    allPeople,
+		Icons:        s.categoryIcons(ctx),
+		Currency:     s.currencySymbol(ctx),
+		TZ:           tz,
+		LodgingLabel: loc.T("tab.lodging"),
+		TravelLabel:  loc.T("tab.travel"),
+	}
+}
+
 // newBudgetView computes the budget breakdown and spending statistics for a
-// vacation from its items. icons maps lower-cased category names to emoji.
-func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.Person, icons map[string]string, currency, lodgingLabel, travelLabel string) budgetView {
-	b := budgetView{People: v.People, Nights: v.Nights(), Currency: currency}
+// vacation from its items, accommodations and travel legs.
+func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
+	tz := in.TZ
+	if tz == nil {
+		tz = time.UTC
+	}
+	b := budgetView{People: v.People, Nights: v.Nights(), Currency: in.Currency}
 
 	// Cost attribution: track how much each person paid, plus the unassigned
 	// total. personByID resolves a payer reference to a display name and color;
 	// it spans all defined people so a payer is named even when the trip has no
 	// explicit participants yet.
 	paidByPerson := map[uuid.UUID]float64{}
-	personByID := make(map[uuid.UUID]models.Person, len(allPeople)+len(v.Participants))
-	for _, p := range allPeople {
+	personByID := make(map[uuid.UUID]models.Person, len(in.AllPeople)+len(v.Participants))
+	for _, p := range in.AllPeople {
 		personByID[p.ID] = p
 	}
 	for _, p := range v.Participants {
@@ -224,7 +243,7 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 
 	catAmount := map[string]float64{}
 	var catOrder []string
-	for _, it := range items {
+	for _, it := range in.Items {
 		if it.Cost == nil {
 			continue
 		}
@@ -246,7 +265,7 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 		payerID, payerName, payerColor := recordPayer(it.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
 			Title:      it.Title,
-			Icon:       icons[strings.ToLower(it.Category)],
+			Icon:       in.Icons[strings.ToLower(it.Category)],
 			DayLabel:   day,
 			Amount:     amt,
 			PayerID:    payerID,
@@ -266,15 +285,15 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 		if amt > b.TopAmount {
 			b.TopAmount = amt
 		}
-		if _, ok := catAmount[lodgingLabel]; !ok {
-			catOrder = append(catOrder, lodgingLabel)
+		if _, ok := catAmount[in.LodgingLabel]; !ok {
+			catOrder = append(catOrder, in.LodgingLabel)
 		}
-		catAmount[lodgingLabel] += amt
+		catAmount[in.LodgingLabel] += amt
 		lpID, lpName, lpColor := recordPayer(lo.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
 			Title:      lo.Name,
 			Icon:       "🛏",
-			DayLabel:   fmtDate(lo.CheckIn),
+			DayLabel:   fmtDate(lo.CheckIn.In(tz)),
 			Amount:     amt,
 			PayerID:    lpID,
 			PayerName:  lpName,
@@ -294,11 +313,11 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 		if amt > b.TopAmount {
 			b.TopAmount = amt
 		}
-		if _, ok := catAmount[travelLabel]; !ok {
-			catOrder = append(catOrder, travelLabel)
+		if _, ok := catAmount[in.TravelLabel]; !ok {
+			catOrder = append(catOrder, in.TravelLabel)
 		}
-		catAmount[travelLabel] += amt
-		title := travelLabel
+		catAmount[in.TravelLabel] += amt
+		title := in.TravelLabel
 		switch {
 		case ts.FromLocation != "" && ts.ToLocation != "":
 			title = ts.FromLocation + " → " + ts.ToLocation
@@ -309,7 +328,7 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 		}
 		day := ""
 		if ts.DepartAt != nil {
-			day = fmtDate(*ts.DepartAt)
+			day = fmtDate(ts.DepartAt.In(tz))
 		}
 		tpID, tpName, tpColor := recordPayer(ts.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
@@ -339,11 +358,11 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 		if b.Spent > 0 {
 			pct = int(amt / b.Spent * 100)
 		}
-		icon := icons[strings.ToLower(name)]
-		if name == lodgingLabel {
+		icon := in.Icons[strings.ToLower(name)]
+		if name == in.LodgingLabel {
 			icon = "🛏"
 		}
-		if name == travelLabel {
+		if name == in.TravelLabel {
 			icon = "✈"
 		}
 		b.Categories = append(b.Categories, budgetCategory{
@@ -359,7 +378,7 @@ func newBudgetView(v *models.Vacation, items []models.Item, allPeople []models.P
 	// breakdown still works before participants have been chosen.
 	splitPeople := v.Participants
 	if len(splitPeople) == 0 {
-		for _, p := range allPeople {
+		for _, p := range in.AllPeople {
 			if _, paid := paidByPerson[p.ID]; paid {
 				splitPeople = append(splitPeople, p)
 			}
@@ -506,7 +525,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 
 	// The budget split is based on the true participants (or the payers, as a
 	// fallback). Compute it before offering all people as paid-by options below.
-	budget := newBudgetView(v, v.Items, allPeople, s.categoryIcons(r.Context()), currency, loc.T("tab.lodging"), loc.T("tab.travel"))
+	budget := newBudgetView(v, s.budgetInputFor(r.Context(), v.Items, allPeople))
 
 	// Paid-by dropdowns offer the trip's participants, or all defined people when
 	// none are selected yet, so the field is usable before participants are chosen.
@@ -947,7 +966,9 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 			Latitude:  lo.Latitude,
 			Longitude: lo.Longitude,
 			HasCoords: lo.HasCoords(),
-			sortKey:   lo.CheckIn,
+			// Day cards sort by local wall-clock time expressed in UTC; use the
+			// same frame here so a late check-in cannot slip into the day before.
+			sortKey: time.Date(ci.Year(), ci.Month(), ci.Day(), ci.Hour(), ci.Minute(), 0, 0, time.UTC),
 		})
 	}
 	for _, cards := range cardMap {
@@ -991,8 +1012,7 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
 	allPeople, _ := s.store.ListPeople(r.Context())
-	loc := i18n.FromContext(r.Context())
-	s.fragment(w, r, "budget_panel", newBudgetView(v, items, allPeople, s.categoryIcons(r.Context()), s.currencySymbol(r.Context()), loc.T("tab.lodging"), loc.T("tab.travel")))
+	s.fragment(w, r, "budget_panel", newBudgetView(v, s.budgetInputFor(r.Context(), items, allPeople)))
 }
 
 // handleOverviewFragment re-renders the overview activity list.

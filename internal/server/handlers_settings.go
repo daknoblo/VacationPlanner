@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,7 +30,7 @@ var supportedCurrencies = []string{"€", "$"}
 
 // currencySymbol returns the configured budget currency symbol, defaulting to €.
 func (s *Server) currencySymbol(ctx context.Context) string {
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		return "€"
 	}
@@ -67,7 +68,7 @@ var commonTimezones = []string{
 // the package defaults when nothing is configured.
 func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion string) {
 	baseURL, model = ai.DefaultBaseURL, ai.DefaultModel
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		s.log.Warn("loading settings", "err", err)
 		return baseURL, model, apiVersion
@@ -86,7 +87,7 @@ func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion str
 // Monday and UTC when unset or invalid.
 func (s *Server) regionSettings(ctx context.Context) (weekStart string, loc *time.Location) {
 	weekStart, loc = "monday", time.UTC
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		s.log.Warn("loading settings", "err", err)
 		return weekStart, loc
@@ -95,7 +96,7 @@ func (s *Server) regionSettings(ctx context.Context) (weekStart string, loc *tim
 		weekStart = v
 	}
 	if v := strings.TrimSpace(settings[settingTimezone]); v != "" {
-		if l, err := time.LoadLocation(v); err == nil {
+		if l, err := loadLocation(v); err == nil {
 			loc = l
 		}
 	}
@@ -104,7 +105,7 @@ func (s *Server) regionSettings(ctx context.Context) (weekStart string, loc *tim
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	loc := i18n.FromContext(r.Context())
-	settings, err := s.store.GetSettings(r.Context())
+	settings, err := s.settings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -167,19 +168,19 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if weekStart != "sunday" && weekStart != "monday" {
 		weekStart = "monday"
 	}
-	if err := s.store.PutSetting(r.Context(), settingWeekStart, weekStart); err != nil {
+	if err := s.putSetting(r.Context(), settingWeekStart, weekStart); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	timezone := formStr(r, "timezone")
-	if _, err := time.LoadLocation(timezone); err != nil {
+	if _, err := loadLocation(timezone); err != nil {
 		timezone = "UTC"
 	}
-	if err := s.store.PutSetting(r.Context(), settingTimezone, timezone); err != nil {
+	if err := s.putSetting(r.Context(), settingTimezone, timezone); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingCurrency, normalizeCurrency(formStr(r, "currency"))); err != nil {
+	if err := s.putSetting(r.Context(), settingCurrency, normalizeCurrency(formStr(r, "currency"))); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -204,15 +205,15 @@ func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := s.store.PutSetting(r.Context(), settingAIBaseURL, baseURL); err != nil {
+	if err := s.putSetting(r.Context(), settingAIBaseURL, baseURL); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingAIModel, model); err != nil {
+	if err := s.putSetting(r.Context(), settingAIModel, model); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingAIAPIVersion, apiVersion); err != nil {
+	if err := s.putSetting(r.Context(), settingAIAPIVersion, apiVersion); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -221,7 +222,7 @@ func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) 
 
 // homeAddress returns the configured home address (empty if unset).
 func (s *Server) homeAddress(ctx context.Context) string {
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		return ""
 	}
@@ -237,7 +238,7 @@ func (s *Server) handleUpdateHomeSettings(w http.ResponseWriter, r *http.Request
 		s.formError(w, r, "#home-settings-error", loc.T("error.input_toolong"))
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingHomeAddress, addr); err != nil {
+	if err := s.putSetting(r.Context(), settingHomeAddress, addr); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -264,10 +265,25 @@ func (s *Server) settingSaved(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
+// validBaseURL reports whether a user-configured service endpoint is usable.
+// Loopback and private addresses stay allowed on purpose — self-hosted AI,
+// geocoding and routing services (Ollama, LocalAI, a local Nominatim) are a
+// primary use case. Link-local, unspecified and multicast addresses are
+// rejected because they are never a legitimate endpoint but do cover the cloud
+// instance metadata services (169.254.169.254, fd00:ec2::254).
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return false
 	}
-	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return false
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
+			return false
+		}
+	}
+	return true
 }

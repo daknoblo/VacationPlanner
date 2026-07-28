@@ -24,7 +24,7 @@ func queryFloat(r *http.Request, key string) float64 {
 
 // geoBaseURL returns the configured geocoder base URL or the built-in default.
 func (s *Server) geoBaseURL(ctx context.Context) string {
-	settings, err := s.store.GetSettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
 		return geo.DefaultBaseURL
 	}
@@ -99,7 +99,7 @@ func (s *Server) handleUpdateGeoSettings(w http.ResponseWriter, r *http.Request)
 		s.formError(w, r, "#geo-settings-error", loc.T("error.ai_base_url_invalid"))
 		return
 	}
-	if err := s.store.PutSetting(r.Context(), settingGeoBaseURL, baseURL); err != nil {
+	if err := s.putSetting(r.Context(), settingGeoBaseURL, baseURL); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

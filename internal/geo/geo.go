@@ -360,7 +360,28 @@ func (c *Client) store(key string, results []Result) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if len(c.cache) >= cacheMaxSize {
-		c.cache = make(map[string]cacheEntry)
+		c.evictLocked()
 	}
 	c.cache[key] = cacheEntry{results: results, expires: time.Now().Add(cacheTTL)}
+}
+
+// evictLocked makes room in a full cache: expired entries are dropped first and,
+// when none are expired, the single entry closest to expiry. This keeps the
+// cache warm instead of discarding every entry at once. The caller holds c.mu.
+func (c *Client) evictLocked() {
+	now := time.Now()
+	var soonestKey string
+	var soonest time.Time
+	for k, e := range c.cache {
+		if now.After(e.expires) {
+			delete(c.cache, k)
+			continue
+		}
+		if soonestKey == "" || e.expires.Before(soonest) {
+			soonestKey, soonest = k, e.expires
+		}
+	}
+	if len(c.cache) >= cacheMaxSize && soonestKey != "" {
+		delete(c.cache, soonestKey)
+	}
 }

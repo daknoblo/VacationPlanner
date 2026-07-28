@@ -43,9 +43,7 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	if startStr != "" || endStr != "" {
 		startMin = parseMinutes(startStr, 540)
 		endMin = parseMinutes(endStr, startMin+60)
-		if endMin <= startMin {
-			endMin = startMin + 30
-		}
+		startMin, endMin = clampRange(startMin, endMin, 30)
 	}
 
 	lat, lng, err := parseCoords(r, "latitude", "longitude")
@@ -111,10 +109,31 @@ func clampMinutes(m int) int {
 	if m < 0 {
 		return 0
 	}
-	if m > 24*60 {
-		return 24 * 60
+	if m > dayMinutes {
+		return dayMinutes
 	}
 	return m
+}
+
+// dayMinutes is the number of minutes in a day; time ranges live in [0, 1440].
+const dayMinutes = 24 * 60
+
+// clampRange normalizes a start/end pair to 0 <= start < end <= dayMinutes,
+// giving the block at least minLen minutes. Without the upper clamp a start of
+// 24:00 would push the end to 24:30 and break the planner's hour grid.
+func clampRange(start, end, minLen int) (int, int) {
+	if minLen < 1 {
+		minLen = 1
+	}
+	start = clampMinutes(start)
+	if start > dayMinutes-minLen {
+		start = dayMinutes - minLen
+	}
+	end = clampMinutes(end)
+	if end < start+minLen {
+		end = start + minLen
+	}
+	return start, end
 }
 
 func (s *Server) handleCreateItem(w http.ResponseWriter, r *http.Request) {
@@ -170,9 +189,7 @@ func (s *Server) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 	existing.StartMin = parseMinutes(formStr(r, "start"), existing.StartMin)
 	existing.EndMin = parseMinutes(formStr(r, "end"), existing.EndMin)
-	if existing.EndMin <= existing.StartMin {
-		existing.EndMin = existing.StartMin + 30
-	}
+	existing.StartMin, existing.EndMin = clampRange(existing.StartMin, existing.EndMin, 30)
 	if t := strings.TrimSpace(formStr(r, "title")); t != "" && maxLen(t, 200) {
 		existing.Title = t
 	}
@@ -281,9 +298,7 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	if startStr != "" || endStr != "" {
 		existing.StartMin = parseMinutes(startStr, 540)
 		existing.EndMin = parseMinutes(endStr, existing.StartMin+60)
-		if existing.EndMin <= existing.StartMin {
-			existing.EndMin = existing.StartMin + 30
-		}
+		existing.StartMin, existing.EndMin = clampRange(existing.StartMin, existing.EndMin, 30)
 	} else {
 		existing.StartMin, existing.EndMin = 0, 0
 	}
@@ -318,9 +333,7 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 	item.Day = day
 	item.StartMin = parseMinutes(formStr(r, "start"), 540)
 	item.EndMin = parseMinutes(formStr(r, "end"), item.StartMin+60)
-	if item.EndMin <= item.StartMin {
-		item.EndMin = item.StartMin + 60
-	}
+	item.StartMin, item.EndMin = clampRange(item.StartMin, item.EndMin, 60)
 	if err := s.store.UpdateItem(r.Context(), item); err != nil {
 		s.serverError(w, r, err)
 		return
