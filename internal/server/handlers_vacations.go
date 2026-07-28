@@ -933,7 +933,7 @@ func overviewFromCards(loc *i18n.Localizer, tz *time.Location, v *models.Vacatio
 		lo := v.Lodgings[i]
 		ci := lo.CheckIn.In(tz)
 		co := lo.CheckOut.In(tz)
-		nights := lo.Nights()
+		nights := lo.NightsIn(tz)
 		detail := fmt.Sprintf("→ %s · %d %s", fmtDate(co), nights, loc.T("vacation.nights"))
 		activities = append(activities, overviewActivity{
 			Weekday:   weekdayLabel(loc, ci),

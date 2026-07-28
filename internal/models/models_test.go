@@ -31,6 +31,54 @@ func TestVacationNights(t *testing.T) {
 	}
 }
 
+func TestLodgingNights(t *testing.T) {
+	// A stay is counted per calendar day: 10th 16:00 -> 17th 10:00 = 7 nights.
+	l := Lodging{
+		CheckIn:  time.Date(2026, 10, 10, 16, 0, 0, 0, time.UTC),
+		CheckOut: time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC),
+	}
+	if got := l.Nights(); got != 7 {
+		t.Fatalf("Nights() = %d, erwartet 7", got)
+	}
+
+	// Same day => 0 nights; check-out before check-in => never negative.
+	same := Lodging{CheckIn: l.CheckIn, CheckOut: l.CheckIn.Add(2 * time.Hour)}
+	if got := same.Nights(); got != 0 {
+		t.Fatalf("Nights() = %d, erwartet 0", got)
+	}
+	neg := Lodging{CheckIn: l.CheckOut, CheckOut: l.CheckIn}
+	if got := neg.Nights(); got != 0 {
+		t.Fatalf("Nights() = %d, erwartet 0 (nie negativ)", got)
+	}
+}
+
+func TestLodgingNightsIn(t *testing.T) {
+	tz, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skipf("timezone not available: %v", err)
+	}
+	// 16:00 local check-in / 10:00 local check-out, stored in UTC.
+	l := Lodging{
+		CheckIn:  time.Date(2026, 10, 10, 16, 0, 0, 0, tz).UTC(),
+		CheckOut: time.Date(2026, 10, 17, 10, 0, 0, 0, tz).UTC(),
+	}
+	if got := l.NightsIn(tz); got != 7 {
+		t.Fatalf("NightsIn() = %d, erwartet 7", got)
+	}
+
+	// A late check-in shifts the UTC date backwards; the local count stays right.
+	late := Lodging{
+		CheckIn:  time.Date(2026, 10, 11, 0, 30, 0, 0, tz).UTC(),
+		CheckOut: time.Date(2026, 10, 17, 10, 0, 0, 0, tz).UTC(),
+	}
+	if got := late.NightsIn(tz); got != 6 {
+		t.Fatalf("NightsIn() = %d, erwartet 6", got)
+	}
+	if got := late.NightsIn(nil); got != late.NightsIn(time.UTC) {
+		t.Fatalf("NightsIn(nil) muss wie UTC zählen: %d", got)
+	}
+}
+
 func TestVacationDays(t *testing.T) {
 	v := Vacation{
 		StartDate: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),

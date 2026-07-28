@@ -201,7 +201,7 @@ type lodgingEditorView struct {
 func newLodgingEditorView(tz *time.Location, v *models.Vacation, lo *models.Lodging) lodgingEditorView {
 	ci := lo.CheckIn.In(tz)
 	co := lo.CheckOut.In(tz)
-	nights := lo.Nights()
+	nights := lo.NightsIn(tz)
 	var perNight *float64
 	if lo.Cost != nil && nights > 0 {
 		pn := *lo.Cost / float64(nights)

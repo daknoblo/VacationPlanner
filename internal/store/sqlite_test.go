@@ -362,7 +362,7 @@ func TestLodging(t *testing.T) {
 		t.Fatalf("ListLodgings: err=%v n=%d", err, len(list))
 	}
 	got := list[0]
-	if got.Name != "Hotel Central" || !got.CheckIn.Equal(ci) || !got.CheckOut.Equal(co) || got.Nights() != 2 {
+	if got.Name != "Hotel Central" || !got.CheckIn.Equal(ci) || !got.CheckOut.Equal(co) || got.Nights() != 3 {
 		t.Fatalf("lodging round-trip: %+v nights=%d", got, got.Nights())
 	}
 	if !got.HasCoords() || got.Cost == nil || *got.Cost != 420.0 {

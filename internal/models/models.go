@@ -31,13 +31,24 @@ type Vacation struct {
 	Participants   []Person
 }
 
-// Nights returns the number of nights between start and end date.
+// Nights returns the number of nights between start and end date. It counts
+// calendar days, so the time of day (and any DST shift in between) does not
+// truncate the result.
 func (v Vacation) Nights() int {
-	d := v.EndDate.Sub(v.StartDate).Hours() / 24
-	if d < 0 {
+	return nightsBetween(v.StartDate, v.EndDate)
+}
+
+// nightsBetween returns the number of calendar days from the date of from to
+// the date of to, never negative. Both dates are compared at UTC midnight so a
+// daylight-saving change inside the range cannot shorten a day below 24h.
+func nightsBetween(from, to time.Time) int {
+	a := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	b := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, time.UTC)
+	n := int(b.Sub(a).Hours() / 24)
+	if n < 0 {
 		return 0
 	}
-	return int(d)
+	return n
 }
 
 // HasCoords reports whether the vacation has map coordinates.
@@ -207,13 +218,18 @@ type Lodging struct {
 	UpdatedAt  time.Time
 }
 
-// Nights returns the number of nights between check-in and check-out.
-func (l Lodging) Nights() int {
-	d := l.CheckOut.Sub(l.CheckIn).Hours() / 24
-	if d < 0 {
-		return 0
+// Nights returns the number of nights between check-in and check-out as seen in
+// UTC. Prefer NightsIn when the display timezone is known.
+func (l Lodging) Nights() int { return l.NightsIn(time.UTC) }
+
+// NightsIn returns the number of nights between the check-in and the check-out
+// date as seen in tz. Nights are counted per calendar day, so a stay from the
+// 10th at 16:00 to the 17th at 10:00 is seven nights, not six.
+func (l Lodging) NightsIn(tz *time.Location) int {
+	if tz == nil {
+		tz = time.UTC
 	}
-	return int(d)
+	return nightsBetween(l.CheckIn.In(tz), l.CheckOut.In(tz))
 }
 
 // HasCoords reports whether the lodging can be placed on the map.
