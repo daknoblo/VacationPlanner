@@ -1,7 +1,8 @@
 # 🌴 VacationPlanner
 
 [![CI](https://github.com/daknoblo/VacationPlanner/actions/workflows/ci.yml/badge.svg)](https://github.com/daknoblo/VacationPlanner/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/daknoblo/VacationPlanner)](https://goreportcard.com/report/github.com/daknoblo/VacationPlanner)
+[![Release](https://img.shields.io/github/v/release/daknoblo/VacationPlanner)](https://github.com/daknoblo/VacationPlanner/releases/latest)
+[![Go](https://img.shields.io/github/go-mod/go-version/daknoblo/VacationPlanner)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-vacationplanner-blue?logo=docker)](https://github.com/daknoblo/VacationPlanner/pkgs/container/vacationplanner)
 
