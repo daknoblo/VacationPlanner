@@ -1,5 +1,10 @@
 # 🌴 VacationPlanner
 
+[![CI](https://github.com/daknoblo/VacationPlanner/actions/workflows/ci.yml/badge.svg)](https://github.com/daknoblo/VacationPlanner/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/daknoblo/VacationPlanner)](https://goreportcard.com/report/github.com/daknoblo/VacationPlanner)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GHCR](https://img.shields.io/badge/ghcr.io-vacationplanner-blue?logo=docker)](https://github.com/daknoblo/VacationPlanner/pkgs/container/vacationplanner)
+
 A web-based vacation planner written in **Go** with a modern, lightweight server-rendering
 architecture (HTMX + Leaflet), SQLite persistence, OpenAI-compatible AI recommendations,
 a **multi-language UI (English / German)**, and a **multi-arch, distroless** Docker image.
