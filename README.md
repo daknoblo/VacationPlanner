@@ -260,4 +260,4 @@ docker-compose.yml     app + SQLite volume
 
 ## License
 
-Not chosen yet – add a `LICENSE` file if needed.
+Released under the [MIT License](LICENSE).
