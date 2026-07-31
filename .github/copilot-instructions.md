@@ -145,4 +145,4 @@ a reverse proxy.
 - Templates/static live under `web/` (via `embed`); do not replace vendored assets with
   external CDN references.
 - Do not create separate Markdown docs unless explicitly requested.
-- Tasks are tracked in `BACKLOG.md` (repo root) and worked on **sequentially**.
+- Tasks are tracked in `docs/BACKLOG.md` and worked on **sequentially**.
