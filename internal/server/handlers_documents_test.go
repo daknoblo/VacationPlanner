@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/models"
@@ -38,7 +37,7 @@ func newIntegrationServer(t *testing.T) *Server {
 		MaxRequestBytes: 1 << 20,
 		RequestTimeout:  10 * time.Second,
 	}
-	srv, err := New(cfg, log, logs, st, ai.New(""))
+	srv, err := New(cfg, log, logs, st)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

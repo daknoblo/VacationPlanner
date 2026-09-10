@@ -22,10 +22,9 @@ type foundryConnection interface {
 
 type foundrySettingsView struct {
 	Deployment     string
-	Endpoint       string
-	APIVersion     string
-	ModelLocked    bool
-	Models         string
+	Choices        []foundry.Deployment
+	SelectionValid bool
+	Pending        bool
 	SelectionError string
 	Catalogs       []foundry.Snapshot
 	ProbeStatus    string
@@ -48,8 +47,10 @@ func (s *Server) StartAIDiscovery(ctx context.Context) func() {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
+	s.aiDiscoveries.Add(1)
 	go func() {
 		defer close(done)
+		defer s.aiDiscoveries.Add(-1)
 		if err := s.foundry.Refresh(ctx); err != nil {
 			s.log.Warn("startup AI discovery failed", "err", err)
 		}
@@ -66,9 +67,6 @@ func (s *Server) foundrySettingKey(kind string) string {
 }
 
 func (s *Server) foundryDeployment(settings map[string]string) string {
-	if s.cfg.Azure.Deployment != "" {
-		return s.cfg.Azure.Deployment
-	}
 	return settings[s.foundrySettingKey("chat")]
 }
 
@@ -89,26 +87,27 @@ func (s *Server) foundrySettings(ctx context.Context, settings map[string]string
 		return nil, err
 	}
 	view := &foundrySettingsView{
-		Deployment: s.foundryDeployment(settings), ModelLocked: s.cfg.Azure.Deployment != "",
-		Models:     strings.Join(s.cfg.Azure.Models, ", "),
-		APIVersion: s.cfg.Azure.APIVersion, Catalogs: catalogs,
+		Deployment: s.foundryDeployment(settings), Catalogs: catalogs,
+		Pending:     s.aiDiscoveries.Load() > 0,
 		ProbeStatus: "settings.foundry.not_checked",
 	}
-	if view.Deployment == "" {
-		view.ProbeStatus = "settings.foundry.not_configured"
-	}
 	if len(catalogs) > 0 {
-		view.Endpoint = catalogs[0].Endpoint
+		for _, deployment := range catalogs[0].Deployments {
+			if deployment.ChatSupported {
+				view.Choices = append(view.Choices, deployment)
+			}
+		}
 	}
-	if s.cfg.Azure.Endpoint != "" {
-		view.Endpoint = s.cfg.Azure.Endpoint
+	if view.Deployment == "" {
+		view.ProbeStatus = "settings.foundry.no_deployment"
+		return view, nil
 	}
 	target, err := s.foundry.ResolveChat(ctx, view.Deployment)
 	if err != nil {
 		view.SelectionError = err.Error()
 		return view, nil //nolint:nilerr // Invalid selections are shown in Settings, not hidden behind HTTP 500.
 	}
-	view.Endpoint = target.Endpoint
+	view.SelectionValid = true
 	fingerprint, err := chatTargetFingerprint(target)
 	if err != nil {
 		return nil, err
@@ -131,12 +130,19 @@ func (s *Server) foundrySettings(ctx context.Context, settings map[string]string
 }
 
 func (s *Server) handleUpdateFoundrySettings(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.Azure.Deployment != "" {
-		// A locked override must not overwrite the saved selection underneath it.
-		s.redirectSettings(w, r)
+	if s.foundry == nil {
+		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.not_configured"))
 		return
 	}
-	deployment := formStr(r, "model")
+	if err := r.ParseForm(); err != nil {
+		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.select_deployment"))
+		return
+	}
+	if _, ok := r.PostForm["deployment"]; !ok {
+		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.select_deployment"))
+		return
+	}
+	deployment := formStr(r, "deployment")
 	if !maxLen(deployment, 200) {
 		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("error.input_toolong"))
 		return
@@ -151,7 +157,7 @@ func (s *Server) handleUpdateFoundrySettings(w http.ResponseWriter, r *http.Requ
 		s.serverError(w, r, err)
 		return
 	}
-	s.redirectSettings(w, r)
+	s.foundrySettingsResponse(w, r, "")
 }
 
 func (s *Server) handleFoundryDiscover(w http.ResponseWriter, r *http.Request) {
@@ -159,18 +165,39 @@ func (s *Server) handleFoundryDiscover(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.not_configured"))
 		return
 	}
-	if err := s.foundry.Refresh(r.Context()); err != nil {
+	s.aiDiscoveries.Add(1)
+	err := s.foundry.Refresh(r.Context())
+	s.aiDiscoveries.Add(-1)
+	if err != nil {
 		s.log.Warn("AI discovery failed", "err", err)
 		s.foundryDiscoveryError(w, r, err)
 		return
 	}
-	s.redirectSettings(w, r)
+	s.foundrySettingsResponse(w, r, "")
 }
 
 func (s *Server) foundryDiscoveryError(w http.ResponseWriter, r *http.Request, discoveryErr error) {
 	message := i18n.FromContext(r.Context()).T("settings.foundry.discovery_error") + ": " + discoveryErr.Error()
 	if !isHTMX(r) {
 		s.formError(w, r, "#ai-settings-error", message)
+		return
+	}
+	w.Header().Set("HX-Retarget", "#foundry-settings-panel")
+	w.Header().Set("HX-Reswap", "outerHTML")
+	s.foundrySettingsResponse(w, r, message)
+}
+
+func (s *Server) handleFoundryStatus(w http.ResponseWriter, r *http.Request) {
+	if s.foundry == nil {
+		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.not_configured"))
+		return
+	}
+	s.foundrySettingsResponse(w, r, "")
+}
+
+func (s *Server) foundrySettingsResponse(w http.ResponseWriter, r *http.Request, message string) {
+	if !isHTMX(r) {
+		s.redirectSettings(w, r)
 		return
 	}
 	settings, err := s.store.GetSettings(r.Context())
@@ -184,9 +211,9 @@ func (s *Server) foundryDiscoveryError(w http.ResponseWriter, r *http.Request, d
 		return
 	}
 	view.ActionError = message
-	w.Header().Set("HX-Retarget", "#foundry-settings-panel")
-	w.Header().Set("HX-Reswap", "outerHTML")
-	w.WriteHeader(http.StatusUnprocessableEntity)
+	if message != "" {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}
 	s.fragment(w, r, "foundry_settings", viewData{
 		CSRFToken: csrfToken(r.Context()),
 		Data:      map[string]any{"Foundry": view},
@@ -233,5 +260,5 @@ func (s *Server) handleFoundryProbe(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.redirectSettings(w, r)
+	s.foundrySettingsResponse(w, r, "")
 }

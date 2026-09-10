@@ -362,56 +362,47 @@ func TestDiscoveryRedirectAndBoundedRetry(t *testing.T) {
 }
 
 func TestChatAuthorizationAndBinding(t *testing.T) {
-	for _, version := range []string{"", "2024-10-21"} {
-		t.Run(version, func(t *testing.T) {
-			cfg := testConfig()
-			cfg.APIVersion = version
-			c, _, cred := testClient(t, cfg)
-			successDiscovery(t, c)
-			target, err := c.ResolveChat(context.Background(), "production")
-			if err != nil {
-				t.Fatal(err)
-			}
-			calls := 0
-			c.inference.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				if req.Method != http.MethodPost || req.Header.Get("Authorization") != "Bearer test-token" ||
-					req.Header.Get("api-key") != "" || req.URL.Host != "main.openai.azure.com" {
-					t.Fatal("unsafe inference authentication or resource")
-				}
-				wantPath := "/openai/v1/chat/completions"
-				if version != "" {
-					wantPath = "/openai/deployments/production/chat/completions"
-				}
-				if req.URL.Path != wantPath || req.URL.Query().Get("api-version") != version {
-					t.Fatalf("incorrect schema routing: %s", req.URL)
-				}
-				return response(200, `{"choices":[{"message":{"content":"hello"}}]}`), nil
-			})
-			payload := []byte(`{"model":"production","messages":[{"role":"user","content":"Hello"}],"max_completion_tokens":8}`)
-			if _, err := c.DoChat(context.Background(), target, payload); err != nil || calls != 1 {
-				t.Fatalf("chat failed: calls=%d error=%v", calls, err)
-			}
-			if cred.scopes[len(cred.scopes)-1] != inferenceScope {
-				t.Fatal("inference used ARM audience")
-			}
-			for _, change := range []func(*Target){
-				func(v *Target) { v.Endpoint = "https://attacker.example/openai/v1" },
-				func(v *Target) { v.ResourceID = imageResource },
-				func(v *Target) { v.Deployment = "other" },
-				func(v *Target) { v.Model = "gpt-image-1" },
-				func(v *Target) { v.ModelVersion = "changed-version" },
-				func(v *Target) { v.SupportsTemperature = !v.SupportsTemperature },
-				func(v *Target) { v.APIVersion = "preview" },
-			} {
-				tampered := target
-				change(&tampered)
-				before := len(cred.scopes)
-				if _, err := c.DoChat(context.Background(), tampered, payload); err == nil || len(cred.scopes) != before {
-					t.Fatal("tampered target authorized")
-				}
-			}
-		})
+	cfg := testConfig()
+	c, _, cred := testClient(t, cfg)
+	successDiscovery(t, c)
+	target, err := c.ResolveChat(context.Background(), "production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	c.inference.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		if req.Method != http.MethodPost || req.Header.Get("Authorization") != "Bearer test-token" ||
+			req.Header.Get("api-key") != "" || req.URL.Host != "main.openai.azure.com" {
+			t.Fatal("unsafe inference authentication or resource")
+		}
+		wantPath := "/openai/v1/chat/completions"
+		if req.URL.Path != wantPath || req.URL.RawQuery != "" {
+			t.Fatalf("incorrect schema routing: %s", req.URL)
+		}
+		return response(200, `{"choices":[{"message":{"content":"hello"}}]}`), nil
+	})
+	payload := []byte(`{"model":"production","messages":[{"role":"user","content":"Hello"}],"max_completion_tokens":8}`)
+	if _, err := c.DoChat(context.Background(), target, payload); err != nil || calls != 1 {
+		t.Fatalf("chat failed: calls=%d error=%v", calls, err)
+	}
+	if cred.scopes[len(cred.scopes)-1] != inferenceScope {
+		t.Fatal("inference used ARM audience")
+	}
+	for _, change := range []func(*Target){
+		func(v *Target) { v.Endpoint = "https://attacker.example/openai/v1" },
+		func(v *Target) { v.ResourceID = imageResource },
+		func(v *Target) { v.Deployment = "other" },
+		func(v *Target) { v.Model = "gpt-image-1" },
+		func(v *Target) { v.ModelVersion = "changed-version" },
+		func(v *Target) { v.SupportsTemperature = !v.SupportsTemperature },
+	} {
+		tampered := target
+		change(&tampered)
+		before := len(cred.scopes)
+		if _, err := c.DoChat(context.Background(), tampered, payload); err == nil || len(cred.scopes) != before {
+			t.Fatal("tampered target authorized")
+		}
 	}
 }
 
@@ -492,23 +483,17 @@ func TestCacheErrorsAreSanitizedAndCatalogBound(t *testing.T) {
 	}
 }
 
-func TestEnvironmentSelectionAndAllowList(t *testing.T) {
-	cfg := testConfig()
-	cfg.Deployment = "production"
-	cfg.Models = []string{"gpt-4o"}
-	c, _, _ := testClient(t, cfg)
+func TestSavedSelectionIsNeverReplaced(t *testing.T) {
+	c, _, _ := testClient(t, testConfig())
 	successDiscovery(t, c)
-	target, err := c.ResolveChat(context.Background(), "ignored-saved-selection")
+	for _, name := range []string{"", "previous-selection", "gpt-4o", "../production"} {
+		if _, err := c.ResolveChat(context.Background(), name); err == nil {
+			t.Fatal("missing selection was silently replaced by an available deployment")
+		}
+	}
+	target, err := c.ResolveChat(context.Background(), "production")
 	if err != nil || target.Deployment != "production" {
-		t.Fatal("environment selection did not win")
-	}
-	c.cfg.Models = []string{"production"}
-	if _, err := c.ResolveChat(context.Background(), "production"); err == nil {
-		t.Fatal("deployment alias bypassed canonical model allow-list")
-	}
-	c.cfg.Models = []string{"imaginary-model"}
-	if _, err := c.ResolveChat(context.Background(), "imaginary-model"); err == nil {
-		t.Fatal("allow-list invented a deployment")
+		t.Fatal("saved deployment alias was not resolved")
 	}
 }
 

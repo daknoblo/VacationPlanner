@@ -16,10 +16,6 @@ type Config struct {
 	TenantID        string
 	ClientID        string
 	ClientSecret    string `json:"-"`
-	Endpoint        string
-	Deployment      string
-	APIVersion      string
-	Models          []string
 }
 
 var (
@@ -29,7 +25,7 @@ var (
 	deploymentPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 )
 
-// Requested intentionally ignores generic endpoint/model overrides.
+// Requested distinguishes disabled AI from a partial identity configuration.
 func (c Config) Requested() bool {
 	return c.ResourceID != "" || c.ImageResourceID != "" || c.TenantID != "" ||
 		c.ClientID != "" || c.ClientSecret != ""
@@ -50,27 +46,6 @@ func (c Config) Validate() error {
 	if c.ImageResourceID != "" {
 		if _, err := canonicalResourceID(c.ImageResourceID); err != nil {
 			return errors.New("foundry image resource must be a complete Cognitive Services account resource ID")
-		}
-	}
-	if c.Endpoint != "" {
-		if _, err := NormalizeEndpoint(c.Endpoint); err != nil {
-			return err
-		}
-		if c.APIVersion != "" && strings.TrimRight(c.Endpoint, "/") != rootEndpoint(c.Endpoint) {
-			return errors.New("foundry classic API version requires a resource-root endpoint override")
-		}
-	}
-	if c.Deployment != "" && !deploymentPattern.MatchString(c.Deployment) {
-		return errors.New("foundry deployment name is invalid")
-	}
-	// Deliberately support one documented GA classic schema, separately from v1.
-	if c.APIVersion != "" && c.APIVersion != "2024-10-21" {
-		return errors.New("foundry API version must be empty for v1 or 2024-10-21 for classic chat")
-	}
-	for _, model := range c.Models {
-		if model == "" || len(model) > 128 || strings.TrimSpace(model) != model ||
-			strings.ContainsAny(model, "/\\?#\r\n\t") {
-			return errors.New("foundry model allow-list contains an invalid entry")
 		}
 	}
 	return nil
@@ -126,55 +101,104 @@ func azureHost(host string) (string, string) {
 	return "", ""
 }
 
-func rootEndpoint(endpoint string) string {
-	return strings.TrimSuffix(strings.TrimRight(endpoint, "/"), "/openai/v1")
-}
-
 type accountProperties struct {
 	Endpoint            string            `json:"endpoint"`
 	Endpoints           map[string]string `json:"endpoints"`
 	CustomSubDomainName string            `json:"customSubDomainName"`
 }
 
-func selectEndpoint(p accountProperties, override string) (string, error) {
-	rawEndpoints := make([]string, 0, 1+len(p.Endpoints))
-	rawEndpoints = append(rawEndpoints, p.Endpoint)
-	for _, endpoint := range p.Endpoints {
-		rawEndpoints = append(rawEndpoints, endpoint)
+// selectEndpoint uses advertised URLs only. The account's Azure subdomain,
+// corroborated across metadata, binds equivalent OpenAI/Foundry host aliases.
+// Unrelated service endpoints (speech, vision, model-inference /models, etc.)
+// aren't Chat Completions candidates and don't authorize an inference URL.
+func selectEndpoint(p accountProperties) (string, error) {
+	accountName := strings.ToLower(p.CustomSubDomainName)
+	if accountName != "" && !accountPattern.MatchString(accountName) {
+		return "", errors.New(errEndpointInvalid)
 	}
-	if override != "" {
-		normalized, err := NormalizeEndpoint(override)
+	type candidate struct {
+		endpoint string
+		priority int
+	}
+	candidates := make([]candidate, 0, 1+len(p.Endpoints))
+	inspect := func(raw, key string, primary bool) error {
+		if raw == "" {
+			return nil
+		}
+		namedOpenAI := strings.Contains(strings.ToLower(key), "openai")
+		parsed, err := url.Parse(raw)
 		if err != nil {
+			if primary || namedOpenAI {
+				return errors.New(errEndpointInvalid)
+			}
+			return nil
+		}
+		name, suffix := azureHost(parsed.Hostname())
+		// A recognized Azure host with a root or v1 path is an API candidate.
+		// Other paths are unrelated APIs unless explicitly labeled OpenAI.
+		route := parsed.Path == "" || parsed.Path == "/" || parsed.Path == "/openai/v1" || parsed.Path == "/openai/v1/"
+		openAIPath := strings.HasPrefix(parsed.Path, "/openai")
+		if !primary && !namedOpenAI && suffix != "openai.azure.com" && !openAIPath && (name == "" || !route) {
+			return nil
+		}
+		u, err := parseEndpoint(raw)
+		if err != nil || (namedOpenAI && name == "") {
+			return errors.New(errEndpointInvalid)
+		}
+		if name == "" {
+			return nil
+		}
+		if accountName != "" && name != accountName {
+			return errors.New(errEndpointAmbiguous)
+		}
+		accountName = name
+		normalized, err := NormalizeEndpoint(u.String())
+		if err != nil {
+			// Generic Cognitive Services roots establish account identity, but
+			// do not prove an OpenAI route. Never invent one from that root.
+			if namedOpenAI {
+				return errors.New(errEndpointInvalid)
+			}
+			return nil
+		}
+		priority := 40
+		switch {
+		case strings.EqualFold(key, "Azure OpenAI Legacy API - Latest moniker"):
+			priority = 0
+		case namedOpenAI:
+			priority = 10
+		case suffix == "openai.azure.com":
+			priority = 20
+		case primary:
+			priority = 30
+		}
+		switch suffix {
+		case "services.ai.azure.com":
+			priority++
+		case "cognitiveservices.azure.com":
+			priority += 2
+		}
+		candidates = append(candidates, candidate{endpoint: normalized, priority: priority})
+		return nil
+	}
+	if err := inspect(p.Endpoint, "", true); err != nil {
+		return "", err
+	}
+	for key, raw := range p.Endpoints {
+		if err := inspect(raw, key, false); err != nil {
 			return "", err
 		}
-		target, _ := url.Parse(normalized)
-		name, _ := azureHost(target.Hostname())
-		for _, raw := range rawEndpoints {
-			u, err := parseEndpoint(raw)
-			if err != nil {
-				continue
-			}
-			otherName, _ := azureHost(u.Hostname())
-			if target.Host == u.Host || (name == otherName && otherName != "" &&
-				strings.EqualFold(name, p.CustomSubDomainName)) {
-				return normalized, nil
-			}
-		}
-		return "", errors.New("foundry endpoint override does not match account endpoint metadata")
 	}
-	candidates := make(map[string]bool)
-	for _, raw := range rawEndpoints {
-		if endpoint, err := NormalizeEndpoint(raw); err == nil {
-			candidates[endpoint] = true
+	if len(candidates) == 0 {
+		return "", errors.New(errEndpointMissing)
+	}
+	chosen := candidates[0]
+	for _, next := range candidates[1:] {
+		if next.priority < chosen.priority {
+			chosen = next
+		} else if next.priority == chosen.priority && next.endpoint != chosen.endpoint {
+			return "", errors.New(errEndpointAmbiguous)
 		}
 	}
-	if len(candidates) == 1 {
-		for candidate := range candidates {
-			return candidate, nil
-		}
-	}
-	if len(candidates) > 1 {
-		return "", errors.New("foundry account has ambiguous inference endpoints; configure a same-account override")
-	}
-	return "", errors.New("foundry account has no supported inference endpoint")
+	return chosen.endpoint, nil
 }

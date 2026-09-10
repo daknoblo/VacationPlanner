@@ -56,6 +56,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Foundry-only AI configuration — remove the legacy API-key/classic adapters
+      and endpoint/model/version overrides; resolve advertised account endpoints
+      automatically and replace manual inputs with discovered deployment selection
+      and live metadata status. Migration 0017 removes only obsolete AI settings.
 - [x] Foundry AI integration — explicit service-principal authentication, bounded
       account/deployment discovery with independent persistent caches, account-bound
       text selection and diagnostics, optional image-account inventory, and preserved

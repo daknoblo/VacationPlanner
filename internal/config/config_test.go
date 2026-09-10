@@ -64,7 +64,7 @@ func TestLoadProductionRequiresCSRFKey(t *testing.T) {
 	}
 }
 
-func TestAzureConfigModes(t *testing.T) {
+func TestAzureIdentityOnlyConfiguration(t *testing.T) {
 	clearAzureEnv(t)
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("CSRF_KEY", "")
@@ -75,13 +75,13 @@ func TestAzureConfigModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Azure.Requested() || cfg.AIAPIKey != "legacy-test-key" || cfg.Azure.Deployment != "production-chat" || len(cfg.Azure.Models) != 2 {
-		t.Fatal("key mode or override parsing changed")
+	if cfg.Azure.Requested() {
+		t.Fatal("removed key/model configuration must not enable AI")
 	}
 	t.Setenv("AZURE_CLIENT_SECRET", "private-test-secret")
 	_, err = Load()
 	if err == nil || strings.Contains(err.Error(), "private-test-secret") {
-		t.Fatal("partial identity must fail safely, not fall back to VP_API_KEY")
+		t.Fatal("partial identity must fail safely")
 	}
 	t.Setenv("AZURE_RESOURCE_ID", "/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/travel/providers/Microsoft.CognitiveServices/accounts/travel-ai")
 	t.Setenv("AZURE_TENANT_ID", "22222222-2222-4222-8222-222222222222")
@@ -92,6 +92,11 @@ func TestAzureConfigModes(t *testing.T) {
 	}
 	if !cfg.Azure.Requested() || cfg.Azure.ClientSecret != "private-test-secret" {
 		t.Fatal("explicit identity was not loaded")
+	}
+	t.Setenv("AZURE_ENDPOINT", "http://untrusted.invalid/old-route")
+	t.Setenv("AZURE_API_VERSION", "unsupported-legacy-version")
+	if _, err := Load(); err != nil {
+		t.Fatal("obsolete overrides must not control the Foundry connection")
 	}
 	t.Setenv("AZURE_RESOURCE_ID", "https://travel-ai.services.ai.azure.com/api/projects/travel")
 	if _, err := Load(); err == nil {

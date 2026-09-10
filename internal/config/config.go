@@ -18,7 +18,6 @@ type Config struct {
 	Env            string
 	HTTPAddr       string
 	DBPath         string
-	AIAPIKey       string
 	Azure          foundry.Config
 	GeocoderAPIKey string
 	RouterAPIKey   string
@@ -38,17 +37,12 @@ func Load() (*Config, error) {
 		Env:      getenv("APP_ENV", "development"),
 		HTTPAddr: getenv("HTTP_ADDR", ":8080"),
 		DBPath:   getenv("DB_PATH", "vacation.db"),
-		AIAPIKey: os.Getenv("VP_API_KEY"),
 		Azure: foundry.Config{
 			ResourceID:      strings.TrimSpace(os.Getenv("AZURE_RESOURCE_ID")),
 			ImageResourceID: strings.TrimSpace(os.Getenv("AZURE_IMAGE_RESOURCE_ID")),
 			TenantID:        strings.TrimSpace(os.Getenv("AZURE_TENANT_ID")),
 			ClientID:        strings.TrimSpace(os.Getenv("AZURE_CLIENT_ID")),
 			ClientSecret:    os.Getenv("AZURE_CLIENT_SECRET"),
-			Endpoint:        strings.TrimSpace(os.Getenv("AZURE_ENDPOINT")),
-			Deployment:      strings.TrimSpace(os.Getenv("AZURE_DEPLOYMENT")),
-			APIVersion:      strings.TrimSpace(os.Getenv("AZURE_API_VERSION")),
-			Models:          splitList(os.Getenv("AZURE_MODELS")),
 		},
 		GeocoderAPIKey: os.Getenv("GEOCODER_API_KEY"),
 		RouterAPIKey:   os.Getenv("ROUTER_API_KEY"),
@@ -75,16 +69,6 @@ func Load() (*Config, error) {
 	cfg.CSRFKey = key
 
 	return cfg, nil
-}
-
-func splitList(raw string) []string {
-	var values []string
-	for _, value := range strings.Split(raw, ",") {
-		if value = strings.TrimSpace(value); value != "" {
-			values = append(values, value)
-		}
-	}
-	return values
 }
 
 // IsProduction reports whether the service runs in a production-like environment.

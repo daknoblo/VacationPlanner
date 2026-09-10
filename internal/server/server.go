@@ -4,6 +4,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/go-chi/chi/v5"
 
@@ -19,22 +20,23 @@ import (
 
 // Server is the top-level HTTP application.
 type Server struct {
-	cfg     *config.Config
-	log     *slog.Logger
-	logs    *applog.Controller
-	store   store.Store
-	ai      *ai.Client
-	foundry foundryConnection
-	geo     *geo.Client
-	routing *route.Client
-	destImg *destimg.Client
-	render  *renderer
-	limiter *ipRateLimiter
-	router  chi.Router
+	cfg           *config.Config
+	log           *slog.Logger
+	logs          *applog.Controller
+	store         store.Store
+	ai            *ai.Client
+	foundry       foundryConnection
+	aiDiscoveries atomic.Int32
+	geo           *geo.Client
+	routing       *route.Client
+	destImg       *destimg.Client
+	render        *renderer
+	limiter       *ipRateLimiter
+	router        chi.Router
 }
 
 // New constructs a Server and wires up all routes.
-func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store.Store, aiClient *ai.Client) (*Server, error) {
+func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store.Store) (*Server, error) {
 	r, err := newRenderer()
 	if err != nil {
 		return nil, err
@@ -45,7 +47,7 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		log:     log,
 		logs:    logs,
 		store:   st,
-		ai:      aiClient,
+		ai:      ai.New(nil),
 		geo:     geo.New(cfg.GeocoderAPIKey),
 		routing: route.New(cfg.RouterAPIKey),
 		destImg: destimg.New(),
@@ -57,7 +59,7 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		if err != nil {
 			return nil, err
 		}
-		s.ai = ai.NewFoundry(s.foundry)
+		s.ai = ai.New(s.foundry)
 	}
 	s.routes()
 	return s, nil

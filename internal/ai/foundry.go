@@ -14,8 +14,8 @@ type FoundryBackend interface {
 	DoChat(context.Context, foundry.Target, []byte) ([]byte, error)
 }
 
-// NewFoundry deliberately has no API key and cannot fall back to key authentication.
-func NewFoundry(backend FoundryBackend) *Client {
+// New builds the recommendation client; a nil backend disables AI.
+func New(backend FoundryBackend) *Client {
 	return &Client{foundry: backend}
 }
 

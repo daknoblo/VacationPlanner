@@ -78,7 +78,7 @@ func (c *Client) Snapshots(ctx context.Context) ([]Snapshot, error) {
 			var cached cachedCatalog
 			if len(raw) > maxDiscoveryBytes || json.Unmarshal([]byte(raw), &cached) != nil ||
 				cached.ResourceID != resource || cached.UpdatedAt.IsZero() ||
-				!c.validateCached(&cached, i == 0) {
+				!validateCached(&cached) {
 				s.Error = "foundry cached catalog is invalid; refresh metadata"
 			} else {
 				s = cached.Snapshot
@@ -86,7 +86,7 @@ func (c *Client) Snapshots(ctx context.Context) ([]Snapshot, error) {
 				s.Error = ""
 				s.Stale = time.Since(s.UpdatedAt) > 24*time.Hour
 				for j := range s.Deployments {
-					classify(&s.Deployments[j], c.cfg.Models)
+					classify(&s.Deployments[j])
 				}
 			}
 		}
@@ -112,12 +112,8 @@ func (c *Client) Snapshots(ctx context.Context) ([]Snapshot, error) {
 	return result, nil
 }
 
-func (c *Client) validateCached(cached *cachedCatalog, main bool) bool {
-	override := ""
-	if main {
-		override = c.cfg.Endpoint
-	}
-	endpoint, err := selectEndpoint(cached.Account, override)
+func validateCached(cached *cachedCatalog) bool {
+	endpoint, err := selectEndpoint(cached.Account)
 	if err != nil || len(cached.Deployments) > maxDeployments {
 		return false
 	}
@@ -140,15 +136,11 @@ type Target struct {
 	Deployment          string
 	Model               string
 	ModelVersion        string
-	APIVersion          string
 	SupportsTemperature bool
 }
 
 func (c *Client) ResolveChat(ctx context.Context, savedDeployment string) (Target, error) {
 	name := savedDeployment
-	if c.cfg.Deployment != "" {
-		name = c.cfg.Deployment
-	}
 	if name == "" {
 		return Target{}, errors.New("foundry chat deployment is not selected")
 	}
@@ -167,13 +159,9 @@ func (c *Client) ResolveChat(ctx context.Context, savedDeployment string) (Targe
 		if !d.ChatSupported {
 			return Target{}, errors.New("foundry selected deployment does not support the text chat adapter")
 		}
-		endpoint := s.Endpoint
-		if c.cfg.APIVersion != "" {
-			endpoint = rootEndpoint(endpoint)
-		}
 		return Target{
-			ResourceID: s.ResourceID, Endpoint: endpoint, Deployment: d.Name,
-			Model: d.Model, ModelVersion: d.ModelVersion, APIVersion: c.cfg.APIVersion,
+			ResourceID: s.ResourceID, Endpoint: s.Endpoint, Deployment: d.Name,
+			Model: d.Model, ModelVersion: d.ModelVersion,
 			SupportsTemperature: d.SupportsTemperature,
 		}, nil
 	}
@@ -189,7 +177,7 @@ func (c *Client) ValidateSelection(ctx context.Context, name string) error {
 // APIs must not become supported merely by matching a family prefix.
 var chatModelPattern = regexp.MustCompile(`^(gpt-4o(-mini)?|gpt-4\.1(-mini|-nano)?|gpt-5(-mini|-nano|-chat)?|gpt-5\.[12](-chat)?|gpt-5\.3-chat|gpt-5\.4(-mini|-nano)?|gpt-5\.5|gpt-5\.6-(sol|terra|luna)|gpt-6-astra|gpt-chat-latest|o1|o3(-mini)?|o4-mini)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$`)
 
-func classify(d *Deployment, allow []string) {
+func classify(d *Deployment) {
 	d.ChatSupported, d.SupportsTemperature = false, false
 	d.Reason = "model is not supported by the text chat adapter"
 	if !strings.EqualFold(d.ProvisioningState, "Succeeded") {
@@ -230,10 +218,6 @@ func classify(d *Deployment, allow []string) {
 				return
 			}
 		}
-	}
-	if len(allow) > 0 && !slices.Contains(allow, d.Model) {
-		d.Reason = "canonical model is excluded by the configured allow-list"
-		return
 	}
 	d.ChatSupported = true
 	d.SupportsTemperature = strings.HasPrefix(strings.ToLower(d.Model), "gpt-4")

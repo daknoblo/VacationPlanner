@@ -122,12 +122,12 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		input.HasOrigin = true
 	}
 
-	baseURL, model, apiVersion, err := s.aiSettings(r.Context())
+	settings, err := s.settings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	suggestions, err := s.ai.Recommend(r.Context(), baseURL, model, apiVersion, input)
+	suggestions, err := s.ai.Recommend(r.Context(), s.foundryDeployment(settings), input)
 	switch {
 	case errors.Is(err, ai.ErrDisabled):
 		view.Error = loc.T("ai.not_configured")

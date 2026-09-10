@@ -18,7 +18,6 @@ import (
 	// distroless image, which ships no system zoneinfo.
 	_ "time/tzdata"
 
-	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/server"
@@ -102,9 +101,7 @@ func run() error {
 		}
 	}
 
-	aiClient := ai.New(cfg.AIAPIKey)
-
-	srv, err := server.New(cfg, logger, logs, st, aiClient)
+	srv, err := server.New(cfg, logger, logs, st)
 	if err != nil {
 		return err
 	}

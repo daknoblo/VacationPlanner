@@ -1,52 +1,23 @@
-// Package ai provides a minimal client for OpenAI-compatible chat completion
-// endpoints (OpenAI, Azure OpenAI, Ollama, LocalAI, vLLM, ...).
+// Package ai generates travel recommendations through resource-bound Foundry chat.
 package ai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strings"
-	"time"
 )
 
-// Default endpoint settings used when no override is configured.
-const (
-	DefaultBaseURL = "https://api.openai.com/v1"
-	DefaultModel   = "gpt-4o-mini"
-)
-
-// Client talks to an OpenAI-compatible /chat/completions endpoint.
+// Client uses a discovered deployment without accepting endpoints or credentials.
 type Client struct {
-	http    *http.Client
-	apiKey  string
 	foundry FoundryBackend
 }
 
-// New builds a client using the given API key. When the key is empty the client
-// is disabled and Recommend returns ErrDisabled. The endpoint URL and model are
-// passed per call, since they are configured at runtime (not baked into the client).
-func New(apiKey string) *Client {
-	return &Client{
-		http: &http.Client{
-			Timeout: 60 * time.Second,
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		},
-		apiKey: apiKey,
-	}
-}
+// Enabled reports whether a Foundry connection is configured.
+func (c *Client) Enabled() bool { return c.foundry != nil }
 
-// Enabled reports whether an explicit identity or API key is configured.
-func (c *Client) Enabled() bool { return c.foundry != nil || c.apiKey != "" }
-
-// ErrDisabled is returned when AI features are used without an API key.
-var ErrDisabled = fmt.Errorf("ai: no API key configured")
+// ErrDisabled is returned when AI features are used without a Foundry connection.
+var ErrDisabled = fmt.Errorf("ai: Foundry identity is not configured")
 
 // Suggestion is a single recommended point of interest.
 type Suggestion struct {
@@ -84,12 +55,6 @@ type chatMessage struct {
 	Content string `json:"content"`
 }
 
-type chatRequest struct {
-	Model       string        `json:"model"`
-	Messages    []chatMessage `json:"messages"`
-	Temperature float64       `json:"temperature"`
-}
-
 type chatResponse struct {
 	Choices []struct {
 		Message chatMessage `json:"message"`
@@ -110,101 +75,19 @@ const systemPrompt = `You are a concise travel assistant. ` +
 	`Set "latitude" and "longitude" to the place's approximate WGS84 coordinates in decimal degrees when known, otherwise 0. ` +
 	`Keep description and reason to one short sentence each.`
 
-// Recommend asks the model for points of interest for the given trip. baseURL,
-// model and apiVersion may be empty, in which case the package defaults / a
-// plain (non-Azure) request are used.
-func (c *Client) Recommend(ctx context.Context, baseURL, model, apiVersion string, in RecommendInput) ([]Suggestion, error) {
+// Recommend asks the selected account deployment for points of interest.
+func (c *Client) Recommend(ctx context.Context, deployment string, in RecommendInput) ([]Suggestion, error) {
 	if !c.Enabled() {
 		return nil, ErrDisabled
 	}
-	content, err := c.doChat(ctx, baseURL, model, apiVersion, []chatMessage{
+	content, err := c.foundryChat(ctx, deployment, []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: buildUserPrompt(in)},
-	}, 0.7)
+	}, 0.7, 8192)
 	if err != nil {
 		return nil, err
 	}
 	return parseSuggestions(content)
-}
-
-// buildEndpoint constructs the chat-completions URL for the request. When
-// apiVersion is set it targets Azure OpenAI, where the deployment name (passed
-// as the model) is part of the path — unless the base URL already points at a
-// deployment — and an ?api-version query parameter is required. Otherwise it
-// uses the standard OpenAI-compatible "{baseURL}/chat/completions" path.
-func buildEndpoint(baseURL, model, apiVersion string) string {
-	apiVer := strings.TrimSpace(apiVersion)
-	var endpoint string
-	if apiVer != "" && !strings.Contains(baseURL, "/deployments/") {
-		endpoint = baseURL + "/openai/deployments/" + url.PathEscape(model) + "/chat/completions"
-	} else {
-		endpoint = baseURL + "/chat/completions"
-	}
-	if apiVer != "" {
-		endpoint += "?api-version=" + url.QueryEscape(apiVer)
-	}
-	return endpoint
-}
-
-// doChat performs a chat-completion request and returns the assistant message
-// content. When apiVersion is set it targets an Azure OpenAI-style endpoint
-// (?api-version=... plus the api-key header) alongside the Bearer token.
-func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, messages []chatMessage, temperature float64) (string, error) {
-	if c.foundry != nil {
-		return c.foundryChat(ctx, model, messages, temperature, 8192)
-	}
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	if baseURL == "" {
-		baseURL = DefaultBaseURL
-	}
-	if strings.TrimSpace(model) == "" {
-		model = DefaultModel
-	}
-
-	payload, err := json.Marshal(chatRequest{Model: model, Temperature: temperature, Messages: messages})
-	if err != nil {
-		return "", fmt.Errorf("ai: encoding request: %w", err)
-	}
-
-	endpoint := buildEndpoint(baseURL, model, apiVersion)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("ai: building request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	if strings.TrimSpace(apiVersion) != "" {
-		req.Header.Set("api-key", c.apiKey) // Azure OpenAI style
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("ai: chat request failed (check connectivity and timeout)")
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
-	if err != nil {
-		return "", fmt.Errorf("ai: reading response: %w", err)
-	}
-	if len(body) > 1<<20 {
-		return "", fmt.Errorf("ai: chat response exceeds 1 MiB")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ai: chat returned HTTP %d (check endpoint, deployment and permissions)", resp.StatusCode)
-	}
-
-	var parsed chatResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", fmt.Errorf("ai: decoding response: %w", err)
-	}
-	if parsed.Error != nil {
-		return "", fmt.Errorf("ai: chat provider reported an error")
-	}
-	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("ai: endpoint returned no choices")
-	}
-	return parsed.Choices[0].Message.Content, nil
 }
 
 func buildUserPrompt(in RecommendInput) string {

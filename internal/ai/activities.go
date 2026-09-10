@@ -22,17 +22,17 @@ const activitySystemPrompt = `You are a concise travel assistant. Given a destin
 	`Keep each description to one short, informative sentence.`
 
 // SuggestActivities asks the model for activities matching a partial query in
-// the context of a destination. baseURL, model and apiVersion may be empty.
-func (c *Client) SuggestActivities(ctx context.Context, baseURL, model, apiVersion, destination, query string) ([]ActivitySuggestion, error) {
+// the context of a destination using the selected account deployment.
+func (c *Client) SuggestActivities(ctx context.Context, deployment, destination, query string) ([]ActivitySuggestion, error) {
 	if !c.Enabled() {
 		return nil, ErrDisabled
 	}
 	user := fmt.Sprintf("Destination: %s\nActivity query: %s\nSuggest matching activities.",
 		strings.TrimSpace(destination), strings.TrimSpace(query))
-	content, err := c.doChat(ctx, baseURL, model, apiVersion, []chatMessage{
+	content, err := c.foundryChat(ctx, deployment, []chatMessage{
 		{Role: "system", Content: activitySystemPrompt},
 		{Role: "user", Content: user},
-	}, 0.6)
+	}, 0.6, 8192)
 	if err != nil {
 		return nil, err
 	}

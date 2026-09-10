@@ -1,7 +1,7 @@
 package foundry
 
 import (
-	"context"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -17,10 +17,6 @@ func TestConfigValidationAndExplicitIdentity(t *testing.T) {
 		func(c *Config) { c.ClientSecret = "  " },
 		func(c *Config) { c.TenantID = "tenant.example" },
 		func(c *Config) { c.ImageResourceID = "private-invalid-resource" },
-		func(c *Config) { c.Endpoint = "https://attacker.example/openai/v1" },
-		func(c *Config) { c.Deployment = "../chat" },
-		func(c *Config) { c.APIVersion = "preview" },
-		func(c *Config) { c.Endpoint, c.APIVersion = mainEndpoint, "2024-10-21" },
 	} {
 		cfg := testConfig()
 		change(&cfg)
@@ -38,10 +34,8 @@ func TestConfigValidationAndExplicitIdentity(t *testing.T) {
 	if _, err := New(testConfig(), nil); err == nil {
 		t.Fatal("nil persistent cache accepted")
 	}
-	for _, cfg := range []Config{{}, {Endpoint: mainEndpoint}, {Deployment: "production"}, {APIVersion: "2024-10-21"}, {Models: []string{"gpt-4o"}}} {
-		if cfg.Requested() {
-			t.Fatal("generic override requested identity mode")
-		}
+	if (Config{}).Requested() || (Config{}).Validate() != nil {
+		t.Fatal("empty identity configuration must leave AI disabled")
 	}
 	for _, cfg := range []Config{{ResourceID: "x"}, {ImageResourceID: "x"}, {TenantID: "x"}, {ClientID: "x"}, {ClientSecret: "x"}} {
 		if !cfg.Requested() {
@@ -73,22 +67,16 @@ func TestEndpointNormalizationAndBinding(t *testing.T) {
 		}
 	}
 	properties := accountProperties{Endpoint: "https://main.cognitiveservices.azure.com", CustomSubDomainName: "main"}
-	if value, err := selectEndpoint(properties, mainEndpoint); err != nil || value != mainEndpoint {
-		t.Fatalf("verified same-account override failed: %q %v", value, err)
-	}
-	if _, err := selectEndpoint(properties, imageEndpoint); err == nil {
-		t.Fatal("cross-account endpoint override accepted")
-	}
-	if _, err := selectEndpoint(properties, ""); err == nil {
+	if _, err := selectEndpoint(properties); err == nil {
 		t.Fatal("cognitive root guessed as OpenAI route")
 	}
 	properties.Endpoints = map[string]string{"openai": mainEndpoint}
-	if value, err := selectEndpoint(properties, ""); err != nil || value != mainEndpoint {
+	if value, err := selectEndpoint(properties); err != nil || value != mainEndpoint {
 		t.Fatal("additional explicit metadata endpoint not used")
 	}
 	properties.Endpoints["other"] = "https://main.services.ai.azure.com/openai/v1"
-	if _, err := selectEndpoint(properties, ""); err == nil {
-		t.Fatal("ambiguous endpoints selected arbitrarily")
+	if value, err := selectEndpoint(properties); err != nil || value != mainEndpoint {
+		t.Fatal("same-account endpoint aliases should prefer the advertised OpenAI endpoint")
 	}
 }
 
@@ -124,7 +112,7 @@ func TestCanonicalModelClassification(t *testing.T) {
 		t.Run(tt.model+"-"+tt.format+"-"+tt.state+"-"+tt.sku, func(t *testing.T) {
 			d := Deployment{Name: "arbitrary-alias", Model: tt.model, ModelFormat: tt.format,
 				ProvisioningState: tt.state, SKU: map[string]any{"name": tt.sku}, Capabilities: tt.capabilities}
-			classify(&d, nil)
+			classify(&d)
 			if d.ChatSupported != tt.supported || d.SupportsTemperature != tt.temperature {
 				t.Fatalf("wrong classification: %+v", d)
 			}
@@ -135,16 +123,18 @@ func TestCanonicalModelClassification(t *testing.T) {
 	}
 }
 
-func TestCacheEndpointOverrideIsRevalidated(t *testing.T) {
-	c, cache, _ := testClient(t, testConfig())
-	successDiscovery(t, c)
-	cfg := testConfig()
-	cfg.Endpoint = imageEndpoint
-	reconfigured, err := New(cfg, cache)
-	if err != nil {
-		t.Fatal(err)
+func TestConfigurationHasOnlyExplicitIdentityFields(t *testing.T) {
+	want := []string{"ResourceID", "ImageResourceID", "TenantID", "ClientID", "ClientSecret"}
+	cfgType := reflect.TypeFor[Config]()
+	if cfgType.NumField() != len(want) {
+		t.Fatal("configuration contains non-identity settings")
 	}
-	if _, err := reconfigured.ResolveChat(context.Background(), "production"); err == nil {
-		t.Fatal("new foreign endpoint override reused cached resource authorization")
+	for _, name := range want {
+		if _, ok := cfgType.FieldByName(name); !ok {
+			t.Fatalf("identity field %s is missing", name)
+		}
+	}
+	if _, ok := reflect.TypeFor[Target]().FieldByName("APIVersion"); ok {
+		t.Fatal("v1 chat target must not allow classic API routing")
 	}
 }

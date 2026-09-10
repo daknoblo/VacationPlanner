@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -38,11 +36,11 @@ func (f *fakeFoundry) DoChat(_ context.Context, _ foundry.Target, payload []byte
 func TestFoundryRecommendationsUseDeploymentAndSupportedParameters(t *testing.T) {
 	for _, supportsTemperature := range []bool{true, false} {
 		backend := &fakeFoundry{target: foundry.Target{Deployment: "production-chat", SupportsTemperature: supportsTemperature}}
-		client := NewFoundry(backend)
+		client := New(backend)
 		if !client.Enabled() {
-			t.Fatal("explicit identity must enable AI without a key")
+			t.Fatal("explicit identity must enable AI")
 		}
-		got, err := client.Recommend(context.Background(), "https://ignored.invalid", "saved-alias", "ignored-version", RecommendInput{Destination: "Berlin"})
+		got, err := client.Recommend(context.Background(), "saved-alias", RecommendInput{Destination: "Berlin"})
 		if err != nil || len(got) != 1 || got[0].Name != "Museum" {
 			t.Fatalf("Recommend = %v, %v", got, err)
 		}
@@ -62,27 +60,25 @@ func TestFoundryRecommendationsUseDeploymentAndSupportedParameters(t *testing.T)
 	}
 }
 
-func TestFoundryResolutionFailureNeverFallsBack(t *testing.T) {
+func TestFoundryResolutionFailureStopsGeneration(t *testing.T) {
 	want := errors.New("invalid identity")
 	backend := &fakeFoundry{err: want}
-	client := NewFoundry(backend)
-	client.apiKey = "must-not-be-used"
-	_, err := client.Recommend(context.Background(), "https://must-not-be-called.invalid", "", "", RecommendInput{})
+	_, err := New(backend).Recommend(context.Background(), "production-chat", RecommendInput{})
 	if !errors.Is(err, want) || backend.calls != 0 {
-		t.Fatalf("unexpected fallback: calls=%d err=%v", backend.calls, err)
+		t.Fatalf("resolution failed but generation attempted: calls=%d err=%v", backend.calls, err)
 	}
 }
 
 func TestFoundryProbeIsSmall(t *testing.T) {
 	backend := &fakeFoundry{target: foundry.Target{Deployment: "production-chat"}}
-	if err := NewFoundry(backend).Probe(context.Background(), backend.target); err != nil {
+	if err := New(backend).Probe(context.Background(), backend.target); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(backend.payload), `"max_completion_tokens":256`) || backend.calls != 1 {
 		t.Fatalf("probe must be a single bounded request: %s", backend.payload)
 	}
-	if err := New("key").Probe(context.Background(), backend.target); err == nil {
-		t.Fatal("key mode must not masquerade as Foundry")
+	if err := New(nil).Probe(context.Background(), backend.target); err == nil {
+		t.Fatal("disabled AI must not generate a probe")
 	}
 }
 
@@ -91,57 +87,23 @@ func TestFoundryActivitySuggestionsUseSameAdapter(t *testing.T) {
 		target:   foundry.Target{Deployment: "production-chat"},
 		response: `{"choices":[{"message":{"content":"{\"activities\":[{\"name\":\"Museum\"}]}"}}]}`,
 	}
-	activities, err := NewFoundry(backend).SuggestActivities(context.Background(), "", "production-chat", "", "Berlin", "museum")
+	activities, err := New(backend).SuggestActivities(context.Background(), "production-chat", "Berlin", "museum")
 	if err != nil || len(activities) != 1 || activities[0].Name != "Museum" || backend.calls != 1 {
 		t.Fatalf("activity adapter not preserved: %v, %v", activities, err)
 	}
 }
 
-func TestLegacyRecommendationSuccess(t *testing.T) {
-	for _, version := range []string{"", "2024-10-21"} {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Bearer test-key" {
-				t.Error("legacy authorization changed")
-			}
-			if version != "" && r.Header.Get("api-key") != "test-key" {
-				t.Error("classic Azure header missing")
-			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"suggestions\":[{\"name\":\"Museum\"}]}"}}]}`))
-		}))
-		result, err := New("test-key").Recommend(context.Background(), srv.URL, "production-chat", version, RecommendInput{Destination: "Berlin"})
-		srv.Close()
-		if err != nil || len(result) != 1 || result[0].Name != "Museum" {
-			t.Fatalf("legacy request failed: %v, %v", result, err)
-		}
-	}
-}
-
-func TestLegacyChatModesAndRedirects(t *testing.T) {
-	for _, version := range []string{"", "2024-10-21"} {
-		var requests int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requests++
-			if r.Header.Get("Authorization") != "Bearer test-key" {
-				t.Error("legacy bearer missing")
-			}
-			wantPath := "/chat/completions"
-			if version != "" {
-				wantPath = "/openai/deployments/production-chat/chat/completions"
-				if r.Header.Get("api-key") != "test-key" || r.URL.Query().Get("api-version") != version {
-					t.Error("classic Azure request changed")
-				}
-			} else if r.Header.Get("api-key") != "" {
-				t.Error("unexpected classic header")
-			}
-			if r.URL.Path != wantPath {
-				t.Errorf("path = %s", r.URL.Path)
-			}
-			http.Redirect(w, r, "/credential-sink", http.StatusTemporaryRedirect)
-		}))
-		_, err := New("test-key").doChat(context.Background(), srv.URL, "production-chat", version, []chatMessage{{Role: "user", Content: "Hello"}}, 0.5)
-		srv.Close()
-		if err == nil || requests != 1 {
-			t.Fatalf("redirect followed or reported success: %d, %v", requests, err)
+func TestFoundryResponseErrorsAreSanitized(t *testing.T) {
+	for _, response := range []string{
+		`{"error":{"message":"private-provider-details"}}`,
+		`{"choices":[]}`,
+		`{"choices":[{"message":{"content":""}}]}`,
+		`invalid-private-provider-details`,
+	} {
+		backend := &fakeFoundry{target: foundry.Target{Deployment: "production-chat"}, response: response}
+		_, err := New(backend).Recommend(context.Background(), "production-chat", RecommendInput{})
+		if err == nil || strings.Contains(err.Error(), "private-provider-details") {
+			t.Fatalf("provider error not safely reported: %v", err)
 		}
 	}
 }

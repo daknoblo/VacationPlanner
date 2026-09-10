@@ -2,9 +2,7 @@ package ai
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"errors"
 	"testing"
 )
 
@@ -59,70 +57,14 @@ func TestParseSuggestionsEmbedded(t *testing.T) {
 }
 
 func TestClientDisabled(t *testing.T) {
-	c := New("")
+	c := New(nil)
 	if c.Enabled() {
-		t.Fatal("client without API key must be disabled")
+		t.Fatal("client without Foundry connection must be disabled")
 	}
-}
-
-func TestBuildEndpoint(t *testing.T) {
-	cases := []struct {
-		name    string
-		baseURL string
-		model   string
-		apiVer  string
-		want    string
-	}{
-		{
-			name:    "openai compatible",
-			baseURL: "https://api.openai.com/v1",
-			model:   "gpt-4o-mini",
-			want:    "https://api.openai.com/v1/chat/completions",
-		},
-		{
-			name:    "azure adds deployment path",
-			baseURL: "https://ddf6-msfoundry.openai.azure.com",
-			model:   "model-router",
-			apiVer:  "2025-01-01-preview",
-			want:    "https://ddf6-msfoundry.openai.azure.com/openai/deployments/model-router/chat/completions?api-version=2025-01-01-preview",
-		},
-		{
-			name:    "azure base already has deployment",
-			baseURL: "https://x.openai.azure.com/openai/deployments/dep",
-			model:   "dep",
-			apiVer:  "2024-02-15-preview",
-			want:    "https://x.openai.azure.com/openai/deployments/dep/chat/completions?api-version=2024-02-15-preview",
-		},
+	if _, err := c.Recommend(context.Background(), "", RecommendInput{}); !errors.Is(err, ErrDisabled) {
+		t.Fatal("recommendations must report disabled identity")
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := buildEndpoint(tc.baseURL, tc.model, tc.apiVer); got != tc.want {
-				t.Fatalf("buildEndpoint = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestDoChatErrorOmitsProviderBody(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":{"message":"sensitive echoed prompt or credential"}}`))
-	}))
-	defer srv.Close()
-
-	c := New("test-key")
-	_, err := c.doChat(context.Background(), srv.URL, "gpt-x", "",
-		[]chatMessage{{Role: "user", Content: "hi"}}, 0.5)
-	if err == nil {
-		t.Fatal("expected an error for a 404 response")
-	}
-	msg := err.Error()
-	for _, want := range []string{"404", "chat", "deployment"} {
-		if !strings.Contains(msg, want) {
-			t.Fatalf("error %q should contain %q", msg, want)
-		}
-		if strings.Contains(msg, "sensitive") || strings.Contains(msg, "test-key") {
-			t.Fatalf("provider error exposed sensitive content: %s", msg)
-		}
+	if _, err := c.SuggestActivities(context.Background(), "", "", ""); !errors.Is(err, ErrDisabled) {
+		t.Fatal("activities must report disabled identity")
 	}
 }

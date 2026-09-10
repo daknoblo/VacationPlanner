@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -39,10 +38,6 @@ func (c *Client) DoChat(ctx context.Context, target Target, payload []byte) ([]b
 		return nil, err
 	}
 	endpoint := target.Endpoint + "/chat/completions"
-	if target.APIVersion != "" {
-		endpoint = target.Endpoint + "/openai/deployments/" + url.PathEscape(target.Deployment) +
-			"/chat/completions?api-version=" + url.QueryEscape(target.APIVersion)
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, errors.New("foundry chat request could not be constructed")

@@ -40,7 +40,9 @@ const (
 	errDiscoveryLimit     = "foundry discovery exceeded metadata limits"
 	errDiscoveryMetadata  = "foundry discovery returned incomplete or inconsistent metadata"
 	errDiscoveryPage      = "foundry discovery returned an unsafe or repeated pagination link"
-	errDiscoveryEndpoint  = "foundry discovery has no unambiguous supported endpoint; check account metadata and endpoint override"
+	errEndpointMissing    = "foundry account metadata does not advertise a supported OpenAI endpoint"
+	errEndpointAmbiguous  = "foundry account metadata contains conflicting or ambiguous inference endpoints"
+	errEndpointInvalid    = "foundry account metadata contains a malformed or unsupported OpenAI endpoint"
 	errCacheWrite         = "foundry discovery metadata could not be persisted"
 )
 
@@ -84,7 +86,6 @@ func New(cfg Config, cache Cache) (*Client, error) {
 		cfg.ImageResourceID, _ = canonicalResourceID(cfg.ImageResourceID)
 	}
 	cfg.ClientSecret = ""
-	cfg.Models = append([]string(nil), cfg.Models...)
 	return &Client{
 		cfg: cfg, credential: credential, cache: cache,
 		discovery:   &http.Client{Timeout: 15 * time.Second, CheckRedirect: rejectRedirect},
@@ -103,7 +104,6 @@ func rejectRedirect(_ *http.Request, _ []*http.Request) error {
 func (c *Client) Config() Config {
 	cfg := c.cfg
 	cfg.ClientSecret = ""
-	cfg.Models = append([]string(nil), cfg.Models...)
 	return cfg
 }
 
@@ -130,11 +130,7 @@ func (c *Client) Refresh(ctx context.Context) error {
 	var failures []error
 	for i, resource := range c.resources() {
 		accountCtx, accountCancel := context.WithTimeout(ctx, 20*time.Second)
-		override := ""
-		if i == 0 {
-			override = c.cfg.Endpoint
-		}
-		catalog, err := c.discover(accountCtx, resource, override)
+		catalog, err := c.discover(accountCtx, resource)
 		accountCancel()
 		if saveErr := c.persist(ctx, resource, catalog, err); saveErr != nil {
 			failures = append(failures, saveErr)
@@ -180,14 +176,15 @@ func (c *Client) persist(ctx context.Context, resource string, catalog cachedCat
 func safeCachedError(message string) string {
 	switch message {
 	case errDiscoveryToken, errDiscoveryTransport, errDiscoveryAuth, errDiscoveryHTTP,
-		errDiscoveryLimit, errDiscoveryMetadata, errDiscoveryPage, errDiscoveryEndpoint, errCacheWrite:
+		errDiscoveryLimit, errDiscoveryMetadata, errDiscoveryPage,
+		errEndpointMissing, errEndpointAmbiguous, errEndpointInvalid, errCacheWrite:
 		return message
 	default:
 		return "foundry discovery failed; refresh metadata"
 	}
 }
 
-func (c *Client) discover(ctx context.Context, resource, override string) (cachedCatalog, error) {
+func (c *Client) discover(ctx context.Context, resource string) (cachedCatalog, error) {
 	var catalog cachedCatalog
 	budget := maxDiscoveryBytes
 	body, err := c.armGET(ctx, armOrigin+resource+"?api-version="+armVersion, &budget)
@@ -202,9 +199,9 @@ func (c *Client) discover(ctx context.Context, resource, override string) (cache
 		!strings.EqualFold(account.ID, resource) {
 		return catalog, errors.New(errDiscoveryMetadata)
 	}
-	endpoint, err := selectEndpoint(*account.Properties, override)
+	endpoint, err := selectEndpoint(*account.Properties)
 	if err != nil {
-		return catalog, errors.New(errDiscoveryEndpoint)
+		return catalog, err
 	}
 	catalog = cachedCatalog{
 		Snapshot: Snapshot{ResourceID: resource, Endpoint: endpoint, Deployments: []Deployment{}},
@@ -243,7 +240,7 @@ func (c *Client) discover(ctx context.Context, resource, override string) (cache
 				return cachedCatalog{}, errors.New(errDiscoveryMetadata)
 			}
 			names[name] = true
-			classify(&d, c.cfg.Models)
+			classify(&d)
 			catalog.Deployments = append(catalog.Deployments, d)
 		}
 		next = response.NextLink

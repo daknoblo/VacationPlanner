@@ -66,7 +66,7 @@ func foundryTestServer(t *testing.T) (*Server, *stubFoundry) {
 	s.cfg.Azure.ResourceID = "/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/travel/providers/Microsoft.CognitiveServices/accounts/travel"
 	s.cfg.Azure.ClientSecret = "private-test-secret"
 	s.foundry = f
-	s.ai = ai.NewFoundry(f)
+	s.ai = ai.New(f)
 	return s, f
 }
 
@@ -113,14 +113,11 @@ func TestFoundrySettingsAndHealthNeverCallAzure(t *testing.T) {
 	}
 }
 
-func TestFoundrySettingsPreserveLegacyAndAccountSelections(t *testing.T) {
+func TestFoundrySettingsPreserveAccountSelections(t *testing.T) {
 	s, _ := foundryTestServer(t)
 	ctx := context.Background()
-	if err := s.store.PutSetting(ctx, settingAIModel, "legacy-model"); err != nil {
-		t.Fatal(err)
-	}
-	rec := postAISettings(s, "/settings/ai", url.Values{"model": {"production-chat"}, "base_url": {"https://foreign.invalid"}}, true)
-	if rec.Code != http.StatusOK || rec.Header().Get("HX-Redirect") != "/settings" {
+	rec := postAISettings(s, "/settings/ai", url.Values{"deployment": {"production-chat"}, "base_url": {"https://foreign.invalid"}}, true)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `id="foundry-settings-panel"`) {
 		t.Fatalf("save: %d %s", rec.Code, rec.Body.String())
 	}
 	originalKey := s.foundrySettingKey("chat")
@@ -132,33 +129,32 @@ func TestFoundrySettingsPreserveLegacyAndAccountSelections(t *testing.T) {
 	if originalKey != s.foundrySettingKey("chat") {
 		t.Fatal("changing only image resource changed text selection binding")
 	}
-	s.cfg.Azure.ResourceID += "-other"
+	s.cfg.Azure.ResourceID = strings.TrimSuffix(s.cfg.Azure.ResourceID, "/") + "-other"
 	settings, err := s.store.GetSettings(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.foundryDeployment(settings) != "" || settings[originalKey] != "production-chat" || settings[settingAIModel] != "legacy-model" {
-		t.Fatal("selections leaked across accounts or overwrote legacy mode")
+	if s.foundryDeployment(settings) != "" || settings[originalKey] != "production-chat" {
+		t.Fatal("selections leaked across accounts")
 	}
 }
 
-func TestFoundryLockedDeploymentCannotOverwriteSavedSelection(t *testing.T) {
+func TestOldAIFormCannotClearSavedSelection(t *testing.T) {
 	s, _ := foundryTestServer(t)
 	ctx := context.Background()
 	if err := s.store.PutSetting(ctx, s.foundrySettingKey("chat"), "production-chat"); err != nil {
 		t.Fatal(err)
 	}
-	s.cfg.Azure.Deployment = "next-chat"
 	rec := postAISettings(s, "/settings/ai", url.Values{"model": {""}}, true)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("locked save: %d", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("old form accepted: %d", rec.Code)
 	}
 	settings, err := s.store.GetSettings(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if settings[s.foundrySettingKey("chat")] != "production-chat" || s.foundryDeployment(settings) != "next-chat" {
-		t.Fatal("locked selection lost its saved value or precedence")
+	if settings[s.foundrySettingKey("chat")] != "production-chat" {
+		t.Fatal("old form cleared the saved selection")
 	}
 }
 
@@ -177,7 +173,7 @@ func TestFoundryProbeRequiresCSRFConsentAndUsesSavedSelection(t *testing.T) {
 	if backend.calls != 0 {
 		t.Fatal("probe without consent billed")
 	}
-	rec := postAISettings(s, "/settings/ai/probe", url.Values{"confirm_cost": {"yes"}, "model": {"attacker-choice"}}, true)
+	rec := postAISettings(s, "/settings/ai/probe", url.Values{"confirm_cost": {"yes"}, "deployment": {"attacker-choice"}}, true)
 	if rec.Code != http.StatusOK || backend.calls != 1 || backend.lastModel != "production-chat" {
 		t.Fatalf("probe didn't use saved selection: %d, %d, %s", rec.Code, backend.calls, backend.lastModel)
 	}
@@ -189,7 +185,7 @@ func TestFoundryProbeRequiresCSRFConsentAndUsesSavedSelection(t *testing.T) {
 	if err != nil || view.ProbeStatus != "settings.foundry.reachable" {
 		t.Fatalf("missing persistent probe result: %v, %v", view, err)
 	}
-	s.cfg.Azure.Deployment = "next-chat"
+	settings[s.foundrySettingKey("chat")] = "next-chat"
 	view, err = s.foundrySettings(ctx, settings)
 	if err != nil || view.ProbeStatus != "settings.foundry.not_checked" {
 		t.Fatalf("old probe authorized new selection: %v, %v", view, err)
@@ -222,33 +218,25 @@ func TestFoundryDiscoveryDoesNotGenerateOrChangeSelection(t *testing.T) {
 	}
 }
 
-func TestLegacyAIEnvironmentOverridesPreserveSavedValues(t *testing.T) {
+func TestUnconfiguredAIHasNoLegacyControls(t *testing.T) {
 	s := newIntegrationServer(t)
 	ctx := context.Background()
-	for key, value := range map[string]string{settingAIBaseURL: "http://localhost:11434/v1", settingAIModel: "local-model", settingAIAPIVersion: ""} {
-		if err := s.store.PutSetting(ctx, key, value); err != nil {
-			t.Fatal(err)
+	rec := httptest.NewRecorder()
+	s.ServeHTTP(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, "/settings", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "AZURE_RESOURCE_ID") {
+		t.Fatalf("identity setup missing: %d", rec.Code)
+	}
+	for _, removed := range []string{"VP_API_KEY", "AZURE_ENDPOINT", "AZURE_API_VERSION", `id="ai-model"`, `id="ai-base-url"`, `action="/settings/ai"`} {
+		if strings.Contains(rec.Body.String(), removed) {
+			t.Fatalf("removed configuration still shown: %s", removed)
 		}
 	}
-	s.cfg.Azure.Endpoint = "https://cloud.openai.azure.com"
-	s.cfg.Azure.Deployment = "production-chat"
-	s.cfg.Azure.APIVersion = "2024-10-21"
-	rec := postAISettings(s, "/settings/ai", nil, true)
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("save: %d %s", rec.Code, rec.Body.String())
-	}
-	endpoint, deployment, version, err := s.aiSettings(ctx)
-	if err != nil || endpoint != s.cfg.Azure.Endpoint || deployment != s.cfg.Azure.Deployment || version != s.cfg.Azure.APIVersion {
-		t.Fatal("ENV precedence lost")
-	}
-	s.cfg.Azure.Endpoint, s.cfg.Azure.Deployment, s.cfg.Azure.APIVersion = "", "", ""
-	endpoint, deployment, version, err = s.aiSettings(ctx)
-	if err != nil || endpoint != "http://localhost:11434/v1" || deployment != "local-model" || version != "" {
-		t.Fatal("locked form cleared underlying values")
+	if rec := postAISettings(s, "/settings/ai", url.Values{"model": {"old"}}, true); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatal("disabled identity accepted old configuration")
 	}
 }
 
-func TestServerWiresExplicitIdentityWithoutNetworkOrKeyFallback(t *testing.T) {
+func TestServerWiresExplicitIdentityWithoutNetwork(t *testing.T) {
 	s := newIntegrationServer(t)
 	s.cfg.Azure = foundry.Config{
 		ResourceID:   "/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/travel/providers/Microsoft.CognitiveServices/accounts/travel",
@@ -256,7 +244,7 @@ func TestServerWiresExplicitIdentityWithoutNetworkOrKeyFallback(t *testing.T) {
 		ClientID:     "33333333-3333-4333-8333-333333333333",
 		ClientSecret: "private-test-secret",
 	}
-	configured, err := New(s.cfg, s.log, s.logs, s.store, ai.New("legacy-key"))
+	configured, err := New(s.cfg, s.log, s.logs, s.store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,13 +256,13 @@ func TestServerWiresExplicitIdentityWithoutNetworkOrKeyFallback(t *testing.T) {
 	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "private-test-secret") {
 		t.Fatalf("cold Foundry settings failed or leaked secret: %d", rec.Code)
 	}
-	_, err = configured.ai.Recommend(context.Background(), "https://must-not-be-used.invalid", "missing-deployment", "", ai.RecommendInput{})
+	_, err = configured.ai.Recommend(context.Background(), "missing-deployment", ai.RecommendInput{})
 	if err == nil {
-		t.Fatal("undiscovered deployment must fail without reaching legacy endpoint")
+		t.Fatal("undiscovered deployment must fail before inference")
 	}
 	s.cfg.Azure.ClientSecret = ""
-	if _, err := New(s.cfg, s.log, s.logs, s.store, ai.New("legacy-key")); err == nil {
-		t.Fatal("incomplete identity silently fell back to key")
+	if _, err := New(s.cfg, s.log, s.logs, s.store); err == nil {
+		t.Fatal("incomplete identity was accepted")
 	}
 }
 
@@ -287,4 +275,38 @@ func TestStartupDiscoveryIsJoinedWithoutGeneration(t *testing.T) {
 	}
 	s.foundry = nil
 	s.StartAIDiscovery(context.Background())()
+}
+
+func TestFoundryUIReflectsDiscoveryWithoutAzureCalls(t *testing.T) {
+	s, backend := foundryTestServer(t)
+	s.aiDiscoveries.Add(1)
+	for _, pending := range []bool{true, false} {
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/settings/ai/status", nil)
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: %d %s", rec.Code, rec.Body.String())
+		}
+		body := rec.Body.String()
+		if strings.Contains(body, `hx-get="/settings/ai/status"`) != pending {
+			t.Fatalf("polling does not match active discovery: pending=%v", pending)
+		}
+		for _, want := range []string{`<select id="ai-deployment"`, "Discovered endpoint", "No chat deployment selected", "production-chat"} {
+			if !strings.Contains(body, want) {
+				t.Fatalf("modern settings missing %s", want)
+			}
+		}
+		for _, removed := range []string{"AZURE_ENDPOINT", "AZURE_MODELS", "API version", `id="ai-base-url"`, `name="model"`} {
+			if strings.Contains(body, removed) {
+				t.Fatalf("old definition still rendered: %s", removed)
+			}
+		}
+		if pending {
+			s.aiDiscoveries.Add(-1)
+		}
+	}
+	if backend.refreshes != 0 || backend.calls != 0 {
+		t.Fatal("UI status polling triggered Azure work")
+	}
 }

@@ -35,9 +35,15 @@ a reverse proxy.
 - **i18n:** Tiny dependency-free catalog in `internal/i18n` (English fallback). Templates
   translate via a `{{t "key"}}` function bound per request; the language is resolved from
   the `lang` cookie, then `Accept-Language`, then the default.
-- **AI:** **OpenAI-compatible** `/chat/completions` endpoint (OpenAI, Azure OpenAI, Ollama,
-  LocalAI, vLLM …). Only `VP_API_KEY` is an env var (empty = AI disabled); the endpoint
-  URL and model are configured at runtime under **Settings** (persisted in the DB).
+- **AI:** **Microsoft Foundry / Azure OpenAI identity-only**, using the official Azure
+  Identity SDK's explicit `ClientSecretCredential` and **OpenAI v1** text Chat Completions.
+  The endpoint is resolved automatically from validated ARM account endpoint metadata;
+  matching OpenAI endpoints among same-account aliases have deterministic preference.
+  Settings displays the discovered endpoint/status read-only and offers a compatible
+  deployment select list, saved per account in SQLite, discovery refresh and a cost-consent
+  text probe. Refresh never automatically changes a saved deployment. There are no manual
+  endpoint/model/version controls or AI environment overrides. Only text recommendations
+  and suggestions are implemented; destination photos are lookups, not AI image generation.
 - **Geocoding:** server-proxied in `internal/geo`; default **Photon** (Komoot) for as-you-type
   autocomplete, with a tolerant Photon/Nominatim parser. Base URL is configured under **Settings**;
   optional `GEOCODER_API_KEY` env stays server-side (strict CSP keeps all calls same-origin).
@@ -84,7 +90,10 @@ a reverse proxy.
 - `GET /api/geocode?q=` – server-proxied destination autocomplete.
 - `GET /api/activities/suggest?q=&dest=` – AI activity suggestions (empty when AI disabled).
 - `GET /settings`, `POST /settings` – choose the UI language (stored in the `lang` cookie).
-- `POST /settings/ai` – configure the AI endpoint URL and model (persisted in the DB).
+- `POST /settings/ai` – save a discovered compatible chat deployment per main account.
+- `GET /settings/ai/status` – read cached discovery and connection status; no Azure call.
+- `POST /settings/ai/discover` – refresh configured accounts' ARM metadata.
+- `POST /settings/ai/probe` – explicit cost-consent text connection check.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.
@@ -100,7 +109,8 @@ a reverse proxy.
 ## 4. Architecture & structure
 
 - Clear separation: domain (`internal/models`) · persistence (`internal/store`) ·
-  HTTP/handlers/middleware/rendering (`internal/server`) · AI client (`internal/ai`) ·
+  HTTP/handlers/middleware/rendering (`internal/server`) · AI recommendations (`internal/ai`) ·
+  Azure identity/discovery/inference (`internal/foundry`) ·
   configuration (`internal/config`) · i18n (`internal/i18n`) · web assets (`web/`).
 - Standard layout: `cmd/server/main.go` (incl. health-probe subcommand),
   `internal/...`, `web/templates` + `web/static` (both `embed`).
@@ -119,7 +129,11 @@ a reverse proxy.
 - Configuration exclusively via env (`internal/config`), never commit secrets:
   - `APP_ENV` (`production` ⇒ JSON logs, HSTS, secure cookies), `HTTP_ADDR` (`:8080`).
   - `DB_PATH` (SQLite database file path; default `vacation.db`).
-  - `VP_API_KEY` (AI; empty = disabled; endpoint URL and model are set in Settings, not env).
+  - `AZURE_RESOURCE_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+    (all four required to enable AI; resource ID is a full Cognitive Services account ID).
+  - `AZURE_IMAGE_RESOURCE_ID` (optional separate read-only inventory with the same identity;
+    no image generation). These five are the only AI environment variables. No identity
+    disables AI; partial identity is an error, never a fallback. Secrets are runtime-only.
   - `GEOCODER_API_KEY` (optional; for keyed Photon/Nominatim-compatible geocoders; base URL in Settings).
   - `ROUTER_API_KEY` (optional; OpenRouteService key for driving time/distance between stops; base URL in Settings).
   - `CSRF_KEY` (hex, 32 bytes; **required in production**, ephemeral in dev).

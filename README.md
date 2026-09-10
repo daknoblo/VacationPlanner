@@ -7,7 +7,7 @@
 [![GHCR](https://img.shields.io/badge/ghcr.io-vacationplanner-blue?logo=docker)](https://github.com/daknoblo/VacationPlanner/pkgs/container/vacationplanner)
 
 A web-based vacation planner written in **Go** with a modern, lightweight server-rendering
-architecture (HTMX + Leaflet), SQLite persistence, OpenAI-compatible AI recommendations,
+architecture (HTMX + Leaflet), SQLite persistence, Microsoft Foundry AI recommendations,
 a **multi-language UI (English / German)**, and a **multi-arch, distroless** Docker image.
 
 ## Features
@@ -62,12 +62,12 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 
 ### AI (optional)
 
-- **AI recommendations** – via any **OpenAI-compatible** endpoint (OpenAI, **Azure OpenAI**,
-  Ollama, LocalAI, vLLM …). Anchored to the destination with an adjustable **radius**, filtered
+- **AI recommendations** – via **Microsoft Foundry / Azure OpenAI**, using explicit
+  service-principal authentication. Anchored to the destination with an adjustable **radius**, filtered
   against items already on the trip, with **thumbnails**; add a suggestion as an item in one click.
 - **Activity suggestions** as you type, plus robust JSON extraction for chatty models and clear
   error surfacing in the log viewer.
-- **Microsoft Foundry identity mode** – explicit service-principal authentication, account-scoped
+- **Identity-only AI** – automatic account-scoped endpoint and
   deployment discovery, saved text deployment selection and separate metadata/connection checks.
   Only text Chat Completions are used: no embeddings, RAG, vision, image generation, streaming
   chat or tool calls. Destination and suggestion thumbnails are Wikipedia photo lookups, not AI.
@@ -91,8 +91,9 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Multi-language UI** – English and German, switchable under **Settings** (persisted in a
   cookie with an `Accept-Language` fallback). Adding a language is a single catalog entry.
 - **Regional settings** – timezone, week start and currency (the IANA database is embedded).
-- **Home address**, **AI endpoint** (URL / model / API version), **geocoder** and **router**
-  base URLs, all configured at runtime.
+- **Home address**, **geocoder** and **router** base URLs, configured at runtime.
+- **AI settings** – read-only discovered endpoint/status, compatible chat deployment selection,
+  discovery refresh and a cost-consent connection check; no manual URL, model or API-version form.
 - **Custom categories** – manage the pick-list (with an icon picker) used on item/activity forms.
 - **Diagnostics** – runtime **log level** switch and an auto-refreshing **log viewer**;
   **statistics** including a document count.
@@ -117,7 +118,7 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 | Database  | SQLite via `modernc.org/sqlite` (pure Go, no CGO), embedded migrations |
 | Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |
 | i18n      | Tiny dependency-free catalog (`internal/i18n`), English fallback     |
-| AI        | OpenAI-compatible `/chat/completions` (configurable, incl. Azure OpenAI)   |
+| AI        | Microsoft Foundry identity-only OpenAI v1 `/chat/completions`; ARM discovery |
 | Geocoding | Server-proxied Photon (default) / Nominatim-compatible (`internal/geo`) |
 | Routing   | OpenRouteService with a Haversine fallback (`internal/route`)         |
 | Export    | Print view, server-generated PDF (`internal/pdf`), iCal (`internal/ical`) |
@@ -132,7 +133,7 @@ flowchart LR
     Browser["Browser<br/>(HTMX + Leaflet)"] -->|HTTP| Server["Go HTTP server<br/>chi + html/template"]
     Server --> Store["Store<br/>database/sql"]
     Store --> DB[("SQLite file")]
-    Server -->|/chat/completions| AI["OpenAI-compatible<br/>endpoint"]
+    Server -->|/openai/v1/chat/completions| AI["Microsoft Foundry<br/>discovered account endpoint"]
     Server --> Identity["Azure Identity<br/>explicit service principal"]
     Server -->|account + deployments GET| ARM["Azure Resource Manager<br/>configured accounts only"]
     Server -->|embed| Assets["Templates + static<br/>(in the binary)"]
@@ -146,8 +147,7 @@ All templates and static assets (including Leaflet & HTMX) are embedded into the
 Requires a running Docker daemon.
 
 ```bash
-# optional: enable AI
-export VP_API_KEY=sk-...
+# Optional AI: inject the four required Azure identity variables at runtime (see below).
 # recommended for production:
 export CSRF_KEY=$(openssl rand -hex 32)
 
@@ -172,22 +172,18 @@ More targets: `make help` (build, test, lint, sec, vuln, docker-build, docker-bu
 
 ## Configuration
 
-AI is optional. Choose either the existing API-key mode or the explicit Azure identity mode
-below. `CSRF_KEY` is required in production. Non-secret settings are stored in SQLite;
+AI is optional and uses **Microsoft Foundry identity authentication only**. Leave all five
+AI variables empty to disable it, or supply the four required values below. `CSRF_KEY` is
+required in production. Non-secret settings are stored in SQLite;
 credentials are supplied only through the runtime environment.
 
 | Variable         | Default         | Description                                                              |
 | ---------------- | --------------- | ----------------------------------------------------------------------- |
-| `VP_API_KEY`     | –               | Legacy API-key mode only; empty disables AI in that mode. Endpoint/model/API version live in **Settings**. |
 | `AZURE_RESOURCE_ID` | –           | Full Cognitive Services **account** resource ID for text inference; required in identity mode. |
 | `AZURE_TENANT_ID` | –             | Entra tenant ID; required in identity mode. |
 | `AZURE_CLIENT_ID` | –             | Application/client ID, **not** the service-principal object ID; required in identity mode. |
 | `AZURE_CLIENT_SECRET` | –         | Service-principal secret, runtime injection only; required in identity mode. |
 | `AZURE_IMAGE_RESOURCE_ID` | –     | Optional separate account for read-only inventory; no image generation is implemented. |
-| `AZURE_ENDPOINT` | discovered / saved | Optional endpoint override in both modes; identity mode requires HTTPS and validates account ownership. |
-| `AZURE_DEPLOYMENT` | saved choice | Optional deployment/model override in both modes; identity mode requires an actual compatible deployment, never automatic selection. |
-| `AZURE_MODELS` | unrestricted    | Optional comma-separated, case-sensitive **canonical model-name** allow-list, not deployment aliases; only restricts already supported discovered models. |
-| `AZURE_API_VERSION` | – / saved  | Optional classic Azure chat API version override in both modes; identity mode accepts only `2024-10-21` or empty (v1). Not the ARM discovery version. |
 | `GEOCODER_API_KEY` | –             | Optional key for a Photon/Nominatim-compatible geocoder. Base URL in **Settings**. |
 | `ROUTER_API_KEY` | –               | Optional OpenRouteService key for driving time/distance between stops. Base URL in **Settings**. |
 | `CSRF_KEY`       | ephemeral (dev) | Hex 32-byte HMAC key that signs CSRF tokens. **Set in production** so tokens survive restarts/instances. |
@@ -195,34 +191,14 @@ credentials are supplied only through the runtime environment.
 | `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |
 | `DB_PATH`        | `vacation.db`   | SQLite database file path (created if missing).                         |
 
-### Existing API-key mode
+### Microsoft Foundry / Azure OpenAI
 
-Set the API key via `VP_API_KEY`. The **endpoint URL** and **model** are configured in
-the app under **Settings** — for example:
-
-| Provider     | Endpoint URL                                                      | Model         |
-| ------------ | ----------------------------------------------------------------- | ------------- |
-| OpenAI       | `https://api.openai.com/v1`                                       | `gpt-4o-mini` |
-| Ollama       | `http://localhost:11434/v1`                                       | `llama3.1`    |
-| Azure OpenAI | `https://<resource>.openai.azure.com`                             | `<deployment>` |
-
-For **Azure OpenAI**, set the endpoint to the resource URL, the model to your **deployment name**,
-and the **API version** (all under **Settings**); the request path and `api-version` are built
-automatically.
-
-Non-empty `AZURE_ENDPOINT`, `AZURE_DEPLOYMENT` and `AZURE_API_VERSION` also override
-the legacy endpoint, model and API version respectively. They lock the corresponding
-Settings controls without overwriting the saved values. These overrides alone do not
-activate identity mode. Legacy request temperature behavior remains unchanged.
-
-This mode is retained only when **none** of the Azure identity/resource fields are supplied.
 Supplying any of `AZURE_RESOURCE_ID`, `AZURE_IMAGE_RESOURCE_ID`, `AZURE_TENANT_ID`,
 `AZURE_CLIENT_ID` or `AZURE_CLIENT_SECRET` requires the complete four-field identity
 configuration. Incomplete or invalid identity configuration fails clearly; it never silently
-uses `VP_API_KEY`, an Azure CLI login, managed identity or a developer account instead.
-Legacy endpoint/model settings remain intact when switching modes.
-
-### Microsoft Foundry / Azure OpenAI identity mode
+uses API keys, an Azure CLI login, managed identity or a developer account instead.
+When AI is disabled, Settings shows only the four required environment-variable names and
+setup information, not a manual connection form.
 
 The integration follows [ai-ui **v1.2.1**](https://github.com/daknoblo/ai-ui/tree/v1.2.1),
 adapted to this application's existing Go architecture and **text-only** recommendations.
@@ -247,8 +223,11 @@ Use a complete **account** ID, not a Foundry project URL, project name or deploy
    enumerate every subscription, retrieve keys or create Azure resources. Opening Settings
    (GET) and healthchecks themselves never call Azure. Startup refreshes, like manual
    refreshes, never automatically select or change a saved deployment.
-3. Choose an actual compatible deployment from the main account and save it. A deployment
-   alias such as `<text-deployment-name>` is not the canonical model name.
+   While startup discovery is running, the AI settings section updates automatically
+   from local status; status polling does not trigger additional Azure requests.
+3. Settings displays the **actual discovered endpoint and status read-only**. Choose an
+   actual compatible chat deployment from the main account's **select list** and save it.
+   A deployment alias such as `<text-deployment-name>` is not the canonical model name.
 4. Run the separate text connection check deliberately and tick its cost-consent checkbox:
    it makes **one** inference request with `max_completion_tokens=256`, with no automatic
    retry, and **can incur token charges**. Discovery success alone does not prove inference
@@ -256,25 +235,23 @@ Use a complete **account** ID, not a Foundry project URL, project name or deploy
    A reasoning model may exhaust the small probe budget before producing visible text;
    that is reported as no text response, not as proof of invalid credentials.
 
-Non-empty `AZURE_ENDPOINT`, `AZURE_DEPLOYMENT`, `AZURE_MODELS` and `AZURE_API_VERSION` overrides
-take priority over saved values and are locked/read-only in Settings. Remove an override from
-the runtime environment and recreate the container to release it. The Foundry deployment
-choice is stored **per main account**, keyed by its hashed resource ID, separately from the
-legacy API-key model setting. Refreshes and cache loads never choose or replace a saved
+The chat deployment choice is stored **only in SQLite, per main account**, keyed by its
+hashed resource ID. Refreshes and cache loads never choose or replace a saved
 deployment automatically; an invalid saved choice remains visible and must be corrected
-explicitly. Saving an unknown or incompatible deployment is rejected. Endpoint override
-editing is disabled in the UI; change the runtime environment instead.
+explicitly. Saving an unknown or incompatible deployment is rejected. There are no manual
+endpoint, model, API-version, API-key or environment-override controls.
 
 ARM account/deployment discovery is pinned to the documented **2024-10-01** API.
-The default inference route is `https://<account>.openai.azure.com/openai/v1/chat/completions`
-or the account's validated `services.ai.azure.com` equivalent, with the deployment name in
-`model` and **no dated `api-version`**. Setting `AZURE_API_VERSION=2024-10-21` selects the classic
-`/openai/deployments/<deployment>/chat/completions?api-version=2024-10-21` adapter; other
-non-empty versions are rejected in identity mode. With this classic adapter, an explicit
-`AZURE_ENDPOINT` must be the **resource root**, not an `/openai/v1` URL.
-Discovery and inference versions are independent. Base URLs must be HTTPS, unambiguous,
-free of embedded credentials/query/fragment, and attributable to the configured account.
-A generic `cognitiveservices.azure.com` root is not automatically an OpenAI inference route.
+Inference uses **OpenAI v1 only**, appending `/chat/completions` to the automatically resolved
+v1 base URL, with the actual deployment name in `model` and **no dated `api-version`**.
+The endpoint is derived from validated ARM account endpoint metadata at startup and refresh,
+including applicable named endpoint metadata. Resolution deterministically prefers the
+matching OpenAI API endpoint among aliases belonging to the same account. No account hostname
+is hard-coded, and operators do not need to supply an endpoint manually. Base URLs must be
+HTTPS, unambiguous, free of embedded credentials/query/fragment, and attributable to the
+configured account. A generic `cognitiveservices.azure.com` root alone is not proof of an
+OpenAI inference route; supported account metadata must establish it. Missing or invalid
+metadata produces a diagnostic, not an invented endpoint or trust in a foreign host.
 Unknown or incompatible model protocols are shown with a reason rather than made selectable.
 A global Models API listing is not treated as proof of a deployed or usable model.
 The text adapter recognizes a reviewed set of GPT-4o/4.1, GPT-5 text variants,
@@ -282,11 +259,8 @@ GPT-6 Astra, GPT-chat-latest and o-series models from the
 [official model capabilities](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure).
 It excludes legacy models with incompatible message/output limits, Codex/pro-only APIs,
 audio, realtime and unknown future names. Canonical model metadata and deployment
-capabilities must both be compatible; an alias or allow-list entry cannot bypass this.
+capabilities must both be compatible; a deployment alias cannot bypass this.
 Reasoning models omit `temperature`; tool use is not needed by this application.
-`AZURE_MODELS` matches canonical model names exactly and case-sensitively; it does not match
-deployment aliases. `AZURE_DEPLOYMENT`, by contrast, always identifies the actual deployment
-alias. An allow-list cannot invent deployments or enable an unsupported model.
 
 `AZURE_IMAGE_RESOURCE_ID` optionally reads a **separate account's inventory only**. It uses
 the same identity, but independent metadata/cache/error state; equal deployment names in two
@@ -380,13 +354,14 @@ assignment above. Prefer separate identities per application/environment.
   Do not treat arbitrary 400/404 responses as a successful probe or blindly retry a
   costed request whose outcome is unknown.
 - Provider error bodies are sanitized before new diagnostics are shown. HTTP redirects
-  are forbidden for AI requests in **both** identity and legacy modes so credentials are
+  are forbidden for AI requests so credentials are
   not forwarded to another destination.
 - `/healthz`, `/readyz` and the container healthcheck retain their existing local behavior:
   **no Azure calls, token acquisition or model charges**.
 - Before upgrading, create and download a backup under **Settings → Backup & restore**.
-  Keep the persistent SQLite volume; this feature needs **no new schema migration** because
-  it uses the existing settings table. Backups include trips, attached documents, non-secret
+  Keep the same persistent SQLite volume. The additive migration described below removes
+  only obsolete AI configuration rows from the existing settings table.
+  Backups include trips, attached documents, non-secret
   selections and discovery metadata, **not** runtime secrets or token caches. Treat backups
   as private data and never bundle secret-manager exports or environment dumps with them.
 - Restore using the existing Settings restore workflow, re-inject runtime credentials
@@ -401,11 +376,31 @@ assignment above. Prefer separate identities per application/environment.
   debug logs, image build arguments or repository files. All Azure mutations remain explicit
   operator actions, never startup/healthcheck behavior.
 
+### Breaking upgrade: identity-only AI
+
+The API-key provider mode and classic Azure inference adapter have been **removed**.
+Generic OpenAI, Ollama, LocalAI and vLLM API-key configurations no longer enable AI.
+The application no longer reads `VP_API_KEY`, `AZURE_ENDPOINT`, `AZURE_DEPLOYMENT`,
+`AZURE_MODELS` or `AZURE_API_VERSION`; remove these obsolete variables from deployment
+configuration. In particular, an old `AZURE_ENDPOINT` workaround is no longer needed:
+the account's supported OpenAI endpoint is resolved automatically from validated ARM metadata.
+
+Before upgrading, download a backup. Startup applies additive migration
+`0017_remove_legacy_ai_settings.sql`, deleting **only** the obsolete `ai.base_url`, `ai.model`
+and `ai.api_version` settings. Trips, attachments, saved Foundry deployment choices and
+per-account discovery caches are preserved. Older backups remain restorable through the
+existing workflow; migrations are reapplied, so restoring does not re-enable the removed
+provider mode.
+
+To use AI after upgrading, inject the four required identity variables, keep the same data
+volume, and recreate the container. Review discovery status in Settings, explicitly select
+a compatible deployment if none is saved, and use the optional cost-consent probe. Existing
+saved Foundry choices are never automatically switched to a different deployment.
+
 Verified references:
 [ARM account GET](https://learn.microsoft.com/en-us/rest/api/aiservices/accountmanagement/accounts/get?view=rest-aiservices-accountmanagement-2024-10-01),
 [ARM deployment list](https://learn.microsoft.com/en-us/rest/api/aiservices/accountmanagement/deployments/list?view=rest-aiservices-accountmanagement-2024-10-01),
 [v1 API lifecycle](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle),
-[classic inference reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference),
 [OpenAI User permissions](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/ai-machine-learning#cognitive-services-openai-user),
 [deployment CLI](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-list),
 [service-principal CLI](https://learn.microsoft.com/en-us/cli/azure/ad/sp?view=azure-cli-latest),
@@ -460,7 +455,7 @@ Actions are pinned to version tags (e.g. `@v4`), which track the latest release 
 ```
 cmd/server/            main + health-probe subcommand
 internal/
-  ai/                  OpenAI-compatible client (incl. Azure OpenAI)
+  ai/                  Foundry-backed text recommendations and suggestions
   applog/              structured logging + runtime level + in-memory log ring
   config/              env configuration & logger
   destimg/             destination image lookup/proxy (Wikipedia)

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -16,13 +15,10 @@ import (
 )
 
 const (
-	settingAIBaseURL    = "ai.base_url"
-	settingAIModel      = "ai.model"
-	settingAIAPIVersion = "ai.api_version"
-	settingWeekStart    = "region.week_start"
-	settingTimezone     = "region.timezone"
-	settingCurrency     = "region.currency"
-	settingHomeAddress  = "home.address"
+	settingWeekStart   = "region.week_start"
+	settingTimezone    = "region.timezone"
+	settingCurrency    = "region.currency"
+	settingHomeAddress = "home.address"
 )
 
 // supportedCurrencies are the currency symbols offered in Settings.
@@ -64,41 +60,6 @@ var commonTimezones = []string{
 	"Australia/Perth", "Australia/Sydney", "Pacific/Auckland", "Pacific/Honolulu",
 }
 
-// aiSettings returns the effective AI endpoint URL and model, falling back to
-// the package defaults when nothing is configured.
-func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion string, err error) {
-	baseURL, model = ai.DefaultBaseURL, ai.DefaultModel
-	settings, err := s.settings(ctx)
-	if err != nil {
-		return "", "", "", err
-	}
-	if s.foundry != nil {
-		return "", s.foundryDeployment(settings), "", nil
-	}
-	if v := strings.TrimSpace(settings[settingAIBaseURL]); v != "" {
-		baseURL = v
-	}
-	if v := strings.TrimSpace(settings[settingAIModel]); v != "" {
-		model = v
-	}
-	apiVersion = strings.TrimSpace(settings[settingAIAPIVersion])
-	baseURL, model, apiVersion = s.aiOverrides(baseURL, model, apiVersion)
-	return baseURL, model, apiVersion, nil
-}
-
-func (s *Server) aiOverrides(baseURL, model, apiVersion string) (string, string, string) {
-	if s.cfg.Azure.Endpoint != "" {
-		baseURL = s.cfg.Azure.Endpoint
-	}
-	if s.cfg.Azure.Deployment != "" {
-		model = s.cfg.Azure.Deployment
-	}
-	if s.cfg.Azure.APIVersion != "" {
-		apiVersion = s.cfg.Azure.APIVersion
-	}
-	return baseURL, model, apiVersion
-}
-
 // regionSettings returns the configured week start and timezone, defaulting to
 // Monday and UTC when unset or invalid.
 func (s *Server) regionSettings(ctx context.Context) (weekStart string, loc *time.Location) {
@@ -138,30 +99,20 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	categories, _ := s.store.ListCategories(r.Context())
 	people, _ := s.store.ListPeople(r.Context())
 	vacations, _ := s.store.ListVacations(r.Context())
-	baseURL, model, apiVersion := s.aiOverrides(settings[settingAIBaseURL], settings[settingAIModel], settings[settingAIAPIVersion])
 	foundryView, err := s.foundrySettings(r.Context(), settings)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
-		"Languages":        i18n.Supported(),
-		"Current":          loc.Lang(),
-		"AIBaseURL":        baseURL,
-		"AIModel":          model,
-		"AIAPIVersion":     apiVersion,
-		"AIEndpointLocked": s.cfg.Azure.Endpoint != "",
-		"AIModelLocked":    s.cfg.Azure.Deployment != "",
-		"AIVersionLocked":  s.cfg.Azure.APIVersion != "",
-		"Foundry":          foundryView,
-		"AIDefaultBaseURL": ai.DefaultBaseURL,
-		"AIDefaultModel":   ai.DefaultModel,
-		"AIKeyConfigured":  s.ai.Enabled(),
-		"WeekStart":        weekStart,
-		"Timezone":         timezone,
-		"Currency":         normalizeCurrency(settings[settingCurrency]),
-		"Currencies":       supportedCurrencies,
-		"Timezones":        commonTimezones, "HomeAddress": settings[settingHomeAddress], "GeoBaseURL": settings[settingGeoBaseURL],
+		"Languages":  i18n.Supported(),
+		"Current":    loc.Lang(),
+		"Foundry":    foundryView,
+		"WeekStart":  weekStart,
+		"Timezone":   timezone,
+		"Currency":   normalizeCurrency(settings[settingCurrency]),
+		"Currencies": supportedCurrencies,
+		"Timezones":  commonTimezones, "HomeAddress": settings[settingHomeAddress], "GeoBaseURL": settings[settingGeoBaseURL],
 		"GeoDefaultBaseURL":   geo.DefaultBaseURL,
 		"GeoKeyConfigured":    s.cfg.GeocoderAPIKey != "",
 		"RouteBaseURL":        settings[settingRouteBaseURL],
@@ -211,58 +162,6 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.redirectSettings(w, r)
-}
-
-// handleUpdateAISettings persists the OpenAI-compatible endpoint URL, model and
-// optional API version. The API key itself is never stored here; it comes from
-// VP_API_KEY.
-func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) {
-	if s.foundry != nil {
-		s.handleUpdateFoundrySettings(w, r)
-		return
-	}
-	loc := i18n.FromContext(r.Context())
-
-	baseURL := formStr(r, "base_url")
-	model := formStr(r, "model")
-	apiVersion := formStr(r, "api_version")
-	if !maxLen(baseURL, 500) || !maxLen(model, 200) || !maxLen(apiVersion, 100) {
-		s.formError(w, r, "#ai-settings-error", loc.T("error.input_toolong"))
-		return
-	}
-	if baseURL != "" && !validAIBaseURL(baseURL) {
-		s.formError(w, r, "#ai-settings-error", loc.T("error.ai_base_url_invalid"))
-		return
-	}
-
-	if err := s.saveUnlockedAISetting(r.Context(), settingAIBaseURL, baseURL, s.cfg.Azure.Endpoint); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	if err := s.saveUnlockedAISetting(r.Context(), settingAIModel, model, s.cfg.Azure.Deployment); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	if err := s.saveUnlockedAISetting(r.Context(), settingAIAPIVersion, apiVersion, s.cfg.Azure.APIVersion); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	s.settingSaved(w, r)
-}
-
-func (s *Server) saveUnlockedAISetting(ctx context.Context, key, value, override string) error {
-	if override != "" {
-		return nil
-	}
-	return s.putSetting(ctx, key, value)
-}
-
-func validAIBaseURL(raw string) bool {
-	if !validBaseURL(raw) {
-		return false
-	}
-	u, err := url.Parse(raw)
-	return err == nil && u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
 }
 
 // homeAddress returns the configured home address (empty if unset).
