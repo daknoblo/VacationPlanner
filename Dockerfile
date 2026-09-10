@@ -18,10 +18,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 ARG TARGETOS
 ARG TARGETARCH
+ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /out/vacationplanner ./cmd/server
+    go build -trimpath -ldflags="-s -w -X github.com/daknoblo/vacationplanner/internal/version.Version=${VERSION}" \
+    -o /out/vacationplanner ./cmd/server
 
 # Prepare a writable data directory owned by the distroless non-root user (65532).
 RUN mkdir -p /appdata

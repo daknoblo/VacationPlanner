@@ -5,8 +5,22 @@ services:
       APP_ENV: development
       HTTP_ADDR: ":8080"
       DB_PATH: /appdata/vacation.db
-      # AI API key (optional); the endpoint URL and model are set in the app under Settings.
+      # Legacy mode: Settings supplies endpoint/model unless overridden below.
       VP_API_KEY: ${VP_API_KEY:-}
+      # Foundry identity mode: supply all four at runtime, never as image build arguments.
+      # Inject secrets through the operator's secret manager; do not commit them to .env.
+      AZURE_RESOURCE_ID: ${AZURE_RESOURCE_ID:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      # Optional separate read-only inventory; image generation is not implemented.
+      AZURE_IMAGE_RESOURCE_ID: ${AZURE_IMAGE_RESOURCE_ID:-}
+      # Non-empty overrides take precedence over Settings.
+      # Endpoint/deployment/API version also override legacy VP_API_KEY mode.
+      AZURE_ENDPOINT: ${AZURE_ENDPOINT:-}
+      AZURE_DEPLOYMENT: ${AZURE_DEPLOYMENT:-}
+      AZURE_MODELS: ${AZURE_MODELS:-}
+      AZURE_API_VERSION: ${AZURE_API_VERSION:-}
       # Optional geocoding/routing keys (base URLs are set in the app under Settings).
       GEOCODER_API_KEY: ${GEOCODER_API_KEY:-}
       ROUTER_API_KEY: ${ROUTER_API_KEY:-}

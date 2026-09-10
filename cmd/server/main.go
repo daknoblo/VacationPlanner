@@ -109,6 +109,9 @@ func run() error {
 		return err
 	}
 
+	stopDiscovery := srv.StartAIDiscovery(ctx)
+	defer stopDiscovery()
+
 	// Background maintenance (automatic database vacuum when configured).
 	srv.StartMaintenance(ctx)
 

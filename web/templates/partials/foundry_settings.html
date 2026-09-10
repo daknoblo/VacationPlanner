@@ -1,0 +1,70 @@
+{{define "foundry_settings"}}
+<div id="foundry-settings-panel">
+{{with .Data.Foundry}}
+<p class="muted small">{{t "settings.foundry.hint"}}</p>
+<p class="muted small">{{t "settings.ai.env_hint"}}</p>
+<form class="form" method="post" action="/settings/ai" hx-post="/settings/ai" hx-target="#ai-settings-error" hx-swap="innerHTML">
+  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  <div class="field field--wide">
+    <label for="ai-base-url">{{t "settings.ai.base_url"}}</label>
+    <input id="ai-base-url" value="{{.Endpoint}}" readonly>
+  </div>
+  <div class="field field--wide">
+    <label for="ai-model">{{t "settings.foundry.deployment"}}</label>
+    <input id="ai-model" name="model" maxlength="200" value="{{.Deployment}}" list="ai-deployments" {{if .ModelLocked}}readonly{{end}}>
+    <datalist id="ai-deployments">
+      {{range .Catalogs}}{{if eq .Role "main"}}{{range .Deployments}}{{if .ChatSupported}}
+      <option value="{{.Name}}">{{.Name}}</option>
+      {{end}}{{end}}{{end}}{{end}}
+    </datalist>
+    {{if .SelectionError}}<p class="form-error">{{t "settings.foundry.selection_error"}}: {{.SelectionError}}</p>{{end}}
+  </div>
+  <div class="field field--wide">
+    <label for="ai-api-version">{{t "settings.ai.api_version"}}</label>
+    <input id="ai-api-version" value="{{.APIVersion}}" readonly>
+    <p class="muted small">{{t "settings.foundry.api_hint"}}</p>
+  </div>
+  <div class="field field--wide">
+    <label for="ai-models">{{t "settings.foundry.models"}}</label>
+    <input id="ai-models" value="{{.Models}}" readonly>
+  </div>
+  <button class="btn" type="submit">{{t "settings.foundry.save"}}</button>
+</form>
+<div id="ai-settings-error" class="form-error" role="status">{{.ActionError}}</div>
+<form method="post" action="/settings/ai/discover" hx-post="/settings/ai/discover" hx-target="#ai-settings-error" hx-swap="innerHTML">
+  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  <p class="muted small">{{t "settings.foundry.discovery_hint"}}</p>
+  <button class="btn" type="submit">{{t "settings.foundry.discover"}}</button>
+</form>
+{{range .Catalogs}}
+<h4>{{if eq .Role "main"}}{{t "settings.foundry.main"}}{{else}}{{t "settings.foundry.image"}}{{end}}</h4>
+<p class="small"><code>{{.ResourceID}}</code></p>
+<p class="small"><code>{{.Endpoint}}</code></p>
+{{if .Error}}<p class="form-error">{{t "settings.foundry.failed"}}: {{.Error}}</p>{{end}}
+{{if .UpdatedAt.IsZero}}
+<p class="muted small">{{t "settings.foundry.not_checked"}}</p>
+{{else}}
+<p class="muted small">{{t "settings.foundry.cached"}}: {{.UpdatedAt.Format "2006-01-02T15:04:05Z07:00"}} {{if .Stale}}— {{t "settings.foundry.stale"}}{{end}}</p>
+{{end}}
+<ul class="small">
+  {{range .Deployments}}
+  <li>
+    <strong>{{.Name}}</strong> — <code>{{.Model}}</code> {{.ModelVersion}} ({{.ModelFormat}}, {{.ProvisioningState}})
+    {{if .Reason}}<span class="muted">{{.Reason}}</span>{{end}}
+  </li>
+  {{end}}
+</ul>
+{{end}}
+<p class="muted small">{{t "settings.foundry.unsupported"}}</p>
+<h4>{{t "settings.foundry.probe_heading"}}</h4>
+<p class="small">{{t .ProbeStatus}} {{.ProbeAt}}</p>
+{{if .ProbeError}}<p class="form-error">{{.ProbeError}}</p>{{end}}
+<form method="post" action="/settings/ai/probe" hx-post="/settings/ai/probe" hx-target="#ai-settings-error" hx-swap="innerHTML">
+  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  <p class="muted small">{{t "settings.foundry.probe_hint"}}</p>
+  <label><input type="checkbox" name="confirm_cost" value="yes" required> {{t "settings.foundry.confirm_cost"}}</label>
+  <button class="btn" type="submit">{{t "settings.foundry.probe"}}</button>
+</form>
+{{end}}
+</div>
+{{end}}

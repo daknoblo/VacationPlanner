@@ -66,12 +66,14 @@ var commonTimezones = []string{
 
 // aiSettings returns the effective AI endpoint URL and model, falling back to
 // the package defaults when nothing is configured.
-func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion string) {
+func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion string, err error) {
 	baseURL, model = ai.DefaultBaseURL, ai.DefaultModel
 	settings, err := s.settings(ctx)
 	if err != nil {
-		s.log.Warn("loading settings", "err", err)
-		return baseURL, model, apiVersion
+		return "", "", "", err
+	}
+	if s.foundry != nil {
+		return "", s.foundryDeployment(settings), "", nil
 	}
 	if v := strings.TrimSpace(settings[settingAIBaseURL]); v != "" {
 		baseURL = v
@@ -80,6 +82,20 @@ func (s *Server) aiSettings(ctx context.Context) (baseURL, model, apiVersion str
 		model = v
 	}
 	apiVersion = strings.TrimSpace(settings[settingAIAPIVersion])
+	baseURL, model, apiVersion = s.aiOverrides(baseURL, model, apiVersion)
+	return baseURL, model, apiVersion, nil
+}
+
+func (s *Server) aiOverrides(baseURL, model, apiVersion string) (string, string, string) {
+	if s.cfg.Azure.Endpoint != "" {
+		baseURL = s.cfg.Azure.Endpoint
+	}
+	if s.cfg.Azure.Deployment != "" {
+		model = s.cfg.Azure.Deployment
+	}
+	if s.cfg.Azure.APIVersion != "" {
+		apiVersion = s.cfg.Azure.APIVersion
+	}
 	return baseURL, model, apiVersion
 }
 
@@ -122,12 +138,22 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	categories, _ := s.store.ListCategories(r.Context())
 	people, _ := s.store.ListPeople(r.Context())
 	vacations, _ := s.store.ListVacations(r.Context())
+	baseURL, model, apiVersion := s.aiOverrides(settings[settingAIBaseURL], settings[settingAIModel], settings[settingAIAPIVersion])
+	foundryView, err := s.foundrySettings(r.Context(), settings)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.page(w, r, "settings", loc.T("page.settings.title"), map[string]any{
 		"Languages":        i18n.Supported(),
 		"Current":          loc.Lang(),
-		"AIBaseURL":        settings[settingAIBaseURL],
-		"AIModel":          settings[settingAIModel],
-		"AIAPIVersion":     settings[settingAIAPIVersion],
+		"AIBaseURL":        baseURL,
+		"AIModel":          model,
+		"AIAPIVersion":     apiVersion,
+		"AIEndpointLocked": s.cfg.Azure.Endpoint != "",
+		"AIModelLocked":    s.cfg.Azure.Deployment != "",
+		"AIVersionLocked":  s.cfg.Azure.APIVersion != "",
+		"Foundry":          foundryView,
 		"AIDefaultBaseURL": ai.DefaultBaseURL,
 		"AIDefaultModel":   ai.DefaultModel,
 		"AIKeyConfigured":  s.ai.Enabled(),
@@ -191,6 +217,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 // optional API version. The API key itself is never stored here; it comes from
 // VP_API_KEY.
 func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) {
+	if s.foundry != nil {
+		s.handleUpdateFoundrySettings(w, r)
+		return
+	}
 	loc := i18n.FromContext(r.Context())
 
 	baseURL := formStr(r, "base_url")
@@ -200,24 +230,39 @@ func (s *Server) handleUpdateAISettings(w http.ResponseWriter, r *http.Request) 
 		s.formError(w, r, "#ai-settings-error", loc.T("error.input_toolong"))
 		return
 	}
-	if baseURL != "" && !validBaseURL(baseURL) {
+	if baseURL != "" && !validAIBaseURL(baseURL) {
 		s.formError(w, r, "#ai-settings-error", loc.T("error.ai_base_url_invalid"))
 		return
 	}
 
-	if err := s.putSetting(r.Context(), settingAIBaseURL, baseURL); err != nil {
+	if err := s.saveUnlockedAISetting(r.Context(), settingAIBaseURL, baseURL, s.cfg.Azure.Endpoint); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.putSetting(r.Context(), settingAIModel, model); err != nil {
+	if err := s.saveUnlockedAISetting(r.Context(), settingAIModel, model, s.cfg.Azure.Deployment); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.putSetting(r.Context(), settingAIAPIVersion, apiVersion); err != nil {
+	if err := s.saveUnlockedAISetting(r.Context(), settingAIAPIVersion, apiVersion, s.cfg.Azure.APIVersion); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	s.settingSaved(w, r)
+}
+
+func (s *Server) saveUnlockedAISetting(ctx context.Context, key, value, override string) error {
+	if override != "" {
+		return nil
+	}
+	return s.putSetting(ctx, key, value)
+}
+
+func validAIBaseURL(raw string) bool {
+	if !validBaseURL(raw) {
+		return false
+	}
+	u, err := url.Parse(raw)
+	return err == nil && u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
 }
 
 // homeAddress returns the configured home address (empty if unset).

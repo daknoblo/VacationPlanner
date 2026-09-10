@@ -1,10 +1,23 @@
 package config
 
 import (
+	"strings"
 	"testing"
 )
 
+func clearAzureEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{
+		"AZURE_RESOURCE_ID", "AZURE_IMAGE_RESOURCE_ID", "AZURE_TENANT_ID",
+		"AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_ENDPOINT",
+		"AZURE_DEPLOYMENT", "AZURE_MODELS", "AZURE_API_VERSION",
+	} {
+		t.Setenv(name, "")
+	}
+}
+
 func TestLoadDBPath(t *testing.T) {
+	clearAzureEnv(t)
 	t.Setenv("DB_PATH", "")
 	cfg, err := Load()
 	if err != nil {
@@ -25,6 +38,7 @@ func TestLoadDBPath(t *testing.T) {
 }
 
 func TestLoadDefaults(t *testing.T) {
+	clearAzureEnv(t)
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("CSRF_KEY", "")
 
@@ -41,10 +55,46 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadProductionRequiresCSRFKey(t *testing.T) {
+	clearAzureEnv(t)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("CSRF_KEY", "")
 
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error: production without CSRF_KEY")
+	}
+}
+
+func TestAzureConfigModes(t *testing.T) {
+	clearAzureEnv(t)
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("CSRF_KEY", "")
+	t.Setenv("VP_API_KEY", "legacy-test-key")
+	t.Setenv("AZURE_DEPLOYMENT", " production-chat ")
+	t.Setenv("AZURE_MODELS", "gpt-4o, ,gpt-4.1")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Azure.Requested() || cfg.AIAPIKey != "legacy-test-key" || cfg.Azure.Deployment != "production-chat" || len(cfg.Azure.Models) != 2 {
+		t.Fatal("key mode or override parsing changed")
+	}
+	t.Setenv("AZURE_CLIENT_SECRET", "private-test-secret")
+	_, err = Load()
+	if err == nil || strings.Contains(err.Error(), "private-test-secret") {
+		t.Fatal("partial identity must fail safely, not fall back to VP_API_KEY")
+	}
+	t.Setenv("AZURE_RESOURCE_ID", "/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/travel/providers/Microsoft.CognitiveServices/accounts/travel-ai")
+	t.Setenv("AZURE_TENANT_ID", "22222222-2222-4222-8222-222222222222")
+	t.Setenv("AZURE_CLIENT_ID", "33333333-3333-4333-8333-333333333333")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Azure.Requested() || cfg.Azure.ClientSecret != "private-test-secret" {
+		t.Fatal("explicit identity was not loaded")
+	}
+	t.Setenv("AZURE_RESOURCE_ID", "https://travel-ai.services.ai.azure.com/api/projects/travel")
+	if _, err := Load(); err == nil {
+		t.Fatal("project URL must not be accepted as account ID")
 	}
 }

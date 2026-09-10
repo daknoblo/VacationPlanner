@@ -70,7 +70,11 @@
   <p class="muted small">{{t "settings.external.hint"}}</p>
 
   <h3 class="settings-subheading">{{t "settings.ai.heading"}}</h3>
+  {{if .Data.Foundry}}
+  {{template "foundry_settings" .}}
+  {{else}}
   <p class="muted small">{{t "settings.ai.hint"}}</p>
+  <p class="muted small">{{t "settings.ai.env_hint"}}</p>
   <form class="form"
         method="post" action="/settings/ai"
         hx-post="/settings/ai" hx-trigger="change"
@@ -79,15 +83,15 @@
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <div class="field field--wide">
       <label for="ai-base-url">{{t "settings.ai.base_url"}}</label>
-      <input id="ai-base-url" name="base_url" maxlength="500" value="{{.Data.AIBaseURL}}" placeholder="{{.Data.AIDefaultBaseURL}}">
+      <input id="ai-base-url" name="base_url" maxlength="500" value="{{.Data.AIBaseURL}}" placeholder="{{.Data.AIDefaultBaseURL}}" {{if .Data.AIEndpointLocked}}readonly{{end}}>
     </div>
     <div class="field field--wide">
       <label for="ai-model">{{t "settings.ai.model"}}</label>
-      <input id="ai-model" name="model" maxlength="200" value="{{.Data.AIModel}}" placeholder="{{.Data.AIDefaultModel}}">
+      <input id="ai-model" name="model" maxlength="200" value="{{.Data.AIModel}}" placeholder="{{.Data.AIDefaultModel}}" {{if .Data.AIModelLocked}}readonly{{end}}>
     </div>
     <div class="field field--wide">
       <label for="ai-api-version">{{t "settings.ai.api_version"}}</label>
-      <input id="ai-api-version" name="api_version" maxlength="100" value="{{.Data.AIAPIVersion}}" placeholder="2024-02-15-preview">
+      <input id="ai-api-version" name="api_version" maxlength="100" value="{{.Data.AIAPIVersion}}" {{if .Data.AIVersionLocked}}readonly{{end}}>
       <p class="muted small">{{t "settings.ai.api_version_hint"}}</p>
     </div>
     <div class="field field--wide">
@@ -102,6 +106,7 @@
       <div id="ai-settings-error" class="form-error"></div>
     </div>
   </form>
+  {{end}}
 
   <h3 class="settings-subheading">{{t "settings.geo.heading"}}</h3>
   <p class="muted small">{{t "settings.geo.hint"}}</p>

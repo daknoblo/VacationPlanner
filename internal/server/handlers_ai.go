@@ -122,7 +122,11 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		input.HasOrigin = true
 	}
 
-	baseURL, model, apiVersion := s.aiSettings(r.Context())
+	baseURL, model, apiVersion, err := s.aiSettings(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	suggestions, err := s.ai.Recommend(r.Context(), baseURL, model, apiVersion, input)
 	switch {
 	case errors.Is(err, ai.ErrDisabled):
@@ -131,9 +135,6 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		s.log.Warn("ai recommendation failed",
 			"err", err,
 			"vacation_id", vacationID,
-			"base_url", baseURL,
-			"model", model,
-			"api_version_set", apiVersion != "",
 		)
 		view.Error = loc.T("ai.failed")
 	default:

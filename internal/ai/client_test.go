@@ -103,10 +103,10 @@ func TestBuildEndpoint(t *testing.T) {
 	}
 }
 
-func TestDoChatErrorSurfacesEndpointAndBody(t *testing.T) {
+func TestDoChatErrorOmitsProviderBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":{"message":"The model gpt-x does not exist"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"sensitive echoed prompt or credential"}}`))
 	}))
 	defer srv.Close()
 
@@ -117,9 +117,12 @@ func TestDoChatErrorSurfacesEndpointAndBody(t *testing.T) {
 		t.Fatal("expected an error for a 404 response")
 	}
 	msg := err.Error()
-	for _, want := range []string{"404", "gpt-x", "does not exist", srv.URL} {
+	for _, want := range []string{"404", "chat", "deployment"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("error %q should contain %q", msg, want)
+		}
+		if strings.Contains(msg, "sensitive") || strings.Contains(msg, "test-key") {
+			t.Fatalf("provider error exposed sensitive content: %s", msg)
 		}
 	}
 }

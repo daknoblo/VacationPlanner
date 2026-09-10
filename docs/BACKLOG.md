@@ -56,6 +56,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Foundry AI integration — explicit service-principal authentication, bounded
+      account/deployment discovery with independent persistent caches, account-bound
+      text selection and diagnostics, optional image-account inventory, and preserved
+      API-key mode. Includes runtime container configuration and local stub tests.
 - [x] Travel summary next to the headings — the Arrival/Departure tab shows the
       total distance & time inline with the "Anreise"/"Abreise" headings, updated
       live as the legs change.

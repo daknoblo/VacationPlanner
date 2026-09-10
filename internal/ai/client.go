@@ -22,8 +22,9 @@ const (
 
 // Client talks to an OpenAI-compatible /chat/completions endpoint.
 type Client struct {
-	http   *http.Client
-	apiKey string
+	http    *http.Client
+	apiKey  string
+	foundry FoundryBackend
 }
 
 // New builds a client using the given API key. When the key is empty the client
@@ -31,13 +32,18 @@ type Client struct {
 // passed per call, since they are configured at runtime (not baked into the client).
 func New(apiKey string) *Client {
 	return &Client{
-		http:   &http.Client{Timeout: 60 * time.Second},
+		http: &http.Client{
+			Timeout: 60 * time.Second,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 		apiKey: apiKey,
 	}
 }
 
-// Enabled reports whether an API key is configured.
-func (c *Client) Enabled() bool { return c.apiKey != "" }
+// Enabled reports whether an explicit identity or API key is configured.
+func (c *Client) Enabled() bool { return c.foundry != nil || c.apiKey != "" }
 
 // ErrDisabled is returned when AI features are used without an API key.
 var ErrDisabled = fmt.Errorf("ai: no API key configured")
@@ -144,6 +150,9 @@ func buildEndpoint(baseURL, model, apiVersion string) string {
 // content. When apiVersion is set it targets an Azure OpenAI-style endpoint
 // (?api-version=... plus the api-key header) alongside the Bearer token.
 func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, messages []chatMessage, temperature float64) (string, error) {
+	if c.foundry != nil {
+		return c.foundryChat(ctx, model, messages, temperature, 8192)
+	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
@@ -170,25 +179,19 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("ai: calling endpoint: %w", err)
+		return "", fmt.Errorf("ai: chat request failed (check connectivity and timeout)")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 	if err != nil {
 		return "", fmt.Errorf("ai: reading response: %w", err)
 	}
+	if len(body) > 1<<20 {
+		return "", fmt.Errorf("ai: chat response exceeds 1 MiB")
+	}
 	if resp.StatusCode != http.StatusOK {
-		// Surface the endpoint and the endpoint's own error message/body so a
-		// misconfiguration (wrong base URL, model or deployment) is diagnosable
-		// from the logs. The API key travels in headers, never in the URL.
-		detail := bodySnippet(body)
-		var parsed chatResponse
-		if json.Unmarshal(body, &parsed) == nil && parsed.Error != nil && strings.TrimSpace(parsed.Error.Message) != "" {
-			detail = oneLine(parsed.Error.Message)
-		}
-		return "", fmt.Errorf("ai: %s POST %s returned status %d: %s",
-			model, endpoint, resp.StatusCode, detail)
+		return "", fmt.Errorf("ai: chat returned HTTP %d (check endpoint, deployment and permissions)", resp.StatusCode)
 	}
 
 	var parsed chatResponse
@@ -196,31 +199,12 @@ func (c *Client) doChat(ctx context.Context, baseURL, model, apiVersion string, 
 		return "", fmt.Errorf("ai: decoding response: %w", err)
 	}
 	if parsed.Error != nil {
-		return "", fmt.Errorf("ai: endpoint error: %s", parsed.Error.Message)
+		return "", fmt.Errorf("ai: chat provider reported an error")
 	}
 	if len(parsed.Choices) == 0 {
 		return "", fmt.Errorf("ai: endpoint returned no choices")
 	}
 	return parsed.Choices[0].Message.Content, nil
-}
-
-// oneLine collapses whitespace so a value is safe to embed in a single-line log
-// or error message (also mitigates log injection).
-func oneLine(s string) string {
-	return strings.NewReplacer("\n", " ", "\r", " ", "\t", " ").Replace(strings.TrimSpace(s))
-}
-
-// bodySnippet returns a compact, length-capped view of a response body.
-func bodySnippet(b []byte) string {
-	s := oneLine(string(b))
-	if s == "" {
-		return "(empty body)"
-	}
-	const maxLen = 300
-	if r := []rune(s); len(r) > maxLen {
-		s = string(r[:maxLen]) + "…"
-	}
-	return s
 }
 
 func buildUserPrompt(in RecommendInput) string {

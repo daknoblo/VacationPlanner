@@ -11,6 +11,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
 	"github.com/daknoblo/vacationplanner/internal/destimg"
+	"github.com/daknoblo/vacationplanner/internal/foundry"
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/route"
 	"github.com/daknoblo/vacationplanner/internal/store"
@@ -23,6 +24,7 @@ type Server struct {
 	logs    *applog.Controller
 	store   store.Store
 	ai      *ai.Client
+	foundry foundryConnection
 	geo     *geo.Client
 	routing *route.Client
 	destImg *destimg.Client
@@ -49,6 +51,13 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		destImg: destimg.New(),
 		render:  r,
 		limiter: newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300
+	}
+	if cfg.Azure.Requested() {
+		s.foundry, err = foundry.New(cfg.Azure, st)
+		if err != nil {
+			return nil, err
+		}
+		s.ai = ai.NewFoundry(s.foundry)
 	}
 	s.routes()
 	return s, nil
