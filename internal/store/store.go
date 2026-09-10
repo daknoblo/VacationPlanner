@@ -63,6 +63,8 @@ type Store interface {
 
 	GetSettings(ctx context.Context) (map[string]string, error)
 	PutSetting(ctx context.Context, key, value string) error
+	GetCheatsheet(ctx context.Context, vacationID uuid.UUID, sourceLanguage string) (*models.Cheatsheet, error)
+	PutCheatsheet(ctx context.Context, sheet *models.Cheatsheet) error
 
 	Stats(ctx context.Context) (Stats, error)
 	BackupTo(ctx context.Context, dest string) error

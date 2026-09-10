@@ -11,6 +11,7 @@
 
   <button type="button" class="btn btn--sm lodging-addstep"
           hx-post="/vacations/{{.V.ID}}/lodging"
+          hx-disabled-elt="this"
           hx-target="#lodging-blocks"
           hx-swap="beforeend">＋ {{t "lodging.add"}}</button>
 
@@ -30,6 +31,7 @@
   <form class="form lodging-step" data-lodging-editor
         hx-post="/lodging/{{.ID}}"
         hx-trigger="change delay:300ms"
+        hx-sync="this:queue last"
         hx-target="#lodging-out-{{.ID}}"
         hx-swap="innerHTML">
     <input type="hidden" name="latitude" data-geo-lite-lat value="{{coord .Lat}}">

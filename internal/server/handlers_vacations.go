@@ -135,6 +135,7 @@ type budgetView struct {
 	HasPeople       bool
 	AttributedTotal float64
 	Unassigned      float64
+	UnassignedCount int
 	Persons         []budgetPerson
 	Transfers       []budgetTransfer
 
@@ -173,6 +174,8 @@ type budgetCategory struct {
 
 // budgetExpense is a single costed item shown in the spending overview.
 type budgetExpense struct {
+	Source     string
+	SourceID   string
 	Title      string
 	Icon       string
 	Category   string // category key, matching budgetCategory.Name
@@ -223,6 +226,9 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		tz = time.UTC
 	}
 	b := budgetView{People: v.People, Nights: v.Nights(), Currency: in.Currency}
+	if len(v.Participants) > 0 {
+		b.People = len(v.Participants)
+	}
 
 	// Cost attribution: track how much each person paid, plus the unassigned
 	// total. personByID resolves a payer reference to a display name and color;
@@ -239,14 +245,17 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 	recordPayer := func(pb *uuid.UUID, amt float64) (id, name, color string) {
 		if pb == nil {
 			b.Unassigned += amt
+			b.UnassignedCount++
 			return "", "", ""
 		}
-		b.AttributedTotal += amt
-		paidByPerson[*pb] += amt
 		if p, ok := personByID[*pb]; ok {
+			b.AttributedTotal += amt
+			paidByPerson[*pb] += amt
 			return p.ID.String(), p.Name, p.Color
 		}
-		return pb.String(), "", ""
+		b.Unassigned += amt
+		b.UnassignedCount++
+		return "", "", ""
 	}
 
 	catAmount := map[string]float64{}
@@ -272,6 +281,8 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		}
 		payerID, payerName, payerColor := recordPayer(it.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
+			Source:     "item",
+			SourceID:   it.ID.String(),
 			Title:      it.Title,
 			Icon:       in.Icons[strings.ToLower(it.Category)],
 			Category:   it.Category,
@@ -300,6 +311,8 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		catAmount[in.LodgingLabel] += amt
 		lpID, lpName, lpColor := recordPayer(lo.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
+			Source:     "lodging",
+			SourceID:   lo.ID.String(),
 			Title:      lo.Name,
 			Icon:       "🛏",
 			Category:   in.LodgingLabel,
@@ -342,6 +355,8 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 		}
 		tpID, tpName, tpColor := recordPayer(ts.PaidBy, amt)
 		b.Expenses = append(b.Expenses, budgetExpense{
+			Source:     "travel",
+			SourceID:   ts.ID.String(),
 			Title:      title,
 			Icon:       "✈",
 			Category:   in.TravelLabel,
@@ -356,8 +371,8 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 	if b.ExpenseCount > 0 {
 		b.AvgExpense = b.Spent / float64(b.ExpenseCount)
 	}
-	if v.People > 0 {
-		b.SpentPerPerson = b.Spent / float64(v.People)
+	if b.People > 0 {
+		b.SpentPerPerson = b.Spent / float64(b.People)
 	}
 	if b.Nights > 0 {
 		b.SpentPerNight = b.Spent / float64(b.Nights)
@@ -393,7 +408,7 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 	splitPeople := v.Participants
 	if len(splitPeople) == 0 {
 		for _, p := range in.AllPeople {
-			if _, paid := paidByPerson[p.ID]; paid {
+			if paidByPerson[p.ID] > 0 {
 				splitPeople = append(splitPeople, p)
 			}
 		}
@@ -401,7 +416,9 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 	if len(splitPeople) > 0 {
 		b.HasPeople = true
 		share := b.AttributedTotal / float64(len(splitPeople))
+		inSplit := make(map[uuid.UUID]bool, len(splitPeople))
 		for _, p := range splitPeople {
+			inSplit[p.ID] = true
 			paid := paidByPerson[p.ID]
 			bp := budgetPerson{
 				ID:      p.ID.String(),
@@ -410,6 +427,22 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 				Paid:    paid,
 				Share:   share,
 				Balance: paid - share,
+			}
+			if b.AttributedTotal > 0 {
+				bp.PaidPct = int(paid / b.AttributedTotal * 100)
+			}
+			b.Persons = append(b.Persons, bp)
+		}
+		// A known payer need not be a participant. Preserve their full credit
+		// without silently enrolling them in the trip's equal-share group.
+		for _, p := range in.AllPeople {
+			paid, ok := paidByPerson[p.ID]
+			if !ok || inSplit[p.ID] {
+				continue
+			}
+			bp := budgetPerson{
+				ID: p.ID.String(), Name: p.Name, Color: p.Color,
+				Paid: paid, Balance: paid,
 			}
 			if b.AttributedTotal > 0 {
 				bp.PaidPct = int(paid / b.AttributedTotal * 100)
@@ -435,8 +468,8 @@ func newBudgetView(v *models.Vacation, in budgetInput) budgetView {
 			}
 			b.PercentClamped = p
 		}
-		if v.People > 0 {
-			b.PerPerson = total / float64(v.People)
+		if b.People > 0 {
+			b.PerPerson = total / float64(b.People)
 		}
 		if b.Nights > 0 {
 			b.PerNight = total / float64(b.Nights)
@@ -521,7 +554,11 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	categories, _ := s.store.ListCategories(r.Context())
-	allPeople, _ := s.store.ListPeople(r.Context())
+	allPeople, err := s.store.ListPeople(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	if v.Participants, err = s.store.ListVacationParticipants(r.Context(), id); err != nil {
 		s.serverError(w, r, err)
 		return
@@ -541,11 +578,9 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	// fallback). Compute it before offering all people as paid-by options below.
 	budget := newBudgetView(v, s.budgetInputFor(r.Context(), v.Items, allPeople))
 
-	// Paid-by dropdowns offer the trip's participants, or all defined people when
-	// none are selected yet, so the field is usable before participants are chosen.
-	if len(v.Participants) == 0 {
-		v.Participants = allPeople
-	}
+	// Payer options are independent from the split group: a nonparticipant may
+	// have paid a booking, and unrelated edits must not clear that reference.
+	v.Participants = allPeople
 
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
@@ -639,6 +674,7 @@ type overviewActivity struct {
 	Latitude      *float64
 	Longitude     *float64
 	HasCoords     bool
+	Links         []models.ItemLink
 	sortKey       time.Time
 }
 
@@ -1024,8 +1060,16 @@ func (s *Server) handleBudgetFragment(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	v.Participants, _ = s.store.ListVacationParticipants(r.Context(), id)
-	allPeople, _ := s.store.ListPeople(r.Context())
+	v.Participants, err = s.store.ListVacationParticipants(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	allPeople, err := s.store.ListPeople(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.fragment(w, r, "budget_panel", newBudgetView(v, s.budgetInputFor(r.Context(), items, allPeople)))
 }
 
@@ -1345,7 +1389,7 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 	var budget *float64
 	if raw := formStr(r, "budget"); raw != "" {
 		bv, err := strconv.ParseFloat(raw, 64)
-		if err != nil || bv < 0 {
+		if err != nil || math.IsNaN(bv) || math.IsInf(bv, 0) || bv < 0 {
 			return nil, errValidation(loc.T("error.budget_invalid"))
 		}
 		budget = &bv
@@ -1374,14 +1418,9 @@ func (s *Server) vacationFromForm(r *http.Request) (*models.Vacation, error) {
 	}, nil
 }
 
-// formPayerOptions returns the people offered in a trip's "paid by" dropdowns:
-// its participants when any are selected, otherwise all defined people so the
-// field stays usable before participants have been chosen.
-func (s *Server) formPayerOptions(ctx context.Context, vacationID uuid.UUID) []models.Person {
-	parts, _ := s.store.ListVacationParticipants(ctx, vacationID)
-	if len(parts) > 0 {
-		return parts
-	}
+// formPayerOptions includes nonparticipants so existing payment references are
+// not lost when the participant set changes.
+func (s *Server) formPayerOptions(ctx context.Context, _ uuid.UUID) []models.Person {
 	people, _ := s.store.ListPeople(ctx)
 	return people
 }

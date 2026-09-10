@@ -17,10 +17,17 @@
       <button type="button" class="tabs__tab" data-tab="tagesplan">{{t "tab.tagesplan"}}</button>
       <button type="button" class="tabs__tab" data-tab="ideen">{{t "tab.ideen"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
+      <button type="button" class="tabs__tab" data-tab="cheatsheet">{{t "tab.cheatsheet"}}</button>
     </div>
   </div>
 
   <div id="item-error" class="form-error" role="alert"></div>
+
+  <section class="tab-panel" data-tab-panel="cheatsheet">
+    <div hx-get="/vacations/{{$v.ID}}/cheatsheet" hx-trigger="load, infoChanged from:body" hx-swap="innerHTML">
+      <p class="muted">{{t "cheatsheet.loading"}}</p>
+    </div>
+  </section>
 
   <section class="tab-panel" data-tab-panel="general">
     <div class="panel">
@@ -132,6 +139,13 @@
         <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">
           <div class="panel">
             <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+
+            <div id="day-route-{{dateInput $d}}" class="day-route-summary" data-day-route data-day="{{dateInput $d}}"
+                 data-loading="{{t "dayroute.loading"}}" data-error="{{t "dayroute.error"}}"
+                 hx-get="/vacations/{{$v.ID}}/api/dayroute?day={{dateInput $d}}"
+                 hx-trigger="loadroute" hx-target="this" hx-swap="innerHTML" hx-sync="this:replace" aria-live="polite">
+              <p class="muted small">{{t "dayroute.loading"}}</p>
+            </div>
 
             <details class="day-route">
               <summary>{{t "day.cards.heading"}}</summary>

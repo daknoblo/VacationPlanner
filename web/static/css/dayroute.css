@@ -1,0 +1,25 @@
+.day-journey {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #b8bec8);
+  border-radius: .75rem;
+}
+.day-journey__header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.day-journey__header h3 { margin: 0; }
+.day-journey__totals { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; }
+.day-journey__totals dt { font-size: .85em; }
+.day-journey__totals dd { margin: 0; font-weight: 700; }
+.day-journey__flow { display: flex; gap: .75rem; overflow-x: auto; padding: .5rem .25rem 1rem; list-style: none; }
+.day-journey__base, .day-journey__stop { flex: 0 0 15rem; display: flex; flex-direction: column; gap: .5rem; }
+.day-journey__base { flex-basis: 11rem; justify-content: center; padding: .75rem; border: 1px solid var(--border, #b8bec8); border-radius: .5rem; }
+.day-journey__leg, .day-journey__visit { display: flex; flex-direction: column; gap: .35rem; padding: .75rem; overflow-wrap: anywhere; }
+.day-journey__leg { flex: 1; border-top: 3px solid var(--accent, #427bc7); font-size: .9em; }
+.day-journey__visit { border: 1px solid var(--border, #b8bec8); border-radius: .5rem; min-height: 5rem; }
+.day-journey__stop--missing .day-journey__leg { border-top-style: dashed; }
+.day-journey__badge { align-self: start; padding: .1rem .4rem; border: 1px solid currentColor; border-radius: .3rem; }
+.day-journey__warning { font-size: .9em; font-weight: 600; }
+.day-journey__flow:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media print {
+  .day-journey__flow { flex-wrap: wrap; overflow: visible; }
+  .day-journey__stop { break-inside: avoid; }
+}

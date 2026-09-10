@@ -10,11 +10,13 @@ import (
 
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
+	"github.com/daknoblo/vacationplanner/internal/models"
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
 // suggestionLink is one labelled external link shown on a suggestion tile.
 type suggestionLink struct {
+	Kind  string
 	Icon  string
 	Label string
 	URL   string
@@ -31,6 +33,8 @@ type suggestionView struct {
 	Rating      string
 	Distance    string
 	Links       []suggestionLink
+	Latitude    *float64
+	Longitude   *float64
 }
 
 type aiSuggestionsView struct {
@@ -146,12 +150,14 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			links := []suggestionLink{
-				{Icon: "📍", Label: loc.T("ai.google_maps"), URL: googleMapsSearchURL(sg.Name, v.Destination)},
+				{Kind: "google_maps", Icon: "📍", Label: loc.T("ai.google_maps"), URL: googleMapsSearchURL(sg.Name, v.Destination)},
+				{Kind: "wikipedia", Icon: "📖", Label: loc.T("ai.wikipedia"), URL: wikipediaSearchURL(sg.Name, v.Destination, loc.Code())},
 			}
 			if web := safeExternalURL(sg.Website); web != "" {
-				links = append(links, suggestionLink{Icon: "🔗", Label: loc.T("ai.website"), URL: web})
+				links = append(links, suggestionLink{Kind: "website", Icon: "🔗", Label: loc.T("ai.website"), URL: web})
 			}
-			links = append(links, suggestionLink{Icon: "🧳", Label: loc.T("ai.tripadvisor"), URL: tripadvisorSearchURL(sg.Name, v.Destination)})
+			links = append(links, suggestionLink{Kind: "tripadvisor", Icon: "🧳", Label: loc.T("ai.tripadvisor"), URL: tripadvisorSearchURL(sg.Name, v.Destination)})
+			lat, lng := suggestionCoordinates(sg)
 
 			out = append(out, suggestionView{
 				Name:        sg.Name,
@@ -161,6 +167,8 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 				Rating:      formatRating(sg.Rating),
 				Distance:    nearestHotelDistance(sg, hotels),
 				Links:       links,
+				Latitude:    lat,
+				Longitude:   lng,
 			})
 		}
 		view.Suggestions = out
@@ -217,18 +225,23 @@ func nearestHotelDistance(sg ai.Suggestion, hotels []route.Point) string {
 // http(s) URL with a host; otherwise it returns "". This prevents rendering a
 // javascript:/data: link or a malformed URL supplied by the model.
 func safeExternalURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
+	return models.SafeExternalURL(raw)
+}
+
+func suggestionCoordinates(sg ai.Suggestion) (*float64, *float64) {
+	if (sg.Latitude == 0 && sg.Longitude == 0) || math.IsNaN(sg.Latitude) || math.IsNaN(sg.Longitude) ||
+		math.IsInf(sg.Latitude, 0) || math.IsInf(sg.Longitude, 0) ||
+		sg.Latitude < -90 || sg.Latitude > 90 || sg.Longitude < -180 || sg.Longitude > 180 {
+		return nil, nil
 	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return ""
+	return &sg.Latitude, &sg.Longitude
+}
+
+func wikipediaSearchURL(name, destination, lang string) string {
+	if lang != "de" {
+		lang = "en"
 	}
-	if u.Scheme != "http" && u.Scheme != "https" || u.Host == "" {
-		return ""
-	}
-	return u.String()
+	return "https://" + lang + ".wikipedia.org/w/index.php?search=" + url.QueryEscape(placeQuery(name, destination))
 }
 
 // googleMapsSearchURL builds a Google Maps search link for a place. Opened in a

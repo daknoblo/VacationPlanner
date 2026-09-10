@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -14,6 +15,48 @@ import (
 // activities from a straight-line distance when live routing is unavailable.
 const activityDriveKmh = 40
 
+type activityRouteKey struct {
+	client   *route.Client
+	baseURL  string
+	from, to route.Point
+}
+
+type activityRouteFlight struct {
+	done   chan struct{}
+	result route.Result
+	err    error
+}
+
+var activityRoutes = struct {
+	sync.Mutex
+	flights map[activityRouteKey]*activityRouteFlight
+}{flights: make(map[activityRouteKey]*activityRouteFlight)}
+
+// Route's cache avoids repeat requests; this short-lived coordination also
+// prevents simultaneous overview/card/timeline refreshes from missing it together.
+func activityRoute(ctx context.Context, key activityRouteKey) (route.Result, error) {
+	activityRoutes.Lock()
+	if flight, exists := activityRoutes.flights[key]; exists {
+		activityRoutes.Unlock()
+		select {
+		case <-ctx.Done():
+			return route.Result{}, ctx.Err()
+		case <-flight.done:
+			return flight.result, flight.err
+		}
+	}
+	flight := &activityRouteFlight{done: make(chan struct{})}
+	activityRoutes.flights[key] = flight
+	activityRoutes.Unlock()
+
+	flight.result, flight.err = key.client.Route(ctx, key.baseURL, route.DefaultProfile, []route.Point{key.from, key.to})
+	activityRoutes.Lock()
+	delete(activityRoutes.flights, key)
+	close(flight.done)
+	activityRoutes.Unlock()
+	return flight.result, flight.err
+}
+
 // legBetween returns the distance (metres) and duration (seconds) from one point
 // to another, using live routing (driving profile) when configured and falling
 // back to a straight-line (Haversine) estimate otherwise. approx is true for the
@@ -22,8 +65,8 @@ func (s *Server) legBetween(ctx context.Context, from, to *route.Point) (distM, 
 	if from == nil || to == nil {
 		return 0, 0, false, false
 	}
-	if s.routing.Enabled() {
-		res, err := s.routing.Route(ctx, s.routeBaseURL(ctx), route.DefaultProfile, []route.Point{*from, *to})
+	if s.routing != nil && s.routing.Enabled() && ctx.Err() == nil {
+		res, err := activityRoute(ctx, activityRouteKey{client: s.routing, baseURL: s.routeBaseURL(ctx), from: *from, to: *to})
 		if err == nil {
 			return res.TotalDistanceM, res.TotalDurationS, false, true
 		}
@@ -33,34 +76,42 @@ func (s *Server) legBetween(ctx context.Context, from, to *route.Point) (distM, 
 	return d, d / (activityDriveKmh * 1000 / 3600), true, true
 }
 
-// lodgingForDay returns the located lodging covering the given day (check-in day
-// through check-out day, inclusive), or nil when none has coordinates that day.
+// lodgingForDay returns the lodging covering the given day, including checkout.
+// On hotel-change days the stay occupied overnight wins over a new check-in;
+// overlapping stays use the latest check-in, with a stable tie-breaker.
 // Check-in/out are instants, so they are read in the display timezone — the same
 // way lodgingDayStrips places them on the planner.
 func lodgingForDay(tz *time.Location, lodgings []models.Lodging, day time.Time) *models.Lodging {
 	dy, dm, dd := day.Date()
 	target := time.Date(dy, dm, dd, 0, 0, 0, 0, time.UTC)
+	var chosen *models.Lodging
+	var chosenOvernight bool
 	for i := range lodgings {
-		l := lodgings[i]
-		if !l.HasCoords() {
-			continue
-		}
+		l := &lodgings[i]
 		ci := l.CheckIn.In(tz)
 		co := l.CheckOut.In(tz)
 		in := time.Date(ci.Year(), ci.Month(), ci.Day(), 0, 0, 0, 0, time.UTC)
 		out := time.Date(co.Year(), co.Month(), co.Day(), 0, 0, 0, 0, time.UTC)
 		if !target.Before(in) && !target.After(out) {
-			return &l
+			overnight := in.Before(target)
+			if chosen == nil || (overnight && !chosenOvernight) ||
+				(overnight == chosenOvernight && (l.CheckIn.After(chosen.CheckIn) ||
+					(l.CheckIn.Equal(chosen.CheckIn) && l.Name+l.ID.String() < chosen.Name+chosen.ID.String()))) {
+				chosen, chosenOvernight = l, overnight
+			}
 		}
 	}
-	return nil
+	return chosen
 }
 
 // dayHotel resolves the "base" for a day — the lodging active that day, or the
 // vacation destination — as a point and a display label. Either may be empty.
 func dayHotel(loc *i18n.Localizer, tz *time.Location, v *models.Vacation, day time.Time) (*route.Point, string) {
 	if l := lodgingForDay(tz, v.Lodgings, day); l != nil {
-		return &route.Point{Lat: *l.Latitude, Lng: *l.Longitude}, "🛏 " + l.Name
+		if l.HasCoords() {
+			return &route.Point{Lat: *l.Latitude, Lng: *l.Longitude}, "🛏 " + l.Name
+		}
+		return nil, "🛏 " + l.Name
 	}
 	if v.HasCoords() {
 		label := v.Destination
@@ -80,13 +131,11 @@ func itemPoint(it models.Item) *route.Point {
 	return &route.Point{Lat: *it.Latitude, Lng: *it.Longitude}
 }
 
-// autoOrigin returns the automatic origin for the item at index idx: the nearest
-// preceding located stop that day, or the day's hotel when none precedes.
+// autoOrigin uses the preceding stop, even when unlocated: skipping it would
+// imply a direct journey that is not the saved itinerary.
 func autoOrigin(items []models.Item, idx int, hotelPt *route.Point, hotelLabel string) (*route.Point, string) {
-	for j := idx - 1; j >= 0; j-- {
-		if items[j].HasCoords() {
-			return itemPoint(items[j]), items[j].Title
-		}
+	if idx > 0 {
+		return itemPoint(items[idx-1]), items[idx-1].Title
 	}
 	return hotelPt, hotelLabel
 }
@@ -103,12 +152,36 @@ func resolveOrigin(items []models.Item, idx int, hotelPt *route.Point, hotelLabe
 		return hotelPt, hotelLabel
 	default:
 		for j := range items {
-			if items[j].ID.String() == it.OriginRef && items[j].HasCoords() {
+			if j != idx && items[j].ID.String() == it.OriginRef {
 				return itemPoint(items[j]), items[j].Title
 			}
 		}
 		return autoOrigin(items, idx, hotelPt, hotelLabel)
 	}
+}
+
+type dayItemLeg struct {
+	Item                 models.Item
+	OriginLabel          string
+	DistanceM, DurationS float64
+	Approx, OK, Override bool
+}
+
+// dayItemLegs shares visiting order, origins and routing cache keys with cards.
+func (s *Server) dayItemLegs(ctx context.Context, ordered []models.Item, hotelPt *route.Point, hotelLabel string) []dayItemLeg {
+	legs := make([]dayItemLeg, 0, len(ordered))
+	for idx, it := range ordered {
+		origin, label := resolveOrigin(ordered, idx, hotelPt, hotelLabel)
+		dist, dur, approx, ok := s.legBetween(ctx, origin, itemPoint(it))
+		override := it.OriginRef == "hotel"
+		for j, other := range ordered {
+			if j != idx && it.OriginRef == other.ID.String() {
+				override = true
+			}
+		}
+		legs = append(legs, dayItemLeg{Item: it, OriginLabel: label, DistanceM: dist, DurationS: dur, Approx: approx, OK: ok, Override: override})
+	}
+	return legs
 }
 
 // originOptionsFor builds the predecessor choices for an item's origin picker:
@@ -120,7 +193,7 @@ func originOptionsFor(loc *i18n.Localizer, items []models.Item, it models.Item, 
 		opts = append(opts, originOption{Value: "hotel", Label: hotelLabel, Selected: it.OriginRef == "hotel"})
 	}
 	for _, other := range items {
-		if other.ID == it.ID || !other.HasCoords() {
+		if other.ID == it.ID || (!other.HasCoords() && it.OriginRef != other.ID.String()) {
 			continue
 		}
 		label := other.Title
@@ -160,7 +233,8 @@ func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, tz *time.Loc
 	dayKey := day.Format("2006-01-02")
 
 	cards := make([]overviewActivity, 0, len(ordered)+2)
-	for idx, it := range ordered {
+	for _, leg := range s.dayItemLegs(ctx, ordered, hotelPt, hotelLabel) {
+		it := leg.Item
 		tm := ""
 		key := day.Add(23*time.Hour + 59*time.Minute) // untimed items sort last that day
 		if it.Timed() {
@@ -173,6 +247,7 @@ func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, tz *time.Loc
 			DateLabel: fmtDate(day),
 			TimeLabel: tm,
 			Title:     it.Title,
+			Links:     it.Links,
 			Category:  it.Category,
 			Cost:      it.Cost,
 			DayKey:    dayKey,
@@ -182,14 +257,11 @@ func (s *Server) dayCards(ctx context.Context, loc *i18n.Localizer, tz *time.Loc
 			HasCoords: it.HasCoords(),
 			sortKey:   key,
 		}
-		if to := itemPoint(it); to != nil {
-			origin, originLabel := resolveOrigin(ordered, idx, hotelPt, hotelLabel)
-			if distM, durS, approx, ok := s.legBetween(ctx, origin, to); ok {
-				card.OriginLabel = originLabel
-				card.DistanceLabel = formatDistance(distM)
-				card.DurationLabel = formatDuration(durS)
-				card.Approx = approx
-			}
+		if leg.OK {
+			card.OriginLabel = leg.OriginLabel
+			card.DistanceLabel = formatDistance(leg.DistanceM)
+			card.DurationLabel = formatDuration(leg.DurationS)
+			card.Approx = leg.Approx
 		}
 		cards = append(cards, card)
 	}

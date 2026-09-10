@@ -22,10 +22,17 @@
       <form hx-post="/vacations/{{$.VacationID}}/items"
             hx-target="#ideen-list"
             hx-swap="beforeend"
+            hx-disabled-elt="button"
             data-suggestion-add>
         <input type="hidden" name="title" value="{{.Name}}">
         <input type="hidden" name="category" value="{{.Category}}">
         <input type="hidden" name="description" value="{{.Description}}">
+        <input type="hidden" name="latitude" value="{{coord .Latitude}}">
+        <input type="hidden" name="longitude" value="{{coord .Longitude}}">
+        {{range .Links}}
+        <input type="hidden" name="link_kind" value="{{.Kind}}">
+        <input type="hidden" name="link_url" value="{{.URL}}">
+        {{end}}
         <button class="btn btn--sm" type="submit">{{t "ai.add_sight"}}</button>
       </form>
     </div>

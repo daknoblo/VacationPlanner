@@ -101,7 +101,7 @@ func TestFoundrySettingsAndHealthNeverCallAzure(t *testing.T) {
 			t.Fatal("metadata was rendered as HTML")
 		}
 		if path == "/settings" {
-			for _, want := range []string{"missing-old-deployment", "not usable", "Metadata cached", "Not checked", "confirm_cost", "gpt-4o", "2024-08-06", "model is not supported"} {
+			for _, want := range []string{"missing-old-deployment", "not usable", "Metadata cached", "Not checked", "gpt-4o", "2024-08-06", "model is not supported"} {
 				if !strings.Contains(rec.Body.String(), want) {
 					t.Fatalf("settings missing %q", want)
 				}
@@ -158,22 +158,18 @@ func TestOldAIFormCannotClearSavedSelection(t *testing.T) {
 	}
 }
 
-func TestFoundryProbeRequiresCSRFConsentAndUsesSavedSelection(t *testing.T) {
+func TestFoundryRecheckRequiresCSRFAndUsesSavedSelection(t *testing.T) {
 	s, backend := foundryTestServer(t)
 	ctx := context.Background()
 	if err := s.store.PutSetting(ctx, s.foundrySettingKey("chat"), "production-chat"); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/settings/ai", "/settings/ai/discover", "/settings/ai/probe"} {
-		if rec := postAISettings(s, path, url.Values{"confirm_cost": {"yes"}}, false); rec.Code != http.StatusForbidden {
+		if rec := postAISettings(s, path, nil, false); rec.Code != http.StatusForbidden {
 			t.Fatalf("missing CSRF accepted: %s", path)
 		}
 	}
-	postAISettings(s, "/settings/ai/probe", nil, true)
-	if backend.calls != 0 {
-		t.Fatal("probe without consent billed")
-	}
-	rec := postAISettings(s, "/settings/ai/probe", url.Values{"confirm_cost": {"yes"}, "deployment": {"attacker-choice"}}, true)
+	rec := postAISettings(s, "/settings/ai/probe", url.Values{"deployment": {"attacker-choice"}}, true)
 	if rec.Code != http.StatusOK || backend.calls != 1 || backend.lastModel != "production-chat" {
 		t.Fatalf("probe didn't use saved selection: %d, %d, %s", rec.Code, backend.calls, backend.lastModel)
 	}
@@ -207,14 +203,44 @@ func TestFoundryDiscoveryDoesNotGenerateOrChangeSelection(t *testing.T) {
 	if err != nil || settings[s.foundrySettingKey("chat")] != "production-chat" {
 		t.Fatal("discovery changed selection")
 	}
-	postAISettings(s, "/settings/ai/probe", url.Values{"confirm_cost": {"yes"}}, true)
+	postAISettings(s, "/settings/ai/probe", nil, true)
 	settings, err = s.store.GetSettings(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	var probe foundryProbeResult
 	if err := json.Unmarshal([]byte(settings[s.foundrySettingKey("probe")]), &probe); err != nil || probe.Error == "" {
 		t.Fatal("failed inference incorrectly persisted success")
+	}
+}
+
+func TestSelectingDeploymentChecksOnceAndKeepsFailuresVisible(t *testing.T) {
+	s, backend := foundryTestServer(t)
+	for _, name := range []string{"production-chat", "production-chat", "next-chat"} {
+		backend.fail = name == "next-chat"
+		rec := postAISettings(s, "/settings/ai", url.Values{"deployment": {name}}, true)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("selection failed: %d %s", rec.Code, rec.Body.String())
+		}
+		if strings.Contains(rec.Body.String(), "confirm_cost") {
+			t.Fatal("removed checkbox was rendered")
+		}
+	}
+	if backend.calls != 2 || backend.lastModel != "next-chat" {
+		t.Fatalf("selection should only check actual changes: calls=%d model=%s", backend.calls, backend.lastModel)
+	}
+	settings, err := s.store.GetSettings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.foundrySettings(context.Background(), settings)
+	if err != nil || view.ProbeStatus != "settings.foundry.failed" || !strings.Contains(view.ProbeError, "403") {
+		t.Fatalf("probe failure not shown: %+v %v", view, err)
+	}
+	postAISettings(s, "/settings/ai", url.Values{"deployment": {""}}, true)
+	if backend.calls != 2 {
+		t.Fatal("clearing selection generated a probe")
 	}
 }
 

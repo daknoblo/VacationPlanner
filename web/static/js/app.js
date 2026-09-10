@@ -461,6 +461,7 @@
       }
       if (dayView) dayView.hidden = (view === "week");
       if (weekView) weekView.hidden = (view !== "week");
+      refreshDayCards();
     }
     for (var j = 0; j < btns.length; j++) {
       btns[j].addEventListener("click", function () { setView(this.getAttribute("data-view")); });
@@ -475,9 +476,9 @@
     if (!container) return;
     var idx = head.getAttribute("data-goto-day");
     var dayBtn = container.querySelector('[data-viewtoggle] [data-view="day"]');
-    if (dayBtn) dayBtn.click();
     var dayTab = container.querySelector('.tabs__tab[data-tab="day-' + idx + '"]');
     if (dayTab) dayTab.click();
+    if (dayBtn) dayBtn.click();
   });
 
   // ---- Icon picker (category symbols) ----
@@ -605,6 +606,94 @@
       }
     }
   }
+
+  // ---- Budget links open the original booking, never a duplicate expense ----
+  var budgetSourceRequest = null;
+  var budgetSourceGeneration = 0;
+
+  function focusBudgetSource(el) {
+    if (!el || !el.isConnected) return;
+    el.scrollIntoView({ block: "center" });
+    var control = el.querySelector('input[name="cost"]:not([disabled])') ||
+      el.querySelector('[name="paid_by"]:not([disabled])') ||
+      el.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+    if (!control) {
+      el.setAttribute("tabindex", "-1");
+      control = el;
+    }
+    control.focus({ preventScroll: true });
+  }
+
+  function jumpBudgetSource(kind, id) {
+    if (!/^(item|lodging|travel)$/.test(kind) ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
+    var tabs = document.querySelector("[data-tabs]");
+    if (!tabs) return false;
+    var tabName = kind === "item" ? "ideen" : kind;
+    var panel = tabs.querySelector('[data-tab-panel="' + tabName + '"]');
+    if (!panel) return false;
+    var target = document.getElementById(kind + "-" + id);
+    if (!target && kind === "travel") {
+      var source = panel.querySelector('[data-travel-source-id="' + id + '"]');
+      if (source) target = source.closest(".travel-step-wrap");
+    }
+    if (kind !== "item" && !target) return false;
+    activateTab(tabs, tabName);
+    budgetSourceGeneration++;
+    var generation = budgetSourceGeneration;
+    if (budgetSourceRequest && typeof htmx !== "undefined") htmx.trigger(budgetSourceRequest, "htmx:abort");
+    budgetSourceRequest = null;
+    if (kind !== "item" || (target && target.classList.contains("is-editing"))) {
+      focusBudgetSource(target);
+      return true;
+    }
+    if (typeof htmx === "undefined") return false;
+    var swap = "outerHTML";
+    if (!target) {
+      // Scheduled items have no row in the ideas backlog. Mount their existing
+      // inline editor separately, preserving the same item ID and save endpoint.
+      target = document.getElementById("budget-source-editor");
+      if (!target) {
+        target = document.createElement("ul");
+        target.id = "budget-source-editor";
+        target.className = "list items";
+        var list = document.getElementById("ideen-list");
+        if (!list) return false;
+        list.parentNode.insertBefore(target, list);
+      }
+      swap = "innerHTML";
+    }
+    budgetSourceRequest = target;
+    htmx.ajax("GET", "/items/" + encodeURIComponent(id) + "/edit", {
+      source: target, target: target, swap: swap
+    }).then(function () {
+      if (generation !== budgetSourceGeneration) return;
+      budgetSourceRequest = null;
+      var row = document.getElementById("item-" + id);
+      if (panel.classList.contains("is-active")) focusBudgetSource(row);
+    }).catch(function () {
+      if (generation === budgetSourceGeneration) budgetSourceRequest = null;
+    });
+    return true;
+  }
+
+  function jumpBudgetSourceHash() {
+    var match = /^#budget-source-(item|lodging|travel)-([0-9a-f-]+)$/i.exec(window.location.hash || "");
+    if (match) jumpBudgetSource(match[1], match[2]);
+  }
+
+  document.addEventListener("click", function (e) {
+    var link = e.target && e.target.closest ? e.target.closest("[data-budget-source]") : null;
+    if (!link || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button > 0) return;
+    var kind = link.getAttribute("data-budget-source");
+    var id = link.getAttribute("data-budget-source-id");
+    if (!jumpBudgetSource(kind, id)) return;
+    e.preventDefault();
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", "#budget-source-" + kind + "-" + id);
+    }
+  });
+  window.addEventListener("hashchange", jumpBudgetSourceHash);
 
   // ---- Activity name autocomplete (AI, destination-aware) ----
   function initActivityInputs() {
@@ -740,6 +829,7 @@
   document.addEventListener("dragstart", function (e) {
     var chip = e.target && e.target.closest ? e.target.closest(".idea-chip") : null;
     if (!chip || !e.dataTransfer) return;
+    if (e.target.closest("a,button,input,select,textarea,label")) return;
     e.dataTransfer.setData("text/plain", chip.getAttribute("data-id"));
     e.dataTransfer.effectAllowed = "move";
     chip.classList.add("is-dragging");
@@ -890,6 +980,7 @@
   document.addEventListener("pointerdown", function (e) {
     var block = e.target && e.target.closest ? e.target.closest(".weekcal-block[data-id]") : null;
     if (!block) return;
+    if (e.target.closest("a,button,input,select,textarea,label")) return;
     e.preventDefault();
     var start = parseInt(block.getAttribute("data-start"), 10) || 0;
     var end = parseInt(block.getAttribute("data-end"), 10) || (start + 60);
@@ -975,6 +1066,7 @@
     grid.addEventListener("pointerdown", function (e) {
       var block = e.target.closest ? e.target.closest(".planner-block") : null;
       if (!block || !grid.contains(block)) return;
+      if (e.target.closest("a,button,input,select,textarea,label")) return;
       if (e.target.closest(".planner-block__del")) return;
       if (block.hasAttribute("data-static")) return;
       e.preventDefault();
@@ -1012,12 +1104,67 @@
   }
 
   // ---- Day route cards refresh ----
+  function dayFragmentVisible(el) {
+    return el && el.isConnected && el.getClientRects().length > 0;
+  }
+
+  function loadVisibleDayCards() {
+    var cards = document.querySelectorAll("[data-day-cards]");
+    for (var i = 0; i < cards.length; i++) {
+      if (dayFragmentVisible(cards[i])) cards[i].dispatchEvent(new CustomEvent("loadcards"));
+    }
+  }
+
   function refreshDayCards() {
-    var cards = document.querySelector(".tab-panel.is-active [data-day-cards]");
-    if (cards) cards.dispatchEvent(new CustomEvent("loadcards"));
+    var routes = document.querySelectorAll("[data-day-route]");
+    var requested = false;
+    for (var i = 0; i < routes.length; i++) {
+      var el = routes[i];
+      el._routeGeneration = (el._routeGeneration || 0) + 1;
+      if (typeof htmx !== "undefined") htmx.trigger(el, "htmx:abort");
+      el.removeAttribute("aria-busy");
+      if (!dayFragmentVisible(el)) continue;
+      el.setAttribute("aria-busy", "true");
+      if (el.dataset.loading == null) el.dataset.loading = el.textContent;
+      el.textContent = el.dataset.loading || "";
+      el.dispatchEvent(new CustomEvent("loadroute"));
+      requested = true;
+    }
+    // Load route metrics first; expanded cards then reuse the same routing cache.
+    if (!requested) loadVisibleDayCards();
   }
 
   document.body.addEventListener("itemsChanged", refreshDayCards);
+  document.body.addEventListener("infoChanged", refreshDayCards);
+
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    var el = e.detail.elt;
+    if (el && el.matches("[data-day-route]")) {
+      e.detail.xhr._routeGeneration = el._routeGeneration;
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeSwap", function (e) {
+    var el = e.detail.target;
+    if (!el || !el.matches("[data-day-route]")) return;
+    if (!dayFragmentVisible(el) || e.detail.xhr._routeGeneration !== el._routeGeneration) {
+      e.detail.shouldSwap = false;
+    }
+  });
+
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    var el = e.detail.elt;
+    if (!el || !el.matches("[data-day-route]") ||
+        e.detail.xhr._routeGeneration !== el._routeGeneration) return;
+    el.removeAttribute("aria-busy");
+    if (dayFragmentVisible(el) && !e.detail.successful) el.textContent = el.dataset.error || "";
+    if (dayFragmentVisible(el) && e.detail.successful) loadVisibleDayCards();
+  });
+
+  // Cards inside a collapsed details element are lazy as well.
+  document.addEventListener("toggle", function (e) {
+    if (e.target.open && e.target.querySelector("[data-day-cards]")) loadVisibleDayCards();
+  }, true);
 
   // ---- Date range: choosing "From" constrains and opens "To" ----
   function pairedDateTo(fromEl) {
@@ -1163,6 +1310,8 @@
     initViewToggle();
     initDateRanges();
     updateParticipantSummaries();
+    refreshDayCards();
+    jumpBudgetSourceHash();
   }
 
   if (document.readyState !== "loading") {

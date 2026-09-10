@@ -40,8 +40,13 @@ a:hover { text-decoration: underline; }
 .foundry-catalog li { margin: 0.5rem 0; }
 .foundry-catalog li > span { display: block; }
 .foundry-refresh { margin: 1rem 0; }
-.foundry-consent { display: flex; align-items: flex-start; gap: 0.6rem; }
-.foundry-consent input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0.25rem 0 0; }
+.foundry-checking { display: none; }
+.foundry-checking.htmx-request { display: block; }
+.cheatsheet-scroll { overflow-x: auto; margin: 1rem 0; }
+.cheatsheet-table { width: 100%; border-collapse: collapse; text-align: left; }
+.cheatsheet-table th, .cheatsheet-table td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--line); }
+.cheatsheet-table thead { background: #f1f5f9; }
+.cheatsheet-table tbody th { font-weight: 500; }
 @media (max-width: 560px) {
   .foundry-metadata { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
   .foundry-metadata dd { margin-bottom: 0.6rem; }

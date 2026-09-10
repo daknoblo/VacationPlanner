@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,19 +55,28 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	links, err := itemLinksFromForm(r)
+	if err != nil {
+		return nil, err
+	}
+	paidBy, err := parseBudgetPayer(r)
+	if err != nil {
+		return nil, err
+	}
 
 	return &models.Item{
 		Category:    category,
 		Title:       title,
 		Description: description,
 		Location:    location,
+		Links:       links,
 		Latitude:    lat,
 		Longitude:   lng,
 		Day:         day,
 		StartMin:    startMin,
 		EndMin:      endMin,
 		Cost:        cost,
-		PaidBy:      parsePaidBy(r),
+		PaidBy:      paidBy,
 		Notes:       notes,
 	}, nil
 }
@@ -79,10 +89,37 @@ func parseCostPtr(r *http.Request, loc *i18n.Localizer) (*float64, error) {
 	}
 	v = strings.ReplaceAll(v, ",", ".")
 	f, err := strconv.ParseFloat(v, 64)
-	if err != nil || f < 0 {
+	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 {
 		return nil, errValidation(loc.T("error.cost_invalid"))
 	}
 	return &f, nil
+}
+
+func itemLinksFromForm(r *http.Request) ([]models.ItemLink, error) {
+	invalid := errValidation(i18n.FromContext(r.Context()).T("error.item_links_invalid"))
+	if err := r.ParseForm(); err != nil {
+		return nil, invalid
+	}
+	kinds, urls := r.PostForm["link_kind"], r.PostForm["link_url"]
+	if len(kinds) != len(urls) || len(kinds) > 8 {
+		return nil, invalid
+	}
+	links := make([]models.ItemLink, 0, len(kinds))
+	seen := make(map[string]bool)
+	for i, kind := range kinds {
+		link := models.ItemLink{Kind: kind, URL: models.SafeExternalURL(urls[i])}
+		if link.URL == "" {
+			return nil, invalid
+		}
+		if !seen[link.URL] {
+			links = append(links, link)
+			seen[link.URL] = true
+		}
+	}
+	if err := models.ValidateItemLinks(links); err != nil {
+		return nil, invalid
+	}
+	return links, nil
 }
 
 // parseMinutes parses "HH:MM" (or a bare minute count) into minutes from
@@ -235,7 +272,21 @@ func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	categories, _ := s.store.ListCategories(r.Context())
+	categories, err := s.store.ListCategories(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	knownCategory := item.Category == ""
+	for _, category := range categories {
+		if category.Name == item.Category {
+			knownCategory = true
+			break
+		}
+	}
+	if !knownCategory {
+		categories = append(categories, models.Category{Name: item.Category})
+	}
 	participants := s.formPayerOptions(r.Context(), item.VacationID)
 	s.fragment(w, r, "item_edit", map[string]any{
 		"Item":         item,
@@ -291,7 +342,14 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	existing.Description = description
 	existing.Day = day
 	existing.Cost = cost
-	existing.PaidBy = parsePaidBy(r)
+	paidBy, err := parseBudgetPayer(r)
+	if err != nil {
+		s.formError(w, r, "#item-error", err.Error())
+		return
+	}
+	if r.PostForm.Has("paid_by") {
+		existing.PaidBy = paidBy
+	}
 
 	startStr := strings.TrimSpace(formStr(r, "start"))
 	endStr := strings.TrimSpace(formStr(r, "end"))

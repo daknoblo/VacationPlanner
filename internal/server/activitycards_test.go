@@ -17,9 +17,10 @@ func TestLodgingForDay(t *testing.T) {
 	ci := time.Date(2026, 8, 2, 15, 0, 0, 0, time.UTC)
 	co := time.Date(2026, 8, 5, 11, 0, 0, 0, time.UTC)
 	lodgings := []models.Lodging{
-		{Name: "NoGeo", CheckIn: ci, CheckOut: co}, // no coords → skipped
+		{Name: "NoGeo", CheckIn: ci, CheckOut: co},
 		{Name: "Hotel", Latitude: fptr(1), Longitude: fptr(2), CheckIn: ci, CheckOut: co},
 	}
+
 	day := func(d int) time.Time { return time.Date(2026, 8, d, 0, 0, 0, 0, time.UTC) }
 	if l := lodgingForDay(time.UTC, lodgings, day(3)); l == nil || l.Name != "Hotel" {
 		t.Fatalf("covered day: want Hotel, got %v", l)
@@ -32,6 +33,44 @@ func TestLodgingForDay(t *testing.T) {
 	}
 	if l := lodgingForDay(time.UTC, lodgings, day(6)); l != nil {
 		t.Fatalf("after check-out: want nil, got %v", l)
+	}
+}
+
+func TestDayHotelChangeAndMissingCoordinates(t *testing.T) {
+	loc := i18n.NewLocalizer(i18n.LangEN)
+	day := time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)
+	old := models.Lodging{ID: uuid.New(), Name: "Old hotel", CheckIn: day.Add(-72 * time.Hour), CheckOut: day.Add(11 * time.Hour), Latitude: fptr(1), Longitude: fptr(2)}
+	next := models.Lodging{ID: uuid.New(), Name: "New hotel", CheckIn: day.Add(15 * time.Hour), CheckOut: day.Add(72 * time.Hour), Latitude: fptr(3), Longitude: fptr(4)}
+	for _, stays := range [][]models.Lodging{{old, next}, {next, old}} {
+		v := &models.Vacation{Lodgings: stays}
+		pt, label := dayHotel(loc, time.UTC, v, day)
+		if pt == nil || pt.Lat != 1 || label != "🛏 Old hotel" {
+			t.Fatalf("checkout day's overnight hotel must win independently of input order: %v %q", pt, label)
+		}
+		pt, label = dayHotel(loc, time.UTC, v, day.AddDate(0, 0, 1))
+		if pt == nil || pt.Lat != 3 || label != "🛏 New hotel" {
+			t.Fatalf("following day must use new hotel: %v %q", pt, label)
+		}
+	}
+	old.Latitude, old.Longitude = nil, nil
+	v := &models.Vacation{Lodgings: []models.Lodging{old, next}, Latitude: fptr(10), Longitude: fptr(20)}
+	pt, label := dayHotel(loc, time.UTC, v, day)
+	if pt != nil || label != "🛏 Old hotel" {
+		t.Fatalf("an unlocated booked hotel must not silently become the destination: %v %q", pt, label)
+	}
+}
+
+func TestResolveOriginDoesNotSkipMissingStopsOrUseSelf(t *testing.T) {
+	a := models.Item{ID: uuid.New(), Title: "Unlocated"}
+	b := models.Item{ID: uuid.New(), Title: "Located", Latitude: fptr(2), Longitude: fptr(3)}
+	items := []models.Item{a, b}
+	hotel := &route.Point{Lat: 4, Lng: 5}
+	for _, ref := range []string{"", a.ID.String(), b.ID.String()} {
+		items[1].OriginRef = ref
+		point, label := resolveOrigin(items, 1, hotel, "Hotel")
+		if point != nil || label != a.Title {
+			t.Fatalf("origin %q: want missing coordinates at Unlocated, got %v %q", ref, point, label)
+		}
 	}
 }
 

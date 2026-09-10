@@ -1,0 +1,43 @@
+{{define "day_route"}}
+<section class="day-journey" aria-label="{{t "dayroute.heading"}}">
+  <header class="day-journey__header">
+    <h3>{{t "dayroute.heading"}} · <time datetime="{{.Day}}">{{.Day}}</time></h3>
+    {{if .Legs}}
+    <dl class="day-journey__totals">
+      <div><dt>{{t "dayroute.distance"}}</dt><dd>{{if .Distance}}{{.Distance}}{{else}}{{t "dayroute.unknown"}}{{end}}</dd></div>
+      <div><dt>{{t "dayroute.driving"}}</dt><dd>{{if .Duration}}{{.Duration}}{{else}}{{t "dayroute.unknown"}}{{end}}</dd></div>
+    </dl>
+    {{end}}
+  </header>
+  <p class="muted">{{t "dayroute.scope"}}</p>
+  <p class="muted">{{t "dayroute.hotel.rule"}}</p>
+  {{if .Missing}}<p class="day-journey__warning">{{t "dayroute.partial"}} ({{.Missing}})</p>{{end}}
+  {{if .Approx}}<p class="day-journey__warning">{{t "dayroute.approx.note"}} ({{.Approx}})</p>{{end}}
+  {{if .Legs}}
+  <ol class="day-journey__flow" tabindex="0" aria-label="{{t "dayroute.stops"}}">
+    <li class="day-journey__base"><span class="muted">{{t "dayroute.start"}}</span><strong>{{.Base}}</strong></li>
+    {{range .Legs}}
+    <li class="day-journey__stop{{if .Missing}} day-journey__stop--missing{{end}}">
+      <div class="day-journey__leg">
+        <span aria-hidden="true">→</span>
+        <span>{{t "dayroute.from"}} <strong>{{.Origin}}</strong></span>
+        {{if .Override}}<span class="day-journey__badge">{{t "dayroute.override"}}</span>{{end}}
+        {{if .Missing}}
+        <span>{{t "dayroute.missing"}}</span>
+        {{else}}
+        <strong>{{.Distance}}{{if .Duration}} · {{.Duration}}{{end}}</strong>
+        {{if .Approx}}<span>{{t "dayroute.approx"}}</span>{{end}}
+        {{end}}
+      </div>
+      <div class="day-journey__visit">
+        <strong>{{.Title}}</strong>
+        <span>{{if .VisitTime}}{{t "dayroute.visit"}} {{.VisitTime}}{{else}}{{t "dayroute.untimed"}}{{end}}</span>
+      </div>
+    </li>
+    {{end}}
+  </ol>
+  {{else}}
+  <p class="muted">{{t "dayroute.empty"}}</p>
+  {{end}}
+</section>
+{{end}}

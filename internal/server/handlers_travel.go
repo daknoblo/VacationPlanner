@@ -22,6 +22,7 @@ type travelBlockView struct {
 	VID   string
 	Multi bool
 	Steps []travelEditorView
+	Error string
 }
 
 // travelEditorView is the data for one inline arrival/departure step editor.
@@ -29,8 +30,9 @@ type travelEditorView struct {
 	Seg          *models.TravelSegment
 	VID          string
 	Kind         models.TravelKind
-	Number       int  // 1-based position shown to the user
-	StepOrder    int  // stable key within the kind
+	Number       int // 1-based position shown to the user
+	StepOrder    int // stable key within the kind
+	EditorKey    string
 	Multi        bool // block has more than one step (shows connectors + remove)
 	Home         string
 	DepartDate   string // date input value (YYYY-MM-DD), defaulted to the trip start/end
@@ -125,6 +127,10 @@ func (s *Server) newTravelStepView(ctx context.Context, tz *time.Location, v *mo
 		Approx:       !routed || !s.routing.Enabled(),
 		Participants: v.Participants,
 	}
+	ev.EditorKey = seg.ID.String()
+	if seg.ID == uuid.Nil {
+		ev.EditorKey = string(seg.Kind) + "-" + strconv.Itoa(seg.StepOrder)
+	}
 	if seg.DistanceM != nil {
 		ev.DistLabel = formatDistance(*seg.DistanceM)
 	}
@@ -205,10 +211,46 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, errTarget, err.Error())
 		return
 	}
+	segmentID := uuid.Nil
+	if raw := formStr(r, "segment_id"); raw != "" {
+		segmentID, err = uuid.Parse(raw)
+		if err != nil {
+			s.notFound(w, r)
+			return
+		}
+	}
+	var previous *models.TravelSegment
+	if segmentID != uuid.Nil || !r.PostForm.Has("paid_by") {
+		segments, listErr := s.store.ListTravelSegments(r.Context(), vacationID)
+		if listErr != nil {
+			s.serverError(w, r, listErr)
+			return
+		}
+		for i := range segments {
+			existing := &segments[i]
+			if (segmentID == uuid.Nil || existing.ID == segmentID) && existing.Kind == kind && existing.StepOrder == stepOrder {
+				previous = existing
+				break
+			}
+		}
+		if segmentID != uuid.Nil && previous == nil {
+			s.notFound(w, r)
+			return
+		}
+	}
+	paidBy, err := parseBudgetPayer(r)
+	if err != nil {
+		s.formError(w, r, errTarget, err.Error())
+		return
+	}
+	if !r.PostForm.Has("paid_by") && previous != nil {
+		paidBy = previous.PaidBy
+	}
 	fromLat, fromLng, _ := parseCoords(r, "from_lat", "from_lng")
 	toLat, toLng, _ := parseCoords(r, "to_lat", "to_lng")
 
 	seg := &models.TravelSegment{
+		ID:           segmentID,
 		VacationID:   vacationID,
 		Kind:         kind,
 		StepOrder:    stepOrder,
@@ -221,7 +263,7 @@ func (s *Server) handleSaveTravel(w http.ResponseWriter, r *http.Request) {
 		ToLng:        toLng,
 		DepartAt:     departAt,
 		Cost:         cost,
-		PaidBy:       parsePaidBy(r),
+		PaidBy:       paidBy,
 		Notes:        notes,
 	}
 	s.computeTravel(r.Context(), seg)
@@ -284,7 +326,7 @@ func (s *Server) appendTravelStep(ctx context.Context, v *models.Vacation, kind 
 }
 
 // handleToggleTravelMulti enables or disables multi-stop for a kind. Enabling
-// ensures a first leg exists and adds a second; disabling drops the extra legs.
+// ensures a first leg exists and adds a second; disabling preserves saved legs.
 func (s *Server) handleToggleTravelMulti(w http.ResponseWriter, r *http.Request) {
 	vacationID, err := urlUUID(r, "vacationID")
 	if err != nil {
@@ -328,16 +370,14 @@ func (s *Server) handleToggleTravelMulti(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	} else {
-		for i := 1; i < len(steps); i++ {
-			if err := s.store.DeleteTravelSegment(r.Context(), steps[i].ID); err != nil && !isNotFound(err) {
-				s.serverError(w, r, err)
-				return
-			}
-			if err := s.store.DeleteTravelStepDocuments(r.Context(), vacationID, kind, steps[i].StepOrder); err != nil {
-				s.serverError(w, r, err)
-				return
-			}
-		}
+		// A presentation toggle must not delete bookings, costs or documents.
+		_, tz := s.regionSettings(r.Context())
+		block := s.travelBlock(r.Context(), tz, v, kind)
+		block.Error = i18n.FromContext(r.Context()).T("travel.remove_steps_first")
+		s.fragment(w, r, "travel_block_wrap", map[string]any{
+			"Block": block, "Total": travelTotalFor(v, kind, true),
+		})
+		return
 	}
 	s.renderTravelBlock(w, r, vacationID, kind)
 }
@@ -361,20 +401,38 @@ func (s *Server) handleRemoveTravelStep(w http.ResponseWriter, r *http.Request) 
 	}
 	// Look up the leg's step order first so its documents can be removed too;
 	// otherwise they could resurface on a later leg reusing the same order.
+	v, err := s.loadVacationFull(r.Context(), vacationID)
+	if err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+		} else {
+			s.serverError(w, r, err)
+		}
+		return
+	}
 	step := -1
-	if v, lerr := s.loadVacationFull(r.Context(), vacationID); lerr == nil {
-		for _, ts := range v.TravelSegments {
-			if ts.ID == travelID {
-				step = ts.StepOrder
-				break
-			}
+	for _, ts := range v.TravelSegments {
+		if ts.ID == travelID && ts.Kind == kind {
+			step = ts.StepOrder
+			break
+		}
+	}
+	if step < 0 {
+		s.notFound(w, r)
+		return
+	}
+	sharedDocuments := false
+	for _, ts := range v.TravelSegments {
+		if ts.ID != travelID && ts.Kind == kind && ts.StepOrder == step {
+			sharedDocuments = true
+			break
 		}
 	}
 	if err := s.store.DeleteTravelSegment(r.Context(), travelID); err != nil && !isNotFound(err) {
 		s.serverError(w, r, err)
 		return
 	}
-	if step >= 0 {
+	if !sharedDocuments {
 		if err := s.store.DeleteTravelStepDocuments(r.Context(), vacationID, kind, step); err != nil {
 			s.serverError(w, r, err)
 			return

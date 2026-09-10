@@ -7,6 +7,7 @@
   <meta name="csrf-token" content="{{.CSRFToken}}">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/css/app.css?v={{.AssetVer}}">
+  {{if eq .Page "vacation"}}<link rel="stylesheet" href="/static/css/dayroute.css?v={{.AssetVer}}">{{end}}
 </head>
 <body class="page-{{.Page}}" data-week-start="{{.WeekStart}}">
   <header class="topbar">

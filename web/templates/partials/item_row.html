@@ -10,6 +10,7 @@
       </div>
     </div>
     {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
+    {{template "item_reference_links" .}}
     {{if or .Cost .HasCoords}}
     <p class="muted small">
       {{if .Cost}}💶 {{cost .Cost}}{{end}}
@@ -36,6 +37,21 @@
             hx-confirm="{{t "item.confirm_delete"}}">✕</button>
   </div>
 </li>
+{{end}}
+
+{{define "item_links"}}
+{{if .}}<div class="suggestion__links">
+  {{range .}}{{$link := .}}{{with .SafeURL}}<a class="suggestion__link" href="{{.}}" target="_blank" rel="noopener noreferrer">{{t (printf "ai.%s" $link.Kind)}}</a>{{end}}{{end}}
+</div>{{end}}
+{{end}}
+
+{{define "item_reference_links"}}
+{{if .Links}}{{template "item_links" .Links}}{{else}}
+<div class="suggestion__links">
+  <a class="suggestion__link" href="https://en.wikipedia.org/w/index.php?search={{.Title}}" target="_blank" rel="noopener noreferrer">{{t "ai.wikipedia"}}</a>
+  <a class="suggestion__link" href="https://www.tripadvisor.com/Search?q={{.Title}}" target="_blank" rel="noopener noreferrer">{{t "ai.tripadvisor"}}</a>
+</div>
+{{end}}
 {{end}}
 
 {{define "item_created"}}

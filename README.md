@@ -19,7 +19,7 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Dashboard** – a card per trip with a **budget donut** (spent vs. budget), a **countdown**
   ("in X days" / "ongoing" / "past") and quick access to the detail view.
 - **Tabbed trip detail** – Overview · General · Arrival & Departure · Accommodation · Day plan ·
-  Ideas · Budget.
+  Ideas · Budget · Cheatsheet.
 
 ### Arrival & departure (travel)
 
@@ -46,6 +46,20 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   (origin → distance → time between consecutive stops, using the hotel or the previous stop).
 - **Ideas backlog** – unscheduled items you can **drag onto the calendar** to schedule them.
 - **Inline editing** and **image thumbnails** (Wikipedia) on activities and idea rows.
+- **Saved references** – adding an AI idea preserves its external links and supplied
+  coordinates through editing and scheduling. Existing items without saved references
+  still offer Wikipedia and Tripadvisor searches; previously discarded original URLs
+  cannot be reconstructed.
+
+### Travel cheatsheet
+
+- A **Cheatsheet** tab next to Budget creates a fixed selection of 22 useful words and
+  phrases with the existing AI deployment: greetings, please/thank you, yes/no, help,
+  food, directions and payment. The destination and coordinates guide country/language
+  selection; the table shows the meaning, local spelling and pronunciation.
+- Results are saved per trip and UI language. Opening the tab does not generate again.
+  Changing the destination invalidates the displayed cache; regeneration is explicit,
+  and a failed regeneration preserves the previous saved result.
 
 ### Map
 
@@ -59,6 +73,13 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   categories, weekday/date/time, cost, and **click-to-recenter** on the map, plus **quick notes**.
 - **Budget** – budget vs. spent across items, lodging and travel, broken down by category with
   icons, in the configured **currency** (€ / $).
+- Budget expenses are a **read-only aggregation of their original bookings**, not a second
+  ledger. Source links open the existing hotel, travel leg or POI editor. Missing or
+  unavailable payers remain explicit and are excluded from settlement, never guessed.
+  Known payers stay selectable even when they are not trip participants.
+- Travel autosaves address the original booking UUID. First saves resolve a slot inside
+  a transaction, preventing concurrent autosaves from inserting duplicate bookings.
+  Existing independent records are not heuristically merged or deleted.
 
 ### AI (optional)
 
@@ -78,6 +99,10 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   geocoding with destination bias.
 - **Routing** – **OpenRouteService** (or a Haversine fallback) for driving distance/duration
   between stops.
+- The daily route displays ordered legs above the day planner, from the overnight hotel
+  (or the available base) to assigned stops. It ends at the last stop, without adding a
+  return journey or expenses. Supply `ROUTER_API_KEY` for road distance and driving time;
+  missing coordinates and straight-line estimates are shown separately from routed totals.
 
 ### Export & documents
 
@@ -93,7 +118,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Regional settings** – timezone, week start and currency (the IANA database is embedded).
 - **Home address**, **geocoder** and **router** base URLs, configured at runtime.
 - **AI settings** – read-only discovered endpoint/status, compatible chat deployment selection,
-  discovery refresh and a cost-consent connection check; no manual URL, model or API-version form.
+  discovery refresh and automatic connection checking when the selected deployment changes.
+  A recheck button remains; no consent checkbox or manual URL/model/API-version form.
 - **Custom categories** – manage the pick-list (with an icon picker) used on item/activity forms.
 - **Diagnostics** – runtime **log level** switch and an auto-refreshing **log viewer**;
   **statistics** including a document count.
@@ -226,11 +252,13 @@ Use a complete **account** ID, not a Foundry project URL, project name or deploy
    While startup discovery is running, the AI settings section updates automatically
    from local status; status polling does not trigger additional Azure requests.
 3. Settings displays the **actual discovered endpoint and status read-only**. Choose an
-   actual compatible chat deployment from the main account's **select list** and save it.
+   actual compatible chat deployment from the main account's **select list**. A changed
+   selection is saved and checked automatically.
    A deployment alias such as `<text-deployment-name>` is not the canonical model name.
-4. Run the separate text connection check deliberately and tick its cost-consent checkbox:
-   it makes **one** inference request with `max_completion_tokens=256`, with no automatic
-   retry, and **can incur token charges**. Discovery success alone does not prove inference
+4. The automatic check (or an explicit recheck) makes **one** inference request with
+   `max_completion_tokens=256`, with no automatic retry, and **can incur token charges**.
+   Repeated submissions of the same selected deployment do not generate another automatic
+   check. Discovery success alone does not prove inference
    access. Foundry recommendations use an `8192` completion-token budget.
    A reasoning model may exhaust the small probe budget before producing visible text;
    that is reported as no text response, not as proof of invalid credentials.
@@ -378,6 +406,12 @@ assignment above. Prefer separate identities per application/environment.
 
 ### Breaking upgrade: identity-only AI
 
+The trip-experience update additionally applies migration `0018_item_links.sql`
+and `0019_cheatsheets.sql` to retain item references and cached travel vocabulary.
+Back up before updating and keep the same database volume. Route views do not add
+expense records. Existing costs without a payer remain visible until explicitly
+assigned at the original booking.
+
 The API-key provider mode and classic Azure inference adapter have been **removed**.
 Generic OpenAI, Ollama, LocalAI and vLLM API-key configurations no longer enable AI.
 The application no longer reads `VP_API_KEY`, `AZURE_ENDPOINT`, `AZURE_DEPLOYMENT`,
@@ -394,7 +428,7 @@ provider mode.
 
 To use AI after upgrading, inject the four required identity variables, keep the same data
 volume, and recreate the container. Review discovery status in Settings, explicitly select
-a compatible deployment if none is saved, and use the optional cost-consent probe. Existing
+a compatible deployment if none is saved; selection automatically checks it. Existing
 saved Foundry choices are never automatically switched to a different deployment.
 
 Verified references:

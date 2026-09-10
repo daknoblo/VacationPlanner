@@ -36,7 +36,7 @@
   </section>
   {{end}}
 
-  <form class="form" method="post" action="/settings/ai" hx-post="/settings/ai" hx-target="#foundry-settings-panel" hx-swap="outerHTML">
+  <form class="form" method="post" action="/settings/ai" hx-post="/settings/ai" hx-trigger="change" hx-target="#foundry-settings-panel" hx-swap="outerHTML" hx-disabled-elt="select" hx-indicator="#foundry-checking">
     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
     <div class="field">
       <label for="ai-deployment">{{t "settings.foundry.deployment"}}</label>
@@ -50,8 +50,9 @@
       {{if .SelectionError}}<p class="form-error">{{t "settings.foundry.selection_error"}}: {{.SelectionError}}</p>{{end}}
       {{if not .Choices}}<p class="muted small">{{t "settings.foundry.no_choices"}}</p>{{end}}
     </div>
-    <div><button class="btn" type="submit"{{if or .Pending (not .Choices)}} disabled{{end}}>{{t "settings.foundry.save"}}</button></div>
+    <p class="muted small">{{t "settings.foundry.auto_check"}}</p>
   </form>
+  <p id="foundry-checking" class="foundry-checking muted small" role="status">{{t "settings.foundry.checking"}}</p>
   <div id="ai-settings-error" class="form-error" role="status">{{.ActionError}}</div>
   <form class="foundry-refresh" method="post" action="/settings/ai/discover" hx-post="/settings/ai/discover" hx-target="#foundry-settings-panel" hx-swap="outerHTML" hx-disabled-elt="button">
     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
@@ -66,7 +67,6 @@
     <form class="form" method="post" action="/settings/ai/probe" hx-post="/settings/ai/probe" hx-target="#foundry-settings-panel" hx-swap="outerHTML" hx-disabled-elt="button">
       <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
       <p class="muted small">{{t "settings.foundry.probe_hint"}}</p>
-      <label class="foundry-consent"><input type="checkbox" name="confirm_cost" value="yes" required{{if or .Pending (not .SelectionValid)}} disabled{{end}}> <span>{{t "settings.foundry.confirm_cost"}}</span></label>
       <div><button class="btn" type="submit"{{if or .Pending (not .SelectionValid)}} disabled{{end}}>{{t "settings.foundry.probe"}}</button></div>
     </form>
   </section>

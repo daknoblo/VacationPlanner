@@ -147,8 +147,20 @@ func (s *Server) handleUpdateFoundrySettings(w http.ResponseWriter, r *http.Requ
 		s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("error.input_toolong"))
 		return
 	}
+	if !s.acquireAISelection(w, r) {
+		return
+	}
+	defer func() { <-s.aiSelectionGate }()
+	settings, err := s.settings(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	changed := deployment != s.foundryDeployment(settings)
+	var target foundry.Target
 	if deployment != "" {
-		if _, err := s.foundry.ResolveChat(r.Context(), deployment); err != nil {
+		target, err = s.foundry.ResolveChat(r.Context(), deployment)
+		if err != nil {
 			s.formError(w, r, "#ai-settings-error", i18n.FromContext(r.Context()).T("settings.foundry.selection_error")+": "+err.Error())
 			return
 		}
@@ -157,7 +169,23 @@ func (s *Server) handleUpdateFoundrySettings(w http.ResponseWriter, r *http.Requ
 		s.serverError(w, r, err)
 		return
 	}
+	if changed && deployment != "" {
+		if err := s.checkFoundryDeployment(r.Context(), target); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
 	s.foundrySettingsResponse(w, r, "")
+}
+
+func (s *Server) acquireAISelection(w http.ResponseWriter, r *http.Request) bool {
+	select {
+	case s.aiSelectionGate <- struct{}{}:
+		return true
+	case <-r.Context().Done():
+		s.serverError(w, r, r.Context().Err())
+		return false
+	}
 }
 
 func (s *Server) handleFoundryDiscover(w http.ResponseWriter, r *http.Request) {
@@ -226,10 +254,10 @@ func (s *Server) handleFoundryProbe(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "#ai-settings-error", loc.T("settings.foundry.not_configured"))
 		return
 	}
-	if formStr(r, "confirm_cost") != "yes" {
-		s.formError(w, r, "#ai-settings-error", loc.T("settings.foundry.confirm_required"))
+	if !s.acquireAISelection(w, r) {
 		return
 	}
+	defer func() { <-s.aiSelectionGate }()
 	settings, err := s.settings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
@@ -241,24 +269,26 @@ func (s *Server) handleFoundryProbe(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "#ai-settings-error", loc.T("settings.foundry.selection_error")+": "+err.Error())
 		return
 	}
-	fingerprint, err := chatTargetFingerprint(target)
-	if err != nil {
+	if err := s.checkFoundryDeployment(r.Context(), target); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
+	s.foundrySettingsResponse(w, r, "")
+}
+
+func (s *Server) checkFoundryDeployment(ctx context.Context, target foundry.Target) error {
+	fingerprint, err := chatTargetFingerprint(target)
+	if err != nil {
+		return err
+	}
 	probe := foundryProbeResult{Target: fingerprint, At: time.Now().UTC()}
-	if err := s.ai.Probe(r.Context(), target); err != nil {
+	if err := s.ai.Probe(ctx, target); err != nil {
 		probe.Error = err.Error()
 		s.log.Warn("AI text probe failed", "err", err)
 	}
 	data, err := json.Marshal(probe)
 	if err != nil {
-		s.serverError(w, r, err)
-		return
+		return err
 	}
-	if err := s.putSetting(r.Context(), s.foundrySettingKey("probe"), string(data)); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	s.foundrySettingsResponse(w, r, "")
+	return s.putSetting(ctx, s.foundrySettingKey("probe"), string(data))
 }

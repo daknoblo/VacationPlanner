@@ -3,6 +3,7 @@
   <label class="travel-multistop">
     <input type="checkbox" name="on" value="1"{{if .Multi}} checked{{end}}
            hx-post="/vacations/{{.VID}}/travel/multistop?kind={{.Kind}}"
+           hx-disabled-elt="this"
            hx-target="#travel-block-{{.Kind}}"
            hx-swap="outerHTML">
     <span>{{t "travel.multistop"}}</span>
@@ -13,15 +14,16 @@
   {{if .Multi}}
   <button type="button" class="btn btn--sm travel-addstep"
           hx-post="/vacations/{{.VID}}/travel/step?kind={{.Kind}}"
+          hx-disabled-elt="this"
           hx-target="#travel-block-{{.Kind}}"
           hx-swap="outerHTML">＋ {{t "travel.add_step"}}</button>
   {{end}}
-  <div id="travel-error-{{.Kind}}" class="form-error"></div>
+  <div id="travel-error-{{.Kind}}" class="form-error">{{.Error}}</div>
 </div>
 {{end}}
 
 {{define "travel_step"}}
-<div class="travel-step-wrap">
+<div class="travel-step-wrap" id="travel-{{.EditorKey}}">
   {{if .Multi}}<span class="travel-step__badge" aria-hidden="true">{{.Number}}</span>{{end}}
   {{if .Multi}}
   <button type="button" class="travel-step__remove"
@@ -34,10 +36,12 @@
   <form class="form travel-step" data-travel-editor
         hx-post="/vacations/{{.VID}}/travel"
         hx-trigger="change delay:300ms"
-        hx-target="#travel-out-{{.Kind}}-{{.StepOrder}}"
+        hx-sync="this:queue last"
+        hx-target="#travel-out-{{.EditorKey}}"
         hx-swap="innerHTML">
     <input type="hidden" name="kind" value="{{.Kind}}">
     <input type="hidden" name="step_order" value="{{.StepOrder}}">
+    <input type="hidden" name="segment_id" value="{{.Seg.ID}}">
     <input type="hidden" name="from_lat" value="{{coord .Seg.FromLat}}">
     <input type="hidden" name="from_lng" value="{{coord .Seg.FromLng}}">
     <input type="hidden" name="to_lat" value="{{coord .Seg.ToLat}}">
@@ -95,7 +99,7 @@
 
       <div class="field field--out">
         <label>{{t "travel.distance"}}</label>
-        <div id="travel-out-{{.Kind}}-{{.StepOrder}}" class="travel-out">{{template "travel_out" .}}</div>
+        <div id="travel-out-{{.EditorKey}}" class="travel-out">{{template "travel_out" .}}</div>
       </div>
 
       <div class="field field--note">
@@ -112,7 +116,7 @@
 {{end}}
 
 {{define "travel_out"}}
-<p class="travel-computed">
+<p class="travel-computed" data-travel-source-id="{{.Seg.ID}}">
   {{- if .DistLabel}}📏 {{.DistLabel}}{{if .DurLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurLabel}}{{end}}{{end -}}
   {{- if .ArriveLabel}}{{if .DistLabel}} · {{end}}🛬 {{t "travel.arrive"}}: {{.ArriveLabel}}{{end -}}
   {{- if and (not .DistLabel) (not .ArriveLabel)}}<span class="muted small">{{t "travel.distance.hint"}}</span>{{end -}}
@@ -128,4 +132,3 @@
 {{define "travel_saved"}}{{template "travel_out" .Step}}{{template "travel_total" .Total}}{{end}}
 
 {{define "travel_block_wrap"}}{{template "travel_block" .Block}}{{template "travel_total" .Total}}{{end}}
-

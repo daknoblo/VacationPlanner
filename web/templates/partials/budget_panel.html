@@ -1,22 +1,27 @@
 {{define "budget_panel"}}
 {{$b := .}}
+<p class="muted small">{{t "budget.derived_hint"}}</p>
 {{if or $b.HasBudget (gt $b.ExpenseCount 0)}}
 <div class="budget">
-  {{if $b.HasBudget}}
   <div class="budget__summary">
+    {{if $b.HasBudget}}
     <div class="budget__stat">
       <span class="budget__label">{{t "budget.total"}}</span>
       <span class="budget__value">{{bmoneyp $b.Total $b.Currency}}</span>
     </div>
+    {{end}}
     <div class="budget__stat">
       <span class="budget__label">{{t "budget.spent"}}</span>
       <span class="budget__value">{{bmoney $b.Spent $b.Currency}}</span>
     </div>
+    {{if $b.HasBudget}}
     <div class="budget__stat budget__stat--remaining{{if $b.Over}} is-over{{end}}">
       <span class="budget__label">{{t "budget.remaining"}}</span>
       <span class="budget__value">{{bmoney $b.Remaining $b.Currency}}</span>
     </div>
+    {{end}}
   </div>
+  {{if $b.HasBudget}}
   <div class="budget__bar">
     <div class="budget__bar-fill{{if $b.Over}} is-over{{end}}" style="width:{{$b.PercentClamped}}%"></div>
   </div>
@@ -27,8 +32,12 @@
   </ul>
   {{end}}
 
+  {{if gt $b.UnassignedCount 0}}
+  <p class="notice" role="status">{{t "budget.unassigned_action"}}: <strong>{{bmoney $b.Unassigned $b.Currency}}</strong> ({{$b.UnassignedCount}})</p>
+  {{end}}
   {{if $b.HasPeople}}
   <h3 class="budget__heading">{{t "budget.people_heading"}}</h3>
+  <p class="muted small">{{t "budget.split_hint"}}</p>
   <div class="budget-people">
     {{range $b.Persons}}
     <div class="budget-person" {{colorStyle .Color}}>
@@ -62,10 +71,9 @@
     </li>
     {{end}}
   </ul>
-  {{else}}
+  {{else if eq $b.UnassignedCount 0}}
   <p class="muted small">{{t "budget.all_settled"}}</p>
   {{end}}
-  {{if gt $b.Unassigned 0.005}}<p class="muted small">{{t "budget.unassigned_note"}}: {{bmoney $b.Unassigned $b.Currency}}</p>{{end}}
   {{end}}
 
   {{if gt $b.ExpenseCount 0}}
@@ -148,8 +156,8 @@
   <ul class="budget__expenses">
     {{range $b.Expenses}}
     <li class="budget-exp" data-payer="{{.PayerID}}">
-      <span class="budget-exp__title">{{if .Icon}}{{.Icon}} {{end}}{{.Title}}</span>
-      {{if .PayerName}}<span class="budget-exp__payer"><span class="person-dot" {{colorStyle .PayerColor}}></span> {{.PayerName}}</span>{{end}}
+      <a class="budget-exp__title" href="#budget-source-{{.Source}}-{{.SourceID}}" data-budget-source="{{.Source}}" data-budget-source-id="{{.SourceID}}" title="{{t "budget.edit_source"}}">{{if .Icon}}{{.Icon}} {{end}}{{.Title}} · {{t "budget.edit_source"}}</a>
+      {{if .PayerName}}<span class="budget-exp__payer"><span class="person-dot" {{colorStyle .PayerColor}}></span> {{.PayerName}}</span>{{else}}<span class="budget-exp__payer">{{t "paid_by.unassigned"}}</span>{{end}}
       {{if .DayLabel}}<span class="budget-exp__day">{{.DayLabel}}</span>{{end}}
       <span class="budget-exp__amount">{{bmoney .Amount $b.Currency}}</span>
     </li>

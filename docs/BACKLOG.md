@@ -56,6 +56,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Travel experience update — automatic deployment checks without a checkbox,
+      cached destination-language Cheatsheet with 22 phrases, persistent idea links
+      and coordinates, and a graphical hotel-to-POI daily route.
+- [x] Source-based budget corrections — link expenses to original entries, preserve
+      payer/category metadata on edits, retain bookings when toggling multistop, and
+      make travel autosaves transactional and UUID-scoped.
 - [x] Foundry-only AI configuration — remove the legacy API-key/classic adapters
       and endpoint/model/version overrides; resolve advertised account endpoints
       automatically and replace manual inputs with discovered deployment selection

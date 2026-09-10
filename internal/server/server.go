@@ -4,6 +4,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 	"sync/atomic"
 
 	"github.com/go-chi/chi/v5"
@@ -20,19 +21,21 @@ import (
 
 // Server is the top-level HTTP application.
 type Server struct {
-	cfg           *config.Config
-	log           *slog.Logger
-	logs          *applog.Controller
-	store         store.Store
-	ai            *ai.Client
-	foundry       foundryConnection
-	aiDiscoveries atomic.Int32
-	geo           *geo.Client
-	routing       *route.Client
-	destImg       *destimg.Client
-	render        *renderer
-	limiter       *ipRateLimiter
-	router        chi.Router
+	cfg             *config.Config
+	log             *slog.Logger
+	logs            *applog.Controller
+	store           store.Store
+	ai              *ai.Client
+	foundry         foundryConnection
+	aiDiscoveries   atomic.Int32
+	aiSelectionGate chan struct{}
+	cheatsheetJobs  sync.Map
+	geo             *geo.Client
+	routing         *route.Client
+	destImg         *destimg.Client
+	render          *renderer
+	limiter         *ipRateLimiter
+	router          chi.Router
 }
 
 // New constructs a Server and wires up all routes.
@@ -43,16 +46,17 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 	}
 
 	s := &Server{
-		cfg:     cfg,
-		log:     log,
-		logs:    logs,
-		store:   st,
-		ai:      ai.New(nil),
-		geo:     geo.New(cfg.GeocoderAPIKey),
-		routing: route.New(cfg.RouterAPIKey),
-		destImg: destimg.New(),
-		render:  r,
-		limiter: newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300
+		cfg:             cfg,
+		log:             log,
+		logs:            logs,
+		store:           st,
+		ai:              ai.New(nil),
+		aiSelectionGate: make(chan struct{}, 1),
+		geo:             geo.New(cfg.GeocoderAPIKey),
+		routing:         route.New(cfg.RouterAPIKey),
+		destImg:         destimg.New(),
+		render:          r,
+		limiter:         newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300
 	}
 	if cfg.Azure.Requested() {
 		s.foundry, err = foundry.New(cfg.Azure, st)

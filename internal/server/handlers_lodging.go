@@ -43,6 +43,10 @@ func (s *Server) lodgingFromForm(r *http.Request, tz *time.Location) (*models.Lo
 	if err != nil {
 		return nil, err
 	}
+	paidBy, err := parseBudgetPayer(r)
+	if err != nil {
+		return nil, err
+	}
 
 	return &models.Lodging{
 		Name:      name,
@@ -52,7 +56,7 @@ func (s *Server) lodgingFromForm(r *http.Request, tz *time.Location) (*models.Lo
 		CheckIn:   *checkIn,
 		CheckOut:  *checkOut,
 		Cost:      cost,
-		PaidBy:    parsePaidBy(r),
+		PaidBy:    paidBy,
 		Notes:     notes,
 	}, nil
 }
@@ -131,6 +135,9 @@ func (s *Server) handleUpdateLodging(w http.ResponseWriter, r *http.Request) {
 	}
 	lo.ID = lid
 	lo.VacationID = existing.VacationID
+	if !r.PostForm.Has("paid_by") {
+		lo.PaidBy = existing.PaidBy
+	}
 	if err := s.store.UpdateLodging(r.Context(), lo); err != nil {
 		s.serverError(w, r, err)
 		return

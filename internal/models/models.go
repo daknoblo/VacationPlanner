@@ -128,6 +128,7 @@ type Item struct {
 	Title       string
 	Description string
 	Location    string
+	Links       []ItemLink
 	Latitude    *float64
 	Longitude   *float64
 	Day         *time.Time

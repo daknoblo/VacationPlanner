@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -189,6 +190,10 @@ func (s *SQLite) SpendByVacation(ctx context.Context) (map[uuid.UUID]float64, er
 // ---- Items ----
 
 func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
+	links, err := encodeItemLinks(i.Links)
+	if err != nil {
+		return err
+	}
 	if i.ID == uuid.Nil {
 		i.ID = uuid.New()
 	}
@@ -196,13 +201,13 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 	i.CreatedAt = now
 	i.UpdatedAt = now
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO items
-			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.VacationID, i.Category, i.Title, i.Description, i.Location,
 		i.Latitude, i.Longitude, dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost,
-		dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt))
+		dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt), links)
 	if err != nil {
 		return fmt.Errorf("store: creating item: %w", err)
 	}
@@ -211,7 +216,7 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links
 		FROM items WHERE id = ?`, id)
 	var it models.Item
 	if err := scanItem(row, &it); err != nil {
@@ -225,7 +230,7 @@ func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error
 
 func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links
 		FROM items WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing items: %w", err)
@@ -247,15 +252,19 @@ func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.
 }
 
 func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
+	links, err := encodeItemLinks(i.Links)
+	if err != nil {
+		return err
+	}
 	i.UpdatedAt = time.Now().UTC()
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, title = ?, description = ?, location = ?, latitude = ?, longitude = ?,
-		    day = ?, start_min = ?, end_min = ?, cost = ?, paid_by = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?
+		    day = ?, start_min = ?, end_min = ?, cost = ?, paid_by = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?, links = ?
 		WHERE id = ?`,
 		i.Category, i.Title, i.Description, i.Location, i.Latitude, i.Longitude,
 		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef,
-		dbTime(i.UpdatedAt), i.ID)
+		dbTime(i.UpdatedAt), links, i.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating item: %w", err)
 	}
@@ -273,12 +282,20 @@ func (s *SQLite) DeleteItem(ctx context.Context, id uuid.UUID) error {
 // ---- Travel segments ----
 
 func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error {
+	return insertTravelSegment(ctx, s.db, t)
+}
+
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func insertTravelSegment(ctx context.Context, db sqlExecutor, t *models.TravelSegment) error {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
 	t.CreatedAt = time.Now().UTC()
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err := db.ExecContext(ctx, `
 		INSERT INTO travel_segments
 			(id, vacation_id, kind, step_order, mode, from_location, to_location, from_lat, from_lng,
 			 to_lat, to_lng, depart_at, arrive_at, distance_m, duration_s, cost, paid_by, notes, created_at)
@@ -292,35 +309,51 @@ func (s *SQLite) CreateTravelSegment(ctx context.Context, t *models.TravelSegmen
 	return nil
 }
 
-// UpsertTravelSegment keeps a single row per (vacation, kind, step_order): it
-// updates the matching leg in place when present, otherwise inserts a new one.
-// This lets a step editor auto-save without carrying a fragile row id.
+// UpsertTravelSegment edits a supplied source UUID, or atomically resolves an
+// unsaved editor's slot. The transaction holds the store's single connection so
+// concurrent first autosaves cannot both insert a booking. Legacy same-slot
+// records remain independent and are never deleted or selected over a supplied ID.
 func (s *SQLite) UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error {
-	var existingID uuid.UUID
-	row := s.db.QueryRowContext(ctx,
-		`SELECT id FROM travel_segments WHERE vacation_id = ? AND kind = ? AND step_order = ? ORDER BY created_at ASC LIMIT 1`,
-		t.VacationID, string(t.Kind), t.StepOrder)
-	err := row.Scan(&existingID)
-	switch {
-	case err == nil:
-		t.ID = existingID
-		_, uerr := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("store: begin travel save: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	insert := false
+	if t.ID == uuid.Nil {
+		err := tx.QueryRowContext(ctx,
+			`SELECT id FROM travel_segments WHERE vacation_id = ? AND kind = ? AND step_order = ? ORDER BY created_at ASC, id ASC LIMIT 1`,
+			t.VacationID, string(t.Kind), t.StepOrder).Scan(&t.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("store: finding travel slot: %w", err)
+		}
+		insert = errors.Is(err, sql.ErrNoRows)
+	}
+	if insert {
+		if err := insertTravelSegment(ctx, tx, t); err != nil {
+			return err
+		}
+	} else {
+		res, err := tx.ExecContext(ctx, `
 			UPDATE travel_segments SET
 				mode = ?, from_location = ?, to_location = ?, from_lat = ?, from_lng = ?,
 				to_lat = ?, to_lng = ?, depart_at = ?, arrive_at = ?, distance_m = ?,
 				duration_s = ?, cost = ?, paid_by = ?, notes = ?
-			WHERE id = ?`,
+			WHERE id = ? AND vacation_id = ? AND kind = ? AND step_order = ?`,
 			t.Mode, t.FromLocation, t.ToLocation, t.FromLat, t.FromLng, t.ToLat, t.ToLng,
-			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Cost, dbUUIDPtr(t.PaidBy), t.Notes, t.ID)
-		if uerr != nil {
-			return fmt.Errorf("store: updating travel segment: %w", uerr)
+			dbTimePtr(t.DepartAt), dbTimePtr(t.ArriveAt), t.DistanceM, t.DurationS, t.Cost, dbUUIDPtr(t.PaidBy), t.Notes,
+			t.ID, t.VacationID, string(t.Kind), t.StepOrder)
+		if err != nil {
+			return fmt.Errorf("store: updating travel segment: %w", err)
 		}
-		return nil
-	case errors.Is(err, sql.ErrNoRows):
-		return s.CreateTravelSegment(ctx, t)
-	default:
-		return fmt.Errorf("store: checking travel segment: %w", err)
+		if err := checkAffected(res); err != nil {
+			return err
+		}
 	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("store: commit travel save: %w", err)
+	}
+	return nil
 }
 
 func (s *SQLite) ListTravelSegments(ctx context.Context, vacationID uuid.UUID) ([]models.TravelSegment, error) {
@@ -893,11 +926,17 @@ func scanVacation(sc rowScanner, v *models.Vacation) error {
 func scanItem(sc rowScanner, it *models.Item) error {
 	var day sql.NullString
 	var paidBy uuid.NullUUID
-	var created, updated string
+	var created, updated, links string
 	if err := sc.Scan(&it.ID, &it.VacationID, &it.Category, &it.Title, &it.Description,
 		&it.Location, &it.Latitude, &it.Longitude, &day, &it.StartMin, &it.EndMin,
-		&it.Cost, &paidBy, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated); err != nil {
+		&it.Cost, &paidBy, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated, &links); err != nil {
 		return err
+	}
+	if err := json.Unmarshal([]byte(links), &it.Links); err != nil {
+		return fmt.Errorf("store: reading item links: %w", err)
+	}
+	if err := models.ValidateItemLinks(it.Links); err != nil {
+		return fmt.Errorf("store: reading item links: %w", err)
 	}
 	if paidBy.Valid {
 		id := paidBy.UUID
@@ -918,6 +957,20 @@ func scanItem(sc rowScanner, it *models.Item) error {
 		return fmt.Errorf("store: parsing updated_at: %w", err)
 	}
 	return nil
+}
+
+func encodeItemLinks(links []models.ItemLink) (string, error) {
+	if err := models.ValidateItemLinks(links); err != nil {
+		return "", fmt.Errorf("store: invalid item links: %w", err)
+	}
+	if len(links) == 0 {
+		return "[]", nil
+	}
+	encoded, err := json.Marshal(links)
+	if err != nil {
+		return "", fmt.Errorf("store: encoding item links: %w", err)
+	}
+	return string(encoded), nil
 }
 
 func scanTravel(sc rowScanner, t *models.TravelSegment) error {

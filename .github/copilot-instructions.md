@@ -40,10 +40,12 @@ a reverse proxy.
   The endpoint is resolved automatically from validated ARM account endpoint metadata;
   matching OpenAI endpoints among same-account aliases have deterministic preference.
   Settings displays the discovered endpoint/status read-only and offers a compatible
-  deployment select list, saved per account in SQLite, discovery refresh and a cost-consent
+  deployment select list, saved per account in SQLite, discovery refresh and an automatic
   text probe. Refresh never automatically changes a saved deployment. There are no manual
   endpoint/model/version controls or AI environment overrides. Only text recommendations
-  and suggestions are implemented; destination photos are lookups, not AI image generation.
+  and suggestions plus cached travel-phrase cheatsheets are implemented; destination photos
+  are lookups, not AI image generation. Deployment changes trigger one small connection
+  check; an explicit recheck button remains without a consent checkbox.
 - **Geocoding:** server-proxied in `internal/geo`; default **Photon** (Komoot) for as-you-type
   autocomplete, with a tolerant Photon/Nominatim parser. Base URL is configured under **Settings**;
   optional `GEOCODER_API_KEY` env stays server-side (strict CSP keeps all calls same-origin).
@@ -90,10 +92,12 @@ a reverse proxy.
 - `GET /api/geocode?q=` – server-proxied destination autocomplete.
 - `GET /api/activities/suggest?q=&dest=` – AI activity suggestions (empty when AI disabled).
 - `GET /settings`, `POST /settings` – choose the UI language (stored in the `lang` cookie).
-- `POST /settings/ai` – save a discovered compatible chat deployment per main account.
+- `POST /settings/ai` – save a discovered compatible chat deployment and check it when changed.
 - `GET /settings/ai/status` – read cached discovery and connection status; no Azure call.
 - `POST /settings/ai/discover` – refresh configured accounts' ARM metadata.
-- `POST /settings/ai/probe` – explicit cost-consent text connection check.
+- `POST /settings/ai/probe` – explicit text connection recheck.
+- `GET/POST /vacations/{id}/cheatsheet` – read or generate cached destination-language phrases.
+- `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.
@@ -103,6 +107,9 @@ a reverse proxy.
 - Clicking the map fills coordinates for new entries; markers for all sights with
   coordinates.
 - AI suggestions can be added as sights with a single click.
+- Added ideas retain safe external reference links and supplied coordinates through edits
+  and scheduling. The budget is derived from source bookings; editing it opens those
+  originals, and missing payer assignments must not be guessed.
 - AI-generated content is **never rendered as raw HTML** (`html/template` escaping).
 - The UI language is switchable in Settings and persisted per client.
 

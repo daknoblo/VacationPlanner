@@ -13,6 +13,7 @@
     {{else if .IsTravel}}
       {{if or .DistanceLabel .DurationLabel}}<span class="activity-item__travel">{{if .DistanceLabel}}📏 {{.DistanceLabel}}{{end}}{{if .DurationLabel}}{{if .DistanceLabel}} · {{end}}⏱ {{.DurationLabel}}{{end}}</span>{{end}}
     {{else}}
+      {{template "item_reference_links" .}}
       {{if .DistanceLabel}}<span class="activity-item__travel">↳ {{t "activity.from"}} {{.OriginLabel}} · 📏 {{.DistanceLabel}}{{if .DurationLabel}} · ⏱ {{if .Approx}}~{{end}}{{.DurationLabel}}{{end}}</span>{{end}}
       {{if .Origins}}
       <label class="activity-item__origin">
