@@ -81,6 +81,7 @@ a reverse proxy.
 
 - `GET /` – overview of all vacations.
 - `GET /vacations`, `POST /vacations`; `GET/POST/DELETE /vacations/{id}` – CRUD.
+- `POST /vacations/{id}/archive` – manually archive an ended vacation, preserving its data.
 - `GET /vacations/{id}/api/sights` – sights as JSON (map markers).
 - `GET /vacations/{id}/export` (`?day=` optional) – print-friendly itinerary (per day or full).
 - `GET /vacations/{id}/export.pdf` (`?day=` optional) – server-generated PDF itinerary.

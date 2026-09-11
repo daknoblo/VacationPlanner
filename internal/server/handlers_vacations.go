@@ -20,11 +20,13 @@ import (
 // dashboard card: the planned spend (for the budget pie) and a countdown label.
 type dashboardCard struct {
 	models.Vacation
-	Spent     float64
-	HasBudget bool
-	Percent   int
-	Over      bool
-	Countdown string
+	Spent      float64
+	HasBudget  bool
+	Percent    int
+	Over       bool
+	Countdown  string
+	CanArchive bool
+	CSRF       string
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -45,9 +47,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().In(tz)
 
 	cards := make([]dashboardCard, 0, len(vacations))
+	archived := make([]dashboardCard, 0)
 	for i := range vacations {
 		v := vacations[i]
-		card := dashboardCard{Vacation: v, Spent: spend[v.ID]}
+		card := dashboardCard{Vacation: v, Spent: spend[v.ID], CanArchive: !v.Archived && v.Ended(now), CSRF: csrfToken(r.Context())}
 		if v.Budget != nil && *v.Budget > 0 {
 			card.HasBudget = true
 			card.Over = card.Spent > *v.Budget
@@ -60,14 +63,20 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			}
 			card.Percent = pct
 		}
-		card.Countdown = countdownLabel(loc, now, v.StartDate, v.EndDate)
-		cards = append(cards, card)
+		if v.Archived {
+			archived = append(archived, card)
+		} else {
+			card.Countdown = countdownLabel(loc, now, v.StartDate, v.EndDate)
+			cards = append(cards, card)
+		}
 	}
+	sort.SliceStable(archived, func(i, j int) bool { return archived[i].EndDate.After(archived[j].EndDate) })
 
 	people, _ := s.store.ListPeople(r.Context())
 	s.page(w, r, "index", loc.T("page.vacations.title"), map[string]any{
-		"Cards":  cards,
-		"People": people,
+		"Cards":         cards,
+		"ArchivedCards": archived,
+		"People":        people,
 	})
 }
 

@@ -1176,6 +1176,13 @@ textarea { resize: vertical; }
   background: #e2e8f0;
 }
 .card__content { display: flex; flex-direction: column; flex: 1 1 auto; padding: 1.1rem; }
+.card__summary { padding-bottom: 0.6rem; }
+.card__footer { padding: 0 1.1rem 1.1rem; }
+.card__date-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
+.card__date-row .card__dates { margin: 0; }
+.card__date-row form { margin: 0; }
+.dashboard-archive { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.dashboard-archive h2 { margin: 0 0 1.25rem; }
 .card__content h3 { margin: 0 0 0.35rem; }
 .card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.35rem; }
 .card__head h3 { margin: 0; flex: 1 1 auto; min-width: 0; }

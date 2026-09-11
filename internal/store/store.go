@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -12,6 +13,7 @@ import (
 
 // ErrNotFound is returned when a requested entity does not exist.
 var ErrNotFound = errors.New("store: not found")
+var ErrVacationNotEnded = errors.New("store: vacation has not ended")
 
 // Store is the persistence contract used by the HTTP handlers.
 type Store interface {
@@ -22,6 +24,7 @@ type Store interface {
 	GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacation, error)
 	ListVacations(ctx context.Context) ([]models.Vacation, error)
 	UpdateVacation(ctx context.Context, v *models.Vacation) error
+	ArchiveVacation(ctx context.Context, id uuid.UUID, today time.Time) error
 	DeleteVacation(ctx context.Context, id uuid.UUID) error
 	SpendByVacation(ctx context.Context) (map[uuid.UUID]float64, error)
 

@@ -63,13 +63,25 @@
   </form>
 </section>
 
-{{if .Data.Cards}}
-<section class="cards">
-  {{range .Data.Cards}}{{template "vacation_card" .}}{{end}}
+<div id="archive-error" class="form-error" role="alert"></div>
+<section id="planned-vacations" aria-label="{{t "index.hero.title"}}">
+  {{if .Data.Cards}}
+  <div class="cards">
+    {{range .Data.Cards}}{{template "vacation_card" .}}{{end}}
+  </div>
+  {{else}}
+  <div class="empty"><p>{{t "index.empty"}}</p></div>
+  {{end}}
 </section>
-{{else}}
-<section class="empty">
-  <p>{{t "index.empty"}}</p>
+
+<section id="past-vacations" class="dashboard-archive" aria-labelledby="past-vacations-heading">
+  <h2 id="past-vacations-heading">{{t "archive.heading"}}</h2>
+  {{if .Data.ArchivedCards}}
+  <div class="cards">
+    {{range .Data.ArchivedCards}}{{template "vacation_card" .}}{{end}}
+  </div>
+  {{else}}
+  <p class="muted">{{t "archive.empty"}}</p>
+  {{end}}
 </section>
-{{end}}
 {{end}}

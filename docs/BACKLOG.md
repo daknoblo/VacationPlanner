@@ -56,6 +56,9 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Manual vacation archive — dashboard sections for planned and archived trips;
+      an archive action appears after the final day, using the configured timezone.
+      Existing and newly created vacations stay active until explicitly archived.
 - [x] Incremental translation and regional planning — one vocabulary table with
       queued custom words, preserved input while polling, automatic accommodation
       geocoding, region-grouped ideas with manual overrides, centered budget tiles

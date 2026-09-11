@@ -75,6 +75,7 @@ func (s *SQLite) Close() { _ = s.db.Close() }
 // ---- Vacations ----
 
 func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
+	v.Archived = false
 	if v.ID == uuid.Nil {
 		v.ID = uuid.New()
 	}
@@ -95,7 +96,7 @@ func (s *SQLite) CreateVacation(ctx context.Context, v *models.Vacation) error {
 
 func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacation, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at, archived
 		FROM vacations WHERE id = ?`, id)
 
 	var v models.Vacation
@@ -110,7 +111,7 @@ func (s *SQLite) GetVacation(ctx context.Context, id uuid.UUID) (*models.Vacatio
 
 func (s *SQLite) ListVacations(ctx context.Context) ([]models.Vacation, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at
+		SELECT id, title, destination, start_date, end_date, latitude, longitude, map_zoom, notes, budget, people, created_at, updated_at, archived
 		FROM vacations ORDER BY start_date ASC, created_at ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing vacations: %w", err)
@@ -152,6 +153,27 @@ func (s *SQLite) DeleteVacation(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("store: deleting vacation: %w", err)
 	}
 	return checkAffected(res)
+}
+
+// ArchiveVacation checks the stored end date in the same statement as the
+// update, so a concurrent date edit cannot archive a newly extended trip.
+func (s *SQLite) ArchiveVacation(ctx context.Context, id uuid.UUID, today time.Time) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE vacations SET archived = 1, updated_at = ?
+		WHERE id = ? AND end_date < ?`, dbTime(time.Now().UTC()), id, dbDate(today))
+	if err != nil {
+		return fmt.Errorf("store: archiving vacation: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: checking vacation archive: %w", err)
+	}
+	if n == 0 {
+		if _, err := s.GetVacation(ctx, id); err != nil {
+			return err
+		}
+		return ErrVacationNotEnded
+	}
+	return nil
 }
 
 // SpendByVacation returns the planned spend per vacation: the sum of every
@@ -904,7 +926,7 @@ func dbUUIDPtr(id *uuid.UUID) any {
 func scanVacation(sc rowScanner, v *models.Vacation) error {
 	var start, end, created, updated string
 	if err := sc.Scan(&v.ID, &v.Title, &v.Destination, &start, &end,
-		&v.Latitude, &v.Longitude, &v.MapZoom, &v.Notes, &v.Budget, &v.People, &created, &updated); err != nil {
+		&v.Latitude, &v.Longitude, &v.MapZoom, &v.Notes, &v.Budget, &v.People, &created, &updated, &v.Archived); err != nil {
 		return err
 	}
 	var err error

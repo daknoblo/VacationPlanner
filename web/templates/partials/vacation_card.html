@@ -1,20 +1,32 @@
 {{define "vacation_card"}}
-<article class="card">
+<article class="card" id="vacation-{{.ID}}">
   <a class="card__body" href="/vacations/{{.ID}}">
     <img class="card__img" src="/api/destination-image?q={{.Destination}}" alt="" loading="lazy" width="400" height="160">
-    <div class="card__content">
+    <div class="card__content card__summary">
       <div class="card__head">
         <h3>{{.Title}}</h3>
         {{if .HasBudget}}{{template "budget_pie" .}}{{end}}
       </div>
       <p class="muted card__dest">{{.Destination}}</p>
-      <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}{{if .Countdown}} <span class="card__countdown">· {{.Countdown}}</span>{{end}}</p>
-      <div class="card__badges">
-        <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
-        <span class="badge">{{.People}} {{t "field.people"}}</span>
-      </div>
     </div>
   </a>
+  <div class="card__footer">
+    <div class="card__date-row">
+      <p class="card__dates">🗓️ {{fmtDate .StartDate}} – {{fmtDate .EndDate}}{{if and .Countdown (not .CanArchive)}} <span class="card__countdown">· {{.Countdown}}</span>{{end}}</p>
+      {{if .CanArchive}}
+      <form method="post" action="/vacations/{{.ID}}/archive" hx-post="/vacations/{{.ID}}/archive"
+            hx-target="#archive-error" hx-swap="innerHTML" hx-disabled-elt="button">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <button class="btn btn--sm" type="submit" aria-label="{{t "archive.action_named" .Title}}">{{t "archive.action"}}</button>
+      </form>
+      {{end}}
+    </div>
+    <div class="card__badges">
+      <span class="badge">{{.Nights}} {{t "vacation.nights"}}</span>
+      <span class="badge">{{.People}} {{t "field.people"}}</span>
+      {{if .Archived}}<span class="badge">{{t "archive.archived"}}</span>{{end}}
+    </div>
+  </div>
 </article>
 {{end}}
 

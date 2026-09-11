@@ -21,6 +21,7 @@ type Vacation struct {
 	Notes       string
 	Budget      *float64
 	People      int
+	Archived    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 
@@ -29,6 +30,15 @@ type Vacation struct {
 	Items          []Item
 	Lodgings       []Lodging
 	Participants   []Person
+}
+
+// Ended reports whether the trip's final calendar day is over. Callers pass
+// "now" in the configured display timezone; stored trip dates are date-only.
+func (v Vacation) Ended(now time.Time) bool {
+	y, m, d := now.Date()
+	ey, em, ed := v.EndDate.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC).
+		After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
 }
 
 // Nights returns the number of nights between start and end date. It counts

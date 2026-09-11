@@ -35,10 +35,16 @@ var messages = map[Lang]map[string]string{
 
 		// Index page
 		"page.vacations.title": "My vacations",
-		"index.hero.title":     "Your vacations",
+		"index.hero.title":     "Your planned vacations",
 		"index.hero.subtitle":  "Plan date ranges, arrival & departure, sights — and get AI recommendations.",
 		"index.new":            "+ Create new vacation",
-		"index.empty":          "No vacations planned yet. Create your first vacation above. ✈️",
+		"index.empty":          "No planned vacations. Add a vacation above. ✈️",
+		"archive.heading":      "Past vacations",
+		"archive.empty":        "No vacations archived yet.",
+		"archive.action":       "Move to archive",
+		"archive.action_named": "Move %s to the archive",
+		"archive.archived":     "Archived",
+		"archive.not_ended":    "A vacation can only be archived after its end date.",
 
 		// Shared fields & placeholders
 		"field.title":             "Title",
@@ -529,10 +535,16 @@ var messages = map[Lang]map[string]string{
 
 		// Index page
 		"page.vacations.title": "Meine Urlaube",
-		"index.hero.title":     "Deine Urlaube",
+		"index.hero.title":     "Deine geplanten Urlaube",
 		"index.hero.subtitle":  "Plane Zeiträume, An- & Abreise, Sehenswürdigkeiten und lass dir von der KI Empfehlungen geben.",
 		"index.new":            "+ Neuen Urlaub anlegen",
-		"index.empty":          "Noch keine Urlaube geplant. Lege oben deinen ersten Urlaub an. ✈️",
+		"index.empty":          "Keine geplanten Urlaube. Lege oben einen neuen Urlaub an. ✈️",
+		"archive.heading":      "Vergangene Urlaube",
+		"archive.empty":        "Noch keine Urlaube archiviert.",
+		"archive.action":       "Ins Archiv verschieben",
+		"archive.action_named": "%s ins Archiv verschieben",
+		"archive.archived":     "Archiviert",
+		"archive.not_ended":    "Ein Urlaub kann erst nach seinem Enddatum archiviert werden.",
 
 		// Shared fields & placeholders
 		"field.title":             "Titel",

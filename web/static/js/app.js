@@ -56,7 +56,7 @@
   });
 
   document.body.addEventListener("htmx:beforeSwap", function (evt) {
-    if (evt.detail.target && evt.detail.target.id === "cheatsheet-rows" && evt.detail.xhr.status === 422) {
+    if (evt.detail.target && (evt.detail.target.id === "cheatsheet-rows" || evt.detail.target.id === "archive-error") && evt.detail.xhr.status === 422) {
       evt.detail.shouldSwap = true;
       evt.detail.isError = true;
     }

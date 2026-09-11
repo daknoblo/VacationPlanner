@@ -18,6 +18,11 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   (from/to), free-form notes and an optional **budget**, **number of people** and map location.
 - **Dashboard** – a card per trip with a **budget donut** (spent vs. budget), a **countdown**
   ("in X days" / "ongoing" / "past") and quick access to the detail view.
+- **Archive** – new trips stay under **Your planned vacations**, including trips entered
+  with past dates. After the final calendar day has ended in the configured timezone,
+  the card offers **Move to archive** instead of its past label. Archiving is manual:
+  it moves the card into **Past vacations**, newest-ended first, without deleting any
+  itinerary, expense, document or vocabulary data.
 - **Tabbed trip detail** – Overview · General · Arrival & Departure · Accommodation · Day plan ·
   Ideas · Budget · Cheatsheet.
 
@@ -451,6 +456,8 @@ the existing geocoder configuration, one worker, at most one request per second,
 40 lookups per batch and a 90-second deadline. A five-minute cooldown avoids repeatedly
 requesting unresolved places; the refresh action can explicitly continue a limited batch.
 Automatic region labels use a consistent language; manual area names remain untouched.
+Migration `0024_vacation_archive.sql` adds a default-off archive flag. Existing vacations
+are not archived automatically; normal trip edits retain the manual archive state.
 Back up before updating and keep the same database volume. Route views do not add
 expense records. Existing costs without a payer remain visible until explicitly
 assigned at the original booking.

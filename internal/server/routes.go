@@ -78,6 +78,7 @@ func (s *Server) routes() {
 			r.Get("/", s.handleVacationDetail)
 			r.Post("/", s.handleUpdateVacation)
 			r.Post("/notes", s.handleUpdateNotes)
+			r.Post("/archive", s.handleArchiveVacation)
 			r.Delete("/", s.handleDeleteVacation)
 			r.Get("/export", s.handleExport)
 			r.Get("/export.pdf", s.handleExportPDF)
