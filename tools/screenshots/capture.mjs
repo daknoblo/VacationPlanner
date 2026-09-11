@@ -230,6 +230,17 @@ async function verifyView(page, shot) {
   }
   if (shot.mobile) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    if (overflow > 1) {
+      console.error("Mobile layout overflow:", await page.evaluate(() =>
+        [...document.querySelectorAll("body *")].filter(element => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.width > 0 && bounds.right > innerWidth + 1 && !element.closest(".tabs__row");
+        }).slice(0,20).map(element => ({
+          tag: element.tagName, class: element.className,
+          right: element.getBoundingClientRect().right, text: element.textContent.trim().slice(0,100),
+        })),
+      ));
+    }
     assert.ok(overflow <= 1, `Mobile page overflows by ${overflow}px`);
   }
 }

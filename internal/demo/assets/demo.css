@@ -22,6 +22,9 @@ button:disabled, input:disabled, textarea:disabled, select:disabled, a[aria-disa
 a[aria-disabled="true"] { opacity: 0.6; text-decoration: none; }
 .planner-block, .weekcal-block, .idea-chip { cursor: default !important; }
 .detail__main, .detail__map { min-width: 0; }
+.activity-item__body { min-width: 0; overflow-wrap: anywhere; }
+.activity-item__origin { flex-wrap: wrap; max-width: 100%; }
+.activity-item__origin select { min-width: 0; max-width: 100%; }
 .planner-block__resize, .planner__resize { display: none !important; }
 [hidden] { display: none !important; }
 .demo-site main { padding-top: 2rem; padding-bottom: 3rem; }
