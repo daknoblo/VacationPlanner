@@ -97,6 +97,9 @@ a reverse proxy.
 - `POST /settings/ai/discover` – refresh configured accounts' ARM metadata.
 - `POST /settings/ai/probe` – explicit text connection recheck.
 - `GET/POST /vacations/{id}/cheatsheet` – read or generate cached destination-language phrases.
+- `POST /vacations/{id}/cheatsheet/phrases` – translate and retain a custom word or sentence.
+- `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
+- `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
@@ -107,6 +110,9 @@ a reverse proxy.
 - Clicking the map fills coordinates for new entries; markers for all sights with
   coordinates.
 - AI suggestions can be added as sights with a single click.
+- New vacations queue their Cheatsheet generation after successful persistence. A bounded
+  lifecycle-managed worker handles the durable queue; page reads never start paid calls.
+  Custom translations are cached separately and preserved across standard-list regeneration.
 - Added ideas retain safe external reference links and supplied coordinates through edits
   and scheduling. The budget is derived from source bookings; editing it opens those
   originals, and missing payer assignments must not be guessed.

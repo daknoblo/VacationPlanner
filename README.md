@@ -44,6 +44,9 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   and drag-to-move blocks (30-minute snap).
 - **Day view** – an hour grid with drag/resize (5-minute snap) and a **"Route of the day"**
   (origin → distance → time between consecutive stops, using the hotel or the previous stop).
+- **Activity counts** – day and week headings show assigned activities in brackets,
+  including untimed entries. Counts refresh after scheduling, moving or deleting an item;
+  accommodations, travel legs and unscheduled ideas do not inflate them.
 - **Ideas backlog** – unscheduled items you can **drag onto the calendar** to schedule them.
 - **Inline editing** and **image thumbnails** (Wikipedia) on activities and idea rows.
 - **Saved references** – adding an AI idea preserves its external links and supplied
@@ -53,18 +56,32 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 
 ### Travel cheatsheet
 
-- A **Cheatsheet** tab next to Budget creates a fixed selection of 22 useful words and
+- Creating a vacation automatically queues a fixed selection of 22 useful words and
   phrases with the existing AI deployment: greetings, please/thank you, yes/no, help,
   food, directions and payment. The destination and coordinates guide country/language
-  selection; the table shows the meaning, local spelling and pronunciation.
+  selection. The **Cheatsheet** tab next to Budget shows meaning, local spelling and
+  pronunciation, and refreshes automatically while generation runs.
 - Results are saved per trip and UI language. Opening the tab does not generate again.
   Changing the destination invalidates the displayed cache; regeneration is explicit,
   and a failed regeneration preserves the previous saved result.
+- Add your own words or sentences (up to 500 characters) to translate and save them.
+  Originals preserve their case; identical saved input is reused instead of translated
+  again. Custom entries survive regeneration of the standard list and are scoped to the
+  current destination and target language.
+- A single worker handles a bounded durable queue without delaying vacation creation.
+  Failed or interrupted provider calls are not automatically replayed. Manual recovery
+  remains available; explicit custom-translation retries are bound to the failed attempt,
+  so repeating the same retry request cannot generate another call.
+- AI must already be configured for automatic creation. Existing trips are not
+  bulk-generated; their existing create/regenerate controls remain available.
 
 ### Map
 
-- **Interactive map** – Leaflet + OpenStreetMap with markers for every located item and lodging.
-- **Click to fill coordinates** for a new entry; **zoom is remembered** per trip and chosen
+- **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
+  including arrival/departure hotels and intermediate stays. Ideas, POIs and travel
+  endpoints are excluded. The general item-data API remains available separately.
+- **Location pickers** still support clicking to fill coordinates for a new entry;
+  **zoom is remembered** per trip and chosen
   sensibly per geocoding result (country → city → address).
 
 ### Overview & budget
@@ -73,6 +90,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   categories, weekday/date/time, cost, and **click-to-recenter** on the map, plus **quick notes**.
 - **Budget** – budget vs. spent across items, lodging and travel, broken down by category with
   icons, in the configured **currency** (€ / $).
+- Larger summary/payer cards, separated booking metadata and amounts, and responsive
+  spacing keep the budget readable without changing any accounting calculations.
 - Budget expenses are a **read-only aggregation of their original bookings**, not a second
   ledger. Source links open the existing hotel, travel leg or POI editor. Missing or
   unavailable payers remain explicit and are excluded from settlement, never guessed.
@@ -408,6 +427,9 @@ assignment above. Prefer separate identities per application/environment.
 
 The trip-experience update additionally applies migration `0018_item_links.sql`
 and `0019_cheatsheets.sql` to retain item references and cached travel vocabulary.
+Automatic creation and custom translations add `0020_cheatsheet_jobs.sql` and
+`0021_cheatsheet_custom_phrases.sql`. Job state and translations are included in
+normal SQLite backups; no new environment variables are required.
 Back up before updating and keep the same database volume. Route views do not add
 expense records. Existing costs without a payer remain visible until explicitly
 assigned at the original booking.

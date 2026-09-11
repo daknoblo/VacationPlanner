@@ -108,6 +108,8 @@ func run() error {
 
 	stopDiscovery := srv.StartAIDiscovery(ctx)
 	defer stopDiscovery()
+	stopCheatsheets := srv.StartCheatsheetWorker(ctx)
+	defer stopCheatsheets()
 
 	// Background maintenance (automatic database vacuum when configured).
 	srv.StartMaintenance(ctx)

@@ -65,6 +65,14 @@ type Store interface {
 	PutSetting(ctx context.Context, key, value string) error
 	GetCheatsheet(ctx context.Context, vacationID uuid.UUID, sourceLanguage string) (*models.Cheatsheet, error)
 	PutCheatsheet(ctx context.Context, sheet *models.Cheatsheet) error
+	GetCheatsheetJob(ctx context.Context, job *models.CheatsheetJob) (string, error)
+	ReserveCheatsheetJob(ctx context.Context, job *models.CheatsheetJob, retry bool) (bool, error)
+	SetCheatsheetJobStatus(ctx context.Context, job *models.CheatsheetJob, status string) error
+	ClaimCheatsheetJob(ctx context.Context, job *models.CheatsheetJob) (bool, error)
+	ListQueuedCheatsheetJobs(ctx context.Context) ([]models.CheatsheetJob, error)
+	InterruptCheatsheetJobs(ctx context.Context) error
+	ListCustomCheatsheetPhrases(ctx context.Context, profile *models.CustomTravelPhrase) ([]models.CustomTravelPhrase, error)
+	PutCustomCheatsheetPhrase(ctx context.Context, phrase *models.CustomTravelPhrase) error
 
 	Stats(ctx context.Context) (Stats, error)
 	BackupTo(ctx context.Context, dest string) error

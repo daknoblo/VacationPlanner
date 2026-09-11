@@ -56,6 +56,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Automatic and custom Cheatsheets — creation queues a background generation;
+      own words/sentences are translated, saved and safely retryable after failure.
+- [x] Clearer trip overview — accommodation-only map, live day/week activity counts,
+      and roomier responsive budget cards and expense rows.
 - [x] Travel experience update — automatic deployment checks without a checkbox,
       cached destination-language Cheatsheet with 22 phrases, persistent idea links
       and coordinates, and a graphical hotel-to-POI daily route.

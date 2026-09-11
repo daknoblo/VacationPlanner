@@ -841,11 +841,12 @@ type calBlock struct {
 
 // calDay is one occupied day cell in a calendar week.
 type calDay struct {
-	Date     time.Time
-	DayIndex int
-	Weekend  bool
-	Blocks   []calBlock
-	Lodging  []calBlock
+	Date      time.Time
+	DayIndex  int
+	ItemCount int
+	Weekend   bool
+	Blocks    []calBlock
+	Lodging   []calBlock
 }
 
 // calWeek is one calendar-week row; Days is indexed by weekday column
@@ -859,9 +860,11 @@ type calWeek struct {
 func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool, v *models.Vacation) []calWeek {
 	travel := travelCalBlocks(loc, tz, v)
 	lodging := lodgingDayStrips(tz, v.Lodgings)
+	days := v.Days()
+	counts := plannedDayCounts(days, v.Items)
 	var weeks []calWeek
 	idx := make(map[string]int)
-	for i, d := range v.Days() {
+	for i, d := range days {
 		col := weekdayCol(d, mondayStart)
 		key := d.AddDate(0, 0, -col).Format("2006-01-02")
 		wi, ok := idx[key]
@@ -871,9 +874,10 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 			weeks = append(weeks, calWeek{})
 		}
 		cd := &calDay{
-			Date:     d,
-			DayIndex: i,
-			Weekend:  d.Weekday() == time.Saturday || d.Weekday() == time.Sunday,
+			Date:      d,
+			DayIndex:  i,
+			ItemCount: counts[d.Format("2006-01-02")],
+			Weekend:   d.Weekday() == time.Saturday || d.Weekday() == time.Sunday,
 		}
 		for _, it := range v.Items {
 			if it.OnDay(d) && it.Timed() {
@@ -1214,6 +1218,8 @@ func (s *Server) handleCreateVacation(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+
+	s.queueVacationCheatsheet(r.Context(), v, i18n.FromContext(r.Context()).Code())
 
 	target := "/vacations/" + v.ID.String()
 	if isHTMX(r) {

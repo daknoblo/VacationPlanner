@@ -38,7 +38,6 @@
     var form = evt.target;
     if (form && form.matches && form.matches("form[data-reset]") && evt.detail.successful) {
       form.reset();
-      clearTempMarker();
       resyncIconPicker(form);
     }
   });
@@ -144,14 +143,8 @@
   // ---- Leaflet map ----
   var map = null;
   var markerLayer = null;
-  var tempMarker = null;
-
-  function clearTempMarker() {
-    if (tempMarker && map) {
-      map.removeLayer(tempMarker);
-      tempMarker = null;
-    }
-  }
+  var markerRequest = null;
+  var markerSignature = null;
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -180,18 +173,9 @@
 
     markerLayer = L.layerGroup().addTo(map);
 
-    map.on("click", function (e) {
-      var latInput = document.getElementById("sight-latitude");
-      var lngInput = document.getElementById("sight-longitude");
-      if (!latInput || !lngInput) return;
-      latInput.value = e.latlng.lat.toFixed(6);
-      lngInput.value = e.latlng.lng.toFixed(6);
-      clearTempMarker();
-      tempMarker = L.marker(e.latlng, { opacity: 0.6 }).addTo(map);
-    });
-
     refreshMarkers();
     document.body.addEventListener("itemsChanged", refreshMarkers);
+    document.body.addEventListener("infoChanged", refreshMarkers);
   }
 
   function lodgingMarkerIcon() {
@@ -201,38 +185,85 @@
   function refreshMarkers() {
     var el = document.getElementById("map");
     if (!el || !map || !markerLayer) return;
-    var id = el.dataset.vacationId;
-    if (!id) return;
+    var url = el.dataset.markersUrl;
+    if (!url) return;
+    if (markerRequest) markerRequest.abort();
+    var request = new AbortController();
+    markerRequest = request;
+    var status = document.getElementById("map-status");
 
-    fetch("/vacations/" + encodeURIComponent(id) + "/api/items", {
-      headers: { "Accept": "application/json" }
+    fetch(url, {
+      headers: { "Accept": "application/json" },
+      signal: request.signal
     })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (data) {
+        if (request.signal.aborted || !el.isConnected) return;
+        if (!Array.isArray(data.lodgings)) throw new Error("Invalid accommodation marker response");
+        var signature = JSON.stringify(data.lodgings.map(function (s) { return [s.id, s.lat, s.lng]; }));
+        var positionsChanged = markerSignature !== signature;
         markerLayer.clearLayers();
         var bounds = [];
-        (data.items || []).forEach(function (s) {
-          var marker = L.marker([s.lat, s.lng], { opacity: s.visited ? 0.5 : 1 });
-          var title = s.title + (s.category ? " (" + s.category + ")" : "");
-          marker.bindPopup(escapeHtml(title));
-          marker.addTo(markerLayer);
-          bounds.push([s.lat, s.lng]);
-        });
-        (data.lodgings || []).forEach(function (s) {
+        data.lodgings.forEach(function (s) {
           var marker = L.marker([s.lat, s.lng], { icon: lodgingMarkerIcon(), title: s.title });
           marker.bindPopup(escapeHtml("🛏 " + s.title));
           marker.addTo(markerLayer);
           bounds.push([s.lat, s.lng]);
         });
-        if (data.center) {
-          map.setView([data.center.lat, data.center.lng], map.getZoom());
-        }
-        if (bounds.length > 1) {
+        if (bounds.length && positionsChanged) {
           map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+        } else if (!bounds.length && data.center) {
+          map.setView([data.center.lat, data.center.lng], parseInt(el.dataset.zoom, 10) || 5);
+        }
+        markerSignature = signature;
+        if (status) {
+          status.textContent = bounds.length ? "" : status.dataset.empty;
+          status.hidden = bounds.length > 0;
         }
       })
-      .catch(function () { /* transient errors are non-fatal */ });
+      .catch(function (err) {
+        if (err.name === "AbortError") return;
+        if (status) {
+          status.textContent = status.dataset.error;
+          status.hidden = false;
+        }
+      });
   }
+
+  // Counts are refreshed from saved items, including untimed activities. Updating
+  // only the badges preserves the active day and its current planner state.
+  var dayCountRequest = null;
+  function refreshDayCounts() {
+    var root = document.querySelector("[data-day-counts-url]");
+    if (!root) return;
+    if (dayCountRequest) dayCountRequest.abort();
+    var request = new AbortController();
+    dayCountRequest = request;
+    var status = root.querySelector("[data-day-counts-error]");
+    fetch(root.dataset.dayCountsUrl, { headers: { "Accept": "application/json" }, signal: request.signal })
+      .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error("Activity counts unavailable")); })
+      .then(function (counts) {
+        if (request.signal.aborted || !root.isConnected) return;
+        var badges = root.querySelectorAll("[data-day-count]");
+        for (var i = 0; i < badges.length; i++) {
+          var count = counts[badges[i].dataset.dayCount];
+          if (!Number.isInteger(count) || count < 0) throw new Error("Invalid activity count");
+        }
+        for (var j = 0; j < badges.length; j++) {
+          badges[j].textContent = "(" + counts[badges[j].dataset.dayCount] + ")";
+        }
+        if (status) status.hidden = true;
+      })
+      .catch(function (err) {
+        if (err.name === "AbortError") return;
+        if (status) {
+          status.textContent = status.dataset.error;
+          status.hidden = false;
+        }
+      });
+  }
+  document.body.addEventListener("itemsChanged", refreshDayCounts);
+  document.body.addEventListener("infoChanged", refreshDayCounts);
 
   // ---- Location picker (destination autocomplete + map) ----
   var locationMaps = [];

@@ -12,7 +12,7 @@
       {{$hd := index $.Headers $ci}}
       <div class="weekcal__day{{if $hd.Weekend}} is-weekend{{end}}{{if not $col}} is-empty{{end}}">
         <div class="weekcal__dayhead">
-          <span class="weekcal__dow">{{$hd.Label}}</span>
+          <span class="weekcal__dow">{{$hd.Label}}{{if $col}} <span class="day-activity-count" data-day-count="{{dateInput $col.Date}}" title="{{t "planner.count_hint"}}">({{$col.ItemCount}})</span>{{end}}</span>
           {{if $col}}<button type="button" class="weekcal__date" data-goto-day="{{$col.DayIndex}}" title="{{t "tagesplan.view.day"}}">{{fmtDate $col.Date}}</button>{{end}}
         </div>
         <div class="weekcal__col"{{if $col}} data-weekcol data-day="{{dateInput $col.Date}}"{{end}}>

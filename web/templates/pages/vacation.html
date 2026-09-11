@@ -116,7 +116,9 @@
 
   <section class="tab-panel" data-tab-panel="tagesplan">
     {{if $v.Days}}
-    <div class="tagesplan" data-tagesplan>
+    <div class="tagesplan" data-tagesplan data-day-counts-url="/vacations/{{$v.ID}}/api/daycounts">
+      <p class="muted small">{{t "planner.count_hint"}}</p>
+      <p class="form-error" role="status" data-day-counts-error data-error="{{t "planner.count_error"}}" hidden></p>
       <div class="viewtoggle" data-viewtoggle>
         <button type="button" class="viewtoggle__btn" data-view="day">{{t "tagesplan.view.day"}}</button>
         <button type="button" class="viewtoggle__btn is-active" data-view="week">{{t "tagesplan.view.week"}}</button>
@@ -218,12 +220,15 @@
       </div>
 
       <aside class="detail__map">
+        <p class="muted small">{{t "map.lodgings_only"}}</p>
         <div id="map"
              data-vacation-id="{{$v.ID}}"
+             data-markers-url="/vacations/{{$v.ID}}/api/overview-map"
              data-lat="{{coord $v.Latitude}}"
              data-lng="{{coord $v.Longitude}}"
              data-zoom="{{if $v.MapZoom}}{{$v.MapZoom}}{{end}}"
              data-attribution="{{t "map.attribution"}}"></div>
+        <p id="map-status" class="muted small" role="status" data-empty="{{t "map.lodgings_empty"}}" data-error="{{t "map.lodgings_error"}}" hidden></p>
         <div class="overview-notes">
           <h3>{{t "field.notes"}}</h3>
           <form hx-post="/vacations/{{$v.ID}}/notes"

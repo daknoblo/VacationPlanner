@@ -30,6 +30,10 @@ type Server struct {
 	aiDiscoveries   atomic.Int32
 	aiSelectionGate chan struct{}
 	cheatsheetJobs  sync.Map
+	cheatsheetGate  chan struct{}
+	cheatsheetWake  chan struct{}
+	cheatsheetStart sync.Once
+	cheatsheetStop  func()
 	geo             *geo.Client
 	routing         *route.Client
 	destImg         *destimg.Client
@@ -52,6 +56,8 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		store:           st,
 		ai:              ai.New(nil),
 		aiSelectionGate: make(chan struct{}, 1),
+		cheatsheetGate:  make(chan struct{}, 1),
+		cheatsheetWake:  make(chan struct{}, 1),
 		geo:             geo.New(cfg.GeocoderAPIKey),
 		routing:         route.New(cfg.RouterAPIKey),
 		destImg:         destimg.New(),

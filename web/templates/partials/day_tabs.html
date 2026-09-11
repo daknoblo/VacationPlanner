@@ -6,7 +6,7 @@
     {{range $ci, $col := $week.Days}}
     {{if $col}}
     <button type="button" class="tabs__tab tabs__tab--day{{if $col.Weekend}} tabs__tab--weekend{{end}}{{if eq $col.DayIndex 0}} is-active{{end}}" data-tab="day-{{$col.DayIndex}}">
-      <span class="tabs__wd">{{(index $.Headers $ci).Label}}</span>
+      <span class="tabs__wd">{{(index $.Headers $ci).Label}} <span class="day-activity-count" data-day-count="{{dateInput $col.Date}}" title="{{t "planner.count_hint"}}">({{$col.ItemCount}})</span></span>
       <span class="tabs__sub">{{fmtDate $col.Date}}</span>
     </button>
     {{else}}
@@ -17,4 +17,3 @@
 </div>
 {{end}}
 {{end}}
-
