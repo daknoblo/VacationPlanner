@@ -93,6 +93,9 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel
   endpoints are excluded. The general item-data API remains available separately.
+  Automatic framing leaves approximately 15% padding on each map edge (at least
+  30 pixels), with a maximum initial zoom of 13. Refreshes that do not move markers
+  preserve the manually chosen zoom and position.
 - Missing accommodation coordinates are resolved in the background from saved addresses
   or sufficiently distinctive hotel names. Only specific, unambiguous matches are accepted;
   a city center or an idea location is never substituted for a hotel. Unresolved names are

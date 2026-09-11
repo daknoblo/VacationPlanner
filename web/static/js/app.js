@@ -236,7 +236,11 @@
           bounds.push([s.lat, s.lng]);
         });
         if (bounds.length && positionsChanged) {
-          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+          // Reserve 15% of the current map dimensions on every side, with a
+          // minimum gutter so markers stay clear of the edge on small maps.
+          var size = map.getSize();
+          var padding = [Math.max(30, Math.ceil(size.x * 0.15)), Math.max(30, Math.ceil(size.y * 0.15))];
+          map.fitBounds(bounds, { padding: padding, maxZoom: 13 });
         } else if (!bounds.length && data.center) {
           map.setView([data.center.lat, data.center.lng], parseInt(el.dataset.zoom, 10) || 5);
         }
