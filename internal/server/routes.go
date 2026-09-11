@@ -70,6 +70,7 @@ func (s *Server) routes() {
 	r.Get("/api/geocode", s.handleGeocode)
 	r.Get("/api/reverse-geocode", s.handleReverseGeocode)
 	r.Get("/api/destination-image", s.handleDestinationImage)
+	r.Get("/api/background-status", s.handleBackgroundStatus)
 
 	r.Route("/vacations", func(r chi.Router) {
 		r.Get("/", s.handleIndex)

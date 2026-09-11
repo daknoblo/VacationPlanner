@@ -1,0 +1,11 @@
+{{define "background_status"}}
+{{if .Error}}
+<span class="background-status__error" role="status" title="{{t "background.unavailable"}}">{{t "background.unavailable_short"}}</span>
+{{else if .Active}}
+<div class="background-status__content" role="status" title="{{.Detail}}">
+  <span class="background-status__label">{{t "background.loading"}}</span>
+  <progress class="background-status__bar"{{if .Determinate}} value="{{.Completed}}" max="{{.Total}}"{{end}} aria-label="{{.Detail}}"></progress>
+  <span class="background-status__detail">{{.Detail}}</span>
+</div>
+{{end}}
+{{end}}

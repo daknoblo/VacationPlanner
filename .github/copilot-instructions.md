@@ -108,6 +108,8 @@ a reverse proxy.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.
+- `GET /api/background-status` – read-only local progress for geography, translation
+  jobs and AI discovery; never enqueue work or make provider calls from status polling.
 
 ### Behavior
 

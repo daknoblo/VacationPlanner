@@ -20,6 +20,10 @@
         <a href="/settings"{{if eq .Page "settings"}} class="is-active"{{end}}>{{t "nav.settings"}}</a>
         <a href="/about"{{if eq .Page "about"}} class="is-active"{{end}}>{{t "nav.about"}}</a>
       </nav>
+      <div id="background-status" class="background-status" aria-live="polite"
+           hx-get="/api/background-status"
+           hx-trigger="load, every 3s, itemsChanged from:body, geographyChanged from:body"
+           hx-swap="innerHTML"></div>
     </div>
   </header>
 

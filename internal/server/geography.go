@@ -28,6 +28,8 @@ type geographyStatus struct {
 	Unresolved     []string `json:"unresolved"`
 	UnknownRegions int      `json:"unknown_regions"`
 	UpdatedCount   int      `json:"updated_count"`
+	Completed      int      `json:"completed"`
+	Total          int      `json:"total"`
 }
 
 type geographyJob struct {
@@ -166,6 +168,8 @@ func (w *geographyWorker) enqueue(id uuid.UUID, lang string, force bool) {
 		state.status.Pending = true
 		state.status.Error = false
 		state.status.Limited = false
+		state.status.Completed = 0
+		state.status.Total = 0
 	default:
 		state.status.Error = true
 		state.status.Limited = true
@@ -239,6 +243,8 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	if len(work) == 0 {
 		return
 	}
+	status.Total = min(len(work), geographyLookupLimit)
+	w.setProgress(job.id, 0, status.Total)
 	baseURL := settings[settingGeoBaseURL]
 	processed := 0
 	for processed < len(work) && processed < geographyLookupLimit && ctx.Err() == nil {
@@ -289,6 +295,8 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		}
 		lookupCancel()
 		processed++
+		status.Completed = processed
+		w.setProgress(job.id, status.Completed, status.Total)
 	}
 	status.Limited = processed < len(work)
 	// Rotate across failed and outstanding entries rather than allowing the
@@ -301,15 +309,24 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	}
 }
 
-// matchLodging accepts structured address evidence or an exact, distinctive
-// lodging name. It never uses a trip center, arbitrary label parsing, or the
-// first result as evidence. Name-only queries are global: arrival hotels may be
-// in an entirely different country from the vacation destination.
+func (w *geographyWorker) setProgress(id uuid.UUID, completed, total int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if state := w.states[id]; state != nil {
+		state.status.Completed, state.status.Total = completed, total
+	}
+}
+
+// matchLodging prefers a lodging whose name and address corroborate each other
+// over other POIs sharing the same address (such as a hotel's restaurant).
+// Equally supported matches at different coordinates remain ambiguous.
+// Name-only queries are global: arrival hotels can be in a different country.
 func matchLodging(l *models.Lodging, results []geo.Result) (geo.Result, bool) {
 	if len(results) >= 10 {
 		return geo.Result{}, false
 	}
 	var matches []geo.Result
+	bestRank := 2
 	for _, result := range results {
 		if !specificLodgingResult(result) {
 			continue
@@ -328,6 +345,17 @@ func matchLodging(l *models.Lodging, results []geo.Result) (geo.Result, bool) {
 		}
 		if !addressMatch && !namedMatch {
 			continue
+		}
+		rank := 1
+		if namedHotel {
+			rank = 0
+		}
+		if rank > bestRank {
+			continue
+		}
+		if rank < bestRank {
+			matches = nil
+			bestRank = rank
 		}
 		duplicate := false
 		for _, match := range matches {

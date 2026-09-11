@@ -101,6 +101,9 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   a city center or an idea location is never substituted for a hotel. Unresolved names are
   shown with an address-check hint and a refresh action. Existing coordinates and financial
   edits are protected by conditional geo-only updates.
+  When several POIs share an address, an exactly matching accommodation name takes
+  precedence over unrelated restaurants or businesses; equally supported lodging
+  locations still require clarification.
 - **Location pickers** still support clicking to fill coordinates for a new entry;
   **zoom is remembered** per trip and chosen
   sensibly per geocoding result (country → city → address).
@@ -165,6 +168,11 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Custom categories** – manage the pick-list (with an icon picker) used on item/activity forms.
 - **Diagnostics** – runtime **log level** switch and an auto-refreshing **log viewer**;
   **statistics** including a document count.
+- **Background indicator** – a compact top-right status shows active location/region
+  lookups, translation jobs and AI deployment discovery. Geography batches report
+  attempted lookups completed/total; mixed or unknown-size work uses an indeterminate
+  bar. The indicator disappears when jobs finish, even if some regions remain unknown.
+  Status polling reads local state only and never starts provider requests.
 - **Database maintenance** – on-demand **optimize** (VACUUM) and a configurable **auto-vacuum**
   schedule.
 - **Backup & restore** – create, download, restore and delete SQLite backups.

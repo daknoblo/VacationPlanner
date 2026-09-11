@@ -75,6 +75,7 @@ type Store interface {
 	SetCheatsheetJobStatus(ctx context.Context, job *models.CheatsheetJob, status string) error
 	ClaimCheatsheetJob(ctx context.Context, job *models.CheatsheetJob) (bool, error)
 	ListQueuedCheatsheetJobs(ctx context.Context) ([]models.CheatsheetJob, error)
+	CountPendingCheatsheetJobs(ctx context.Context) (int, error)
 	InterruptCheatsheetJobs(ctx context.Context) error
 	ListCustomCheatsheetPhrases(ctx context.Context, profile *models.CustomTravelPhrase) ([]models.CustomTravelPhrase, error)
 	ListCheatsheetPhraseJobs(ctx context.Context, profile *models.CustomTravelPhrase) ([]models.CheatsheetJob, error)
