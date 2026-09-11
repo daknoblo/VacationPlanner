@@ -3,11 +3,14 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 )
 
 type overviewMapPayload struct {
-	Center   *centerPoint `json:"center,omitempty"`
-	Lodgings []itemMarker `json:"lodgings"`
+	Center    *centerPoint    `json:"center,omitempty"`
+	Lodgings  []itemMarker    `json:"lodgings"`
+	Geography geographyStatus `json:"geography"`
 }
 
 // handleOverviewMap uses accommodation records only. POIs, even ones labeled
@@ -27,12 +30,14 @@ func (s *Server) handleOverviewMap(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.queueGeography(id, i18n.FromContext(r.Context()).Code())
+	status := s.geographyStatus(id)
 	lodgings, err := s.store.ListLodgings(r.Context(), id)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	payload := overviewMapPayload{Lodgings: make([]itemMarker, 0, len(lodgings))}
+	payload := overviewMapPayload{Lodgings: make([]itemMarker, 0, len(lodgings)), Geography: status}
 	if v.HasCoords() {
 		payload.Center = &centerPoint{Lat: *v.Latitude, Lng: *v.Longitude}
 	}

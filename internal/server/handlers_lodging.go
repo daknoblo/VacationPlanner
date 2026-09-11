@@ -135,12 +135,20 @@ func (s *Server) handleUpdateLodging(w http.ResponseWriter, r *http.Request) {
 	}
 	lo.ID = lid
 	lo.VacationID = existing.VacationID
+	// An older open form may predate automatic geocoding. An unrelated cost or
+	// payer edit must not clear coordinates that were resolved in the meantime.
+	if lo.Latitude == nil && lo.Longitude == nil && lo.Name == existing.Name && lo.Location == existing.Location {
+		lo.Latitude, lo.Longitude = existing.Latitude, existing.Longitude
+	}
 	if !r.PostForm.Has("paid_by") {
 		lo.PaidBy = existing.PaidBy
 	}
 	if err := s.store.UpdateLodging(r.Context(), lo); err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+	if !lo.HasCoords() {
+		s.retryGeography(lo.VacationID, i18n.FromContext(r.Context()).Code())
 	}
 	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "lodging_out", newLodgingEditorView(tz, v, lo))

@@ -19,10 +19,12 @@ type cheatsheetView struct {
 	Error       string
 	CSRF        string
 	Active      bool
+	SheetActive bool
 	Status      string
 	Custom      []models.CustomTravelPhrase
-	RetryPhrase string
-	RetryToken  string
+	PhraseJobs  []models.CheatsheetJob
+	Profile     *models.CustomTravelPhrase
+	RowsOnly    bool
 }
 
 func cheatsheetDestinationKey(v *models.Vacation) (string, error) {
@@ -65,11 +67,27 @@ func (s *Server) cheatsheetData(ctx context.Context, v *models.Vacation) (cheats
 	if sheet != nil {
 		if sheet.DestinationKey == key {
 			view.Sheet = sheet
-			view.Custom, err = s.store.ListCustomCheatsheetPhrases(ctx, &models.CustomTravelPhrase{
+			view.Profile = &models.CustomTravelPhrase{
 				VacationID: v.ID, SourceLanguage: sheet.SourceLanguage, DestinationKey: key, TargetLanguage: sheet.Language,
-			})
+			}
+			view.Custom, err = s.store.ListCustomCheatsheetPhrases(ctx, view.Profile)
 			if err != nil {
 				return view, err
+			}
+			jobs, err := s.store.ListCheatsheetPhraseJobs(ctx, view.Profile)
+			if err != nil {
+				return view, err
+			}
+			saved := make(map[string]bool, len(view.Custom))
+			for _, phrase := range view.Custom {
+				saved[phrase.Original] = true
+			}
+			for _, job := range jobs {
+				if saved[job.Original] || job.Status == "ready" {
+					continue
+				}
+				view.PhraseJobs = append(view.PhraseJobs, job)
+				view.Active = view.Active || job.Status == "queued" || job.Status == "running"
 			}
 		} else {
 			view.Stale = true
@@ -81,7 +99,8 @@ func (s *Server) cheatsheetData(ctx context.Context, v *models.Vacation) (cheats
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return view, err
 	}
-	view.Active = view.Status == "queued" || view.Status == "running"
+	view.SheetActive = view.Status == "queued" || view.Status == "running"
+	view.Active = view.Active || view.SheetActive
 	return view, nil
 }
 
@@ -93,10 +112,15 @@ func (s *Server) renderCheatsheet(w http.ResponseWriter, r *http.Request, v *mod
 	}
 	view.Error = message
 	view.CSRF = csrfToken(r.Context())
+	view.RowsOnly = r.URL.Query().Get("fragment") == "rows"
 	if message != "" {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
-	s.fragment(w, r, "cheatsheet", view)
+	if view.RowsOnly {
+		s.fragment(w, r, "cheatsheet-rows-response", view)
+	} else {
+		s.fragment(w, r, "cheatsheet", view)
+	}
 }
 
 func (s *Server) handleCheatsheet(w http.ResponseWriter, r *http.Request) {
@@ -217,6 +241,12 @@ func (s *Server) handleTranslateCheatsheetPhrase(w http.ResponseWriter, r *http.
 		s.renderCheatsheet(w, r, v, loc.T("cheatsheet.custom_needs_sheet"))
 		return
 	}
+	if (formStr(r, "destination_key") != "" && formStr(r, "destination_key") != view.Sheet.DestinationKey) ||
+		(formStr(r, "source_language") != "" && formStr(r, "source_language") != loc.Code()) ||
+		(formStr(r, "target_language") != "" && formStr(r, "target_language") != view.Sheet.Language) {
+		s.renderCheatsheet(w, r, v, loc.T("cheatsheet.destination_changed"))
+		return
+	}
 	for _, cached := range view.Custom {
 		if cached.Original == original {
 			s.renderCheatsheet(w, r, v, "")
@@ -227,32 +257,20 @@ func (s *Server) handleTranslateCheatsheetPhrase(w http.ResponseWriter, r *http.
 		s.renderCheatsheet(w, r, v, loc.T("cheatsheet.configure_ai"))
 		return
 	}
-	select {
-	case s.cheatsheetGate <- struct{}{}:
-		defer func() { <-s.cheatsheetGate }()
-	default:
-		s.renderCheatsheet(w, r, v, loc.T("cheatsheet.busy"))
-		return
-	}
 	phrase := &models.CustomTravelPhrase{
 		VacationID: v.ID, SourceLanguage: loc.Code(), DestinationKey: view.Sheet.DestinationKey,
 		TargetLanguage: view.Sheet.Language, Original: original,
 	}
 	job := &models.CheatsheetJob{
 		VacationID: v.ID, SourceLanguage: loc.Code(), DestinationKey: phrase.DestinationKey,
-		Key: phrase.JobKey(), Status: "running",
+		Key: phrase.JobKey(), Status: "queued", Original: original, TargetLanguage: phrase.TargetLanguage,
 		Attempt: formStr(r, "retry_attempt"),
-	}
-	settings, err := s.settings(r.Context())
-	if err != nil {
-		s.serverError(w, r, err)
-		return
 	}
 	reserved, err := s.store.ReserveCheatsheetJob(r.Context(), job, job.Attempt != "")
 	if err != nil || !reserved {
 		if err == nil {
-			// Another request may have finished between the initial cache read
-			// and acquiring the shared generation gate.
+			// Another request may have enqueued or finished this phrase since
+			// the cache read. Neither case should dispatch another inference.
 			cached, cacheErr := s.store.ListCustomCheatsheetPhrases(r.Context(), phrase)
 			if cacheErr != nil {
 				s.serverError(w, r, cacheErr)
@@ -264,34 +282,29 @@ func (s *Server) handleTranslateCheatsheetPhrase(w http.ResponseWriter, r *http.
 					return
 				}
 			}
+			state, stateErr := s.store.GetCheatsheetJob(r.Context(), job)
+			if stateErr == nil && (state == "queued" || state == "running") {
+				s.renderCheatsheet(w, r, v, "")
+				return
+			}
 		}
 		if err != nil {
 			s.log.Warn("cannot reserve custom translation", "err", err, "vacation_id", v.ID)
+			if errors.Is(err, store.ErrCheatsheetQueueFull) {
+				s.renderCheatsheet(w, r, v, loc.T("cheatsheet.queue_full"))
+				return
+			}
+			if errors.Is(err, store.ErrCheatsheetDestinationChanged) {
+				s.renderCheatsheet(w, r, v, loc.T("cheatsheet.destination_changed"))
+				return
+			}
 		}
 		s.renderCustomPhraseFailure(w, r, v, phrase, job)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), cheatsheetTimeout)
-	defer cancel()
-	status := "failed"
-	defer func() { s.setCheatsheetStatus(ctx, job, status) }()
-	if err := s.ai.TranslateCheatsheetPhrase(ctx, s.foundryDeployment(settings), phrase); err != nil {
-		s.log.Warn("custom phrase translation failed", "err", err, "vacation_id", v.ID)
-		s.setCheatsheetStatus(ctx, job, status)
-		s.renderCustomPhraseFailure(w, r, v, phrase, job)
-		return
+	select {
+	case s.cheatsheetWake <- struct{}{}:
+	default:
 	}
-	if err := s.store.PutCustomCheatsheetPhrase(r.Context(), phrase); err != nil {
-		s.log.Warn("cannot save custom phrase", "err", err, "vacation_id", v.ID)
-		s.setCheatsheetStatus(ctx, job, status)
-		current, loadErr := s.store.GetVacation(r.Context(), v.ID)
-		if loadErr != nil {
-			s.serverError(w, r, loadErr)
-			return
-		}
-		s.renderCustomPhraseFailure(w, r, current, phrase, job)
-		return
-	}
-	status = "ready"
 	s.renderCheatsheet(w, r, v, "")
 }

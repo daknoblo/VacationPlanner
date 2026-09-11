@@ -1,19 +1,34 @@
 {{define "ideas_backlog"}}
-<div class="ideas-backlog__head">
-  <strong>💡 {{t "ideen.backlog"}}</strong>
-  <span class="muted small">{{t "ideen.backlog_hint"}}</span>
-</div>
-{{if .}}
-<div class="ideas-backlog__chips{{if gt (len .) 3}} ideas-backlog__chips--cols{{end}}">
-  {{range .}}
-  <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
-    <span class="idea-chip__grip" aria-hidden="true">⠿</span>
-    <span class="idea-chip__title">{{.Title}}</span>
-    {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+{{$groups := groupIdeas .}}
+<div class="ideas-regions" data-ideas-regions>
+  <div class="ideas-backlog__head">
+    <strong>💡 {{t "ideen.backlog"}}</strong>
+    <span class="muted small">{{t "ideen.backlog_hint"}}</span>
   </div>
+  {{if .}}
+  <label class="ideas-region-filter">{{t "ideas.region.filter"}}
+    <select data-ideas-region-filter>
+      <option value="*">{{t "ideas.region.all"}}</option>
+      {{range $groups}}<option value="{{.Key}}">{{if .Region}}{{.Region}}{{else}}{{t "ideas.region.unknown"}}{{end}} ({{len .Items}})</option>{{end}}
+    </select>
+  </label>
+  {{range $groups}}
+  <section class="ideas-region-group" data-ideas-region-group="{{.Key}}">
+    <h4>{{if .Region}}{{.Region}}{{else}}{{t "ideas.region.unknown"}}{{end}} <span class="muted">({{len .Items}})</span></h4>
+    <div class="ideas-backlog__chips{{if gt (len .Items) 3}} ideas-backlog__chips--cols{{end}}">
+      {{range .Items}}
+      <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
+        <span class="idea-chip__grip" aria-hidden="true">⠿</span>
+        <span class="idea-chip__title">{{.Title}}</span>
+        {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+  <p class="muted small" data-ideas-region-empty hidden>{{t "ideas.region.empty"}}</p>
+  {{else}}
+  <p class="muted small">{{t "ideen.backlog_empty"}}</p>
   {{end}}
 </div>
-{{else}}
-<p class="muted small">{{t "ideen.backlog_empty"}}</p>
-{{end}}
 {{end}}

@@ -203,11 +203,11 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO items
-			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links, region, region_manual)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.VacationID, i.Category, i.Title, i.Description, i.Location,
 		i.Latitude, i.Longitude, dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost,
-		dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt), links)
+		dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef, dbTime(i.CreatedAt), dbTime(i.UpdatedAt), links, i.Region, i.RegionManual)
 	if err != nil {
 		return fmt.Errorf("store: creating item: %w", err)
 	}
@@ -216,7 +216,7 @@ func (s *SQLite) CreateItem(ctx context.Context, i *models.Item) error {
 
 func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links, region, region_manual
 		FROM items WHERE id = ?`, id)
 	var it models.Item
 	if err := scanItem(row, &it); err != nil {
@@ -230,7 +230,7 @@ func (s *SQLite) GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error
 
 func (s *SQLite) ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links
+		SELECT id, vacation_id, category, title, description, location, latitude, longitude, day, start_min, end_min, cost, paid_by, visited, notes, origin_ref, created_at, updated_at, links, region, region_manual
 		FROM items WHERE vacation_id = ? ORDER BY day ASC, start_min ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing items: %w", err)
@@ -260,11 +260,11 @@ func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, title = ?, description = ?, location = ?, latitude = ?, longitude = ?,
-		    day = ?, start_min = ?, end_min = ?, cost = ?, paid_by = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?, links = ?
+		    day = ?, start_min = ?, end_min = ?, cost = ?, paid_by = ?, visited = ?, notes = ?, origin_ref = ?, updated_at = ?, links = ?, region = ?, region_manual = ?
 		WHERE id = ?`,
 		i.Category, i.Title, i.Description, i.Location, i.Latitude, i.Longitude,
 		dbDatePtr(i.Day), i.StartMin, i.EndMin, i.Cost, dbUUIDPtr(i.PaidBy), i.Visited, i.Notes, i.OriginRef,
-		dbTime(i.UpdatedAt), links, i.ID)
+		dbTime(i.UpdatedAt), links, i.Region, i.RegionManual, i.ID)
 	if err != nil {
 		return fmt.Errorf("store: updating item: %w", err)
 	}
@@ -929,7 +929,7 @@ func scanItem(sc rowScanner, it *models.Item) error {
 	var created, updated, links string
 	if err := sc.Scan(&it.ID, &it.VacationID, &it.Category, &it.Title, &it.Description,
 		&it.Location, &it.Latitude, &it.Longitude, &day, &it.StartMin, &it.EndMin,
-		&it.Cost, &paidBy, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated, &links); err != nil {
+		&it.Cost, &paidBy, &it.Visited, &it.Notes, &it.OriginRef, &created, &updated, &links, &it.Region, &it.RegionManual); err != nil {
 		return err
 	}
 	if err := json.Unmarshal([]byte(links), &it.Links); err != nil {

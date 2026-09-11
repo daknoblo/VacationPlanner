@@ -34,6 +34,29 @@ type CheatsheetJob struct {
 	Key            string
 	Status         string
 	Attempt        string
+	Original       string
+	TargetLanguage string
+}
+
+func (j *CheatsheetJob) Phrase() *CustomTravelPhrase {
+	return &CustomTravelPhrase{
+		VacationID: j.VacationID, SourceLanguage: j.SourceLanguage, DestinationKey: j.DestinationKey,
+		TargetLanguage: j.TargetLanguage, Original: j.Original,
+	}
+}
+
+func (j *CheatsheetJob) ValidatePhrase() error {
+	original, err := NormalizeCustomPhrase(j.Original)
+	if err != nil {
+		return err
+	}
+	if j.VacationID == uuid.Nil || j.DestinationKey == "" ||
+		(j.SourceLanguage != "en" && j.SourceLanguage != "de") ||
+		strings.TrimSpace(j.TargetLanguage) == "" || len(j.TargetLanguage) > 150 ||
+		!utf8.ValidString(j.TargetLanguage) || original != j.Original || j.Key != j.Phrase().JobKey() {
+		return errors.New("invalid phrase job profile or payload")
+	}
+	return nil
 }
 
 // CustomTravelPhrase is cached independently of the built-in vocabulary.

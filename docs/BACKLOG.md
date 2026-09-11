@@ -56,6 +56,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Incremental translation and regional planning — one vocabulary table with
+      queued custom words, preserved input while polling, automatic accommodation
+      geocoding, region-grouped ideas with manual overrides, centered budget tiles
+      and direct links for unassigned costs.
 - [x] Automatic and custom Cheatsheets — creation queues a background generation;
       own words/sentences are translated, saved and safely retryable after failure.
 - [x] Clearer trip overview — accommodation-only map, live day/week activity counts,

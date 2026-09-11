@@ -1150,6 +1150,15 @@ func (s *Server) handleIdeasFragment(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	if _, err := s.store.GetVacation(r.Context(), id); err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+		} else {
+			s.serverError(w, r, err)
+		}
+		return
+	}
+	s.queueGeography(id, i18n.FromContext(r.Context()).Code())
 	items, err := s.store.ListItems(r.Context(), id)
 	if err != nil {
 		s.serverError(w, r, err)

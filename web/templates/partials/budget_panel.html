@@ -36,6 +36,11 @@
   <aside class="budget-notice" role="status">
     <strong>{{t "paid_by.unassigned"}}: {{bmoney $b.Unassigned $b.Currency}} ({{$b.UnassignedCount}})</strong>
     <p>{{t "budget.unassigned_action"}}</p>
+    <ul class="budget-notice__bookings">
+      {{range $b.Expenses}}{{if not .PayerID}}
+      <li><a href="#budget-source-{{.Source}}-{{.SourceID}}" data-budget-source="{{.Source}}" data-budget-source-id="{{.SourceID}}">{{.Title}}</a> <strong>{{bmoney .Amount $b.Currency}}</strong></li>
+      {{end}}{{end}}
+    </ul>
   </aside>
   {{end}}
   {{if $b.HasPeople}}

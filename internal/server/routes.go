@@ -87,6 +87,7 @@ func (s *Server) routes() {
 			r.Post("/cheatsheet/phrases", s.handleTranslateCheatsheetPhrase)
 			r.Get("/api/items", s.handleItemsJSON)
 			r.Get("/api/overview-map", s.handleOverviewMap)
+			r.Post("/geography/refresh", s.handleRefreshGeography)
 			r.Get("/api/daycounts", s.handleDayCounts)
 			r.Get("/api/budget", s.handleBudgetFragment)
 			r.Get("/api/overview", s.handleOverviewFragment)

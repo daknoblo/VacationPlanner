@@ -27,7 +27,9 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	description := strings.TrimSpace(formStr(r, "description"))
 	location := strings.TrimSpace(formStr(r, "location"))
 	notes := strings.TrimSpace(formStr(r, "notes"))
-	if !maxLen(category, 100) || !maxLen(description, 2000) || !maxLen(location, 200) || !maxLen(notes, 2000) {
+	manualRegion := formStr(r, "region")
+	region := manualRegion
+	if !maxLen(category, 100) || !maxLen(description, 2000) || !maxLen(location, 200) || !maxLen(notes, 2000) || !maxLen(region, 200) {
 		return nil, errValidation(loc.T("error.input_toolong"))
 	}
 
@@ -65,19 +67,21 @@ func (s *Server) itemFromForm(r *http.Request) (*models.Item, error) {
 	}
 
 	return &models.Item{
-		Category:    category,
-		Title:       title,
-		Description: description,
-		Location:    location,
-		Links:       links,
-		Latitude:    lat,
-		Longitude:   lng,
-		Day:         day,
-		StartMin:    startMin,
-		EndMin:      endMin,
-		Cost:        cost,
-		PaidBy:      paidBy,
-		Notes:       notes,
+		Category:     category,
+		Title:        title,
+		Description:  description,
+		Location:     location,
+		Region:       region,
+		RegionManual: manualRegion != "",
+		Links:        links,
+		Latitude:     lat,
+		Longitude:    lng,
+		Day:          day,
+		StartMin:     startMin,
+		EndMin:       endMin,
+		Cost:         cost,
+		PaidBy:       paidBy,
+		Notes:        notes,
 	}, nil
 }
 
@@ -197,6 +201,7 @@ func (s *Server) handleCreateItem(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	s.retryGeography(id, i18n.FromContext(r.Context()).Code())
 
 	hxTrigger(w, "itemsChanged")
 	// A timed item is also mirrored onto the day's hour grid via an out-of-band swap.
@@ -322,7 +327,8 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	}
 	category := strings.TrimSpace(formStr(r, "category"))
 	description := strings.TrimSpace(formStr(r, "description"))
-	if !maxLen(category, 100) || !maxLen(description, 2000) {
+	region := formStr(r, "region")
+	if !maxLen(category, 100) || !maxLen(description, 2000) || !maxLen(region, 200) {
 		s.formError(w, r, "#item-error", loc.T("error.input_toolong"))
 		return
 	}
@@ -342,6 +348,10 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	existing.Description = description
 	existing.Day = day
 	existing.Cost = cost
+	if r.PostForm.Has("region") && region != existing.Region {
+		existing.Region = region
+		existing.RegionManual = region != ""
+	}
 	paidBy, err := parseBudgetPayer(r)
 	if err != nil {
 		s.formError(w, r, "#item-error", err.Error())
@@ -364,6 +374,9 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.UpdateItem(r.Context(), existing); err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+	if existing.Region == "" && !existing.RegionManual {
+		s.retryGeography(existing.VacationID, loc.Code())
 	}
 	hxTrigger(w, "itemsChanged")
 	s.fragment(w, r, "item_row", existing)

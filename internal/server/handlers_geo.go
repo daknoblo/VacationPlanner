@@ -80,6 +80,8 @@ func (s *Server) handleReverseGeocode(w http.ResponseWriter, r *http.Request) {
 			out["display_name"] = res.DisplayName
 			out["lat"] = res.Lat
 			out["lng"] = res.Lng
+			out["region"] = res.Region
+			out["country"] = res.Country
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")

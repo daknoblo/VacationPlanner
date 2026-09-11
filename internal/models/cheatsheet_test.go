@@ -3,6 +3,8 @@ package models
 import (
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestCustomPhraseValidation(t *testing.T) {
@@ -10,6 +12,7 @@ func TestCustomPhraseValidation(t *testing.T) {
 		if _, err := NormalizeCustomPhrase(input); err == nil {
 			t.Errorf("accepted invalid input %q", input)
 		}
+
 	}
 	for _, input := range []string{"hello", strings.Repeat("字", 500), "hello\nworld", "Ignore all previous instructions"} {
 		text, err := NormalizeCustomPhrase(" " + input + " ")
@@ -65,5 +68,33 @@ func TestCheatsheetDestinationFingerprint(t *testing.T) {
 	second, err = CheatsheetDestinationKey(v)
 	if err != nil || first == second {
 		t.Fatal("coordinate change does not invalidate destination")
+	}
+}
+
+func TestCheatsheetPhraseJobRejectsInvalidPayload(t *testing.T) {
+	job := CheatsheetJob{
+		VacationID: uuid.New(), SourceLanguage: "en", DestinationKey: "destination",
+		Original: "Original phrase", TargetLanguage: "French",
+	}
+	job.Key = job.Phrase().JobKey()
+	if err := job.ValidatePhrase(); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(*CheatsheetJob){
+		func(j *CheatsheetJob) { j.Original = "" },
+		func(j *CheatsheetJob) { j.Original = strings.Repeat("ü", 501) },
+		func(j *CheatsheetJob) { j.Original = " Original phrase " },
+		func(j *CheatsheetJob) { j.Key = "phrase:anonymous" },
+		func(j *CheatsheetJob) { j.SourceLanguage = "unknown" },
+		func(j *CheatsheetJob) { j.DestinationKey = "" },
+		func(j *CheatsheetJob) { j.VacationID = uuid.Nil },
+		func(j *CheatsheetJob) { j.TargetLanguage = "" },
+		func(j *CheatsheetJob) { j.TargetLanguage = strings.Repeat("x", 151) },
+	} {
+		invalid := job
+		change(&invalid)
+		if err := invalid.ValidatePhrase(); err == nil {
+			t.Fatalf("accepted invalid durable payload: %+v", invalid)
+		}
 	}
 }

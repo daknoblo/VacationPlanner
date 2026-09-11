@@ -1,0 +1,2 @@
+ALTER TABLE items ADD COLUMN region TEXT NOT NULL DEFAULT '';
+ALTER TABLE items ADD COLUMN region_manual INTEGER NOT NULL DEFAULT 0 CHECK (region_manual IN (0, 1));

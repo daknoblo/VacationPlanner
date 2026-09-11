@@ -60,6 +60,7 @@ type viewData struct {
 }
 
 var funcMap = template.FuncMap{
+	"groupIdeas": groupIdeas,
 	"fmtDate":    fmtDate,
 	"fmtDatePtr": fmtDatePtr,
 	"dateInput":  dateInput,

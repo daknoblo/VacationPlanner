@@ -110,6 +110,8 @@ func run() error {
 	defer stopDiscovery()
 	stopCheatsheets := srv.StartCheatsheetWorker(ctx)
 	defer stopCheatsheets()
+	stopGeography := srv.StartGeographyWorker(ctx)
+	defer stopGeography()
 
 	// Background maintenance (automatic database vacuum when configured).
 	srv.StartMaintenance(ctx)

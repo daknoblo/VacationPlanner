@@ -70,9 +70,10 @@ func TestCustomTranslationExplicitRetryIsAttemptBound(t *testing.T) {
 	s, b, v, path := customPhraseTest(t)
 	b.fail = true
 	form := url.Values{"phrase": {"Please help"}}
-	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusUnprocessableEntity {
-		t.Fatal("failed translation was not reported")
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK || b.calls != 1 {
+		t.Fatal("phrase was not queued")
 	}
+	s.drainCheatsheets(context.Background())
 	key, err := cheatsheetDestinationKey(v)
 	if err != nil {
 		t.Fatal(err)
@@ -84,9 +85,10 @@ func TestCustomTranslationExplicitRetryIsAttemptBound(t *testing.T) {
 	}
 	firstAttempt := job.Attempt
 	form.Set("retry_attempt", firstAttempt)
-	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusUnprocessableEntity || b.calls != 3 {
-		t.Fatalf("explicit retry did not run once: %d calls=%d", rec.Code, b.calls)
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK || b.calls != 2 {
+		t.Fatalf("explicit retry did not enqueue: %d calls=%d", rec.Code, b.calls)
 	}
+	s.drainCheatsheets(context.Background())
 	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusUnprocessableEntity || b.calls != 3 {
 		t.Fatal("replaying the same failed retry invoked the provider again")
 	}
@@ -95,9 +97,10 @@ func TestCustomTranslationExplicitRetryIsAttemptBound(t *testing.T) {
 	}
 	b.fail = false
 	form.Set("retry_attempt", job.Attempt)
-	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK || b.calls != 4 {
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK || b.calls != 3 {
 		t.Fatalf("translation could not recover: %d %s", rec.Code, rec.Body.String())
 	}
+	s.drainCheatsheets(context.Background())
 	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK || b.calls != 4 {
 		t.Fatal("a saved translation was generated again")
 	}

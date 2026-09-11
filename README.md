@@ -48,6 +48,10 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   including untimed entries. Counts refresh after scheduling, moving or deleting an item;
   accommodations, travel legs and unscheduled ideas do not inflate them.
 - **Ideas backlog** – unscheduled items you can **drag onto the calendar** to schedule them.
+- **Regional ideas** – the day/week backlog groups available ideas by geographic region
+  and offers a shared region filter. Region metadata is resolved from located items;
+  unlocated ideas stay visible in the unknown group. Override or clear the region in
+  an item's editor when a different area grouping is more useful.
 - **Inline editing** and **image thumbnails** (Wikipedia) on activities and idea rows.
 - **Saved references** – adding an AI idea preserves its external links and supplied
   coordinates through editing and scheduling. Existing items without saved references
@@ -68,6 +72,10 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   Originals preserve their case; identical saved input is reused instead of translated
   again. Custom entries survive regeneration of the standard list and are scoped to the
   current destination and target language.
+- Standard vocabulary, custom translations and queued/error rows now share **one table**.
+  Adding a word queues only that translation, never a regeneration of the standard list.
+  The input remains usable while translations run; table polling preserves typed text,
+  focus and scroll. Repeated accepted submissions reuse the queue/cache.
 - A single worker handles a bounded durable queue without delaying vacation creation.
   Failed or interrupted provider calls are not automatically replayed. Manual recovery
   remains available; explicit custom-translation retries are bound to the failed attempt,
@@ -80,6 +88,11 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel
   endpoints are excluded. The general item-data API remains available separately.
+- Missing accommodation coordinates are resolved in the background from saved addresses
+  or sufficiently distinctive hotel names. Only specific, unambiguous matches are accepted;
+  a city center or an idea location is never substituted for a hotel. Unresolved names are
+  shown with an address-check hint and a refresh action. Existing coordinates and financial
+  edits are protected by conditional geo-only updates.
 - **Location pickers** still support clicking to fill coordinates for a new entry;
   **zoom is remembered** per trip and chosen
   sensibly per geocoding result (country → city → address).
@@ -92,6 +105,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
   icons, in the configured **currency** (€ / $).
 - Larger summary/payer cards, separated booking metadata and amounts, and responsive
   spacing keep the budget readable without changing any accounting calculations.
+- Budget tile contents are centered; the unassigned-cost notice links each affected
+  original booking directly.
 - Budget expenses are a **read-only aggregation of their original bookings**, not a second
   ledger. Source links open the existing hotel, travel leg or POI editor. Missing or
   unavailable payers remain explicit and are excluded from settlement, never guessed.
@@ -430,6 +445,12 @@ and `0019_cheatsheets.sql` to retain item references and cached travel vocabular
 Automatic creation and custom translations add `0020_cheatsheet_jobs.sql` and
 `0021_cheatsheet_custom_phrases.sql`. Job state and translations are included in
 normal SQLite backups; no new environment variables are required.
+Incremental phrase jobs and geographic region fields add migrations
+`0022_cheatsheet_phrase_jobs.sql` and `0023_item_regions.sql`. Geography enrichment uses
+the existing geocoder configuration, one worker, at most one request per second,
+40 lookups per batch and a 90-second deadline. A five-minute cooldown avoids repeatedly
+requesting unresolved places; the refresh action can explicitly continue a limited batch.
+Automatic region labels use a consistent language; manual area names remain untouched.
 Back up before updating and keep the same database volume. Route views do not add
 expense records. Existing costs without a payer remain visible until explicitly
 assigned at the original booking.

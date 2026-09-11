@@ -122,22 +122,24 @@ func (t TravelSegment) ToHasCoords() bool { return t.ToLat != nil && t.ToLng != 
 // user-defined category. It optionally has a day, a time range, map coordinates
 // and a cost, unifying the former Sight and Activity concepts.
 type Item struct {
-	ID          uuid.UUID
-	VacationID  uuid.UUID
-	Category    string
-	Title       string
-	Description string
-	Location    string
-	Links       []ItemLink
-	Latitude    *float64
-	Longitude   *float64
-	Day         *time.Time
-	StartMin    int
-	EndMin      int
-	Cost        *float64
-	PaidBy      *uuid.UUID
-	Visited     bool
-	Notes       string
+	ID           uuid.UUID
+	VacationID   uuid.UUID
+	Category     string
+	Title        string
+	Description  string
+	Location     string
+	Region       string
+	RegionManual bool
+	Links        []ItemLink
+	Latitude     *float64
+	Longitude    *float64
+	Day          *time.Time
+	StartMin     int
+	EndMin       int
+	Cost         *float64
+	PaidBy       *uuid.UUID
+	Visited      bool
+	Notes        string
 	// OriginRef is a soft reference to the start point used for the distance and
 	// time shown on this activity: "" means automatic (the previous located stop
 	// that day, or the day's lodging), "hotel" means the day's lodging (or the

@@ -159,6 +159,12 @@ func (s *Server) runCheatsheetJob(ctx context.Context, job *models.CheatsheetJob
 		s.log.Warn("cannot load cached cheatsheet", "err", err, "vacation_id", v.ID)
 		return
 	}
+	if job.Key != "sheet" {
+		if s.runCheatsheetPhrase(ctx, job, sheet) {
+			status = "ready"
+		}
+		return
+	}
 	if sheet != nil && sheet.DestinationKey == key {
 		status = "ready"
 		return
@@ -183,6 +189,39 @@ func (s *Server) runCheatsheetJob(ctx context.Context, job *models.CheatsheetJob
 		return
 	}
 	status = "ready"
+}
+
+func (s *Server) runCheatsheetPhrase(ctx context.Context, job *models.CheatsheetJob, sheet *models.Cheatsheet) bool {
+	// A queued phrase contains data, not a provider address or a request to
+	// regenerate the vocabulary. Validate the persisted profile before dispatch.
+	if err := job.ValidatePhrase(); err != nil || sheet == nil ||
+		sheet.DestinationKey != job.DestinationKey || sheet.Language != job.TargetLanguage {
+		return false
+	}
+	phrase := job.Phrase()
+	cached, err := s.store.ListCustomCheatsheetPhrases(ctx, phrase)
+	if err != nil {
+		s.log.Warn("cannot read custom phrase cache", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	for _, saved := range cached {
+		if saved.Original == phrase.Original {
+			return true
+		}
+	}
+	settings, err := s.settings(ctx)
+	if err != nil || !s.ai.Enabled() || s.foundryDeployment(settings) == "" {
+		return false
+	}
+	if err := s.ai.TranslateCheatsheetPhrase(ctx, s.foundryDeployment(settings), phrase); err != nil {
+		s.log.Warn("custom phrase translation failed", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	if err := s.store.PutCustomCheatsheetPhrase(ctx, phrase); err != nil {
+		s.log.Warn("cannot save custom phrase", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	return true
 }
 
 func (s *Server) recoverCheatsheets(ctx context.Context) bool {

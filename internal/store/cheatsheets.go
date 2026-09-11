@@ -102,6 +102,11 @@ func (s *SQLite) GetCheatsheetJob(ctx context.Context, job *models.CheatsheetJob
 // ReserveCheatsheetJob is the durable idempotency barrier before a paid call.
 // An explicit phrase retry must name the exact failed attempt it replaces.
 func (s *SQLite) ReserveCheatsheetJob(ctx context.Context, job *models.CheatsheetJob, retry bool) (bool, error) {
+	if job.Key != "sheet" {
+		if err := job.ValidatePhrase(); err != nil {
+			return false, err
+		}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, err
@@ -123,6 +128,11 @@ func (s *SQLite) ReserveCheatsheetJob(ctx context.Context, job *models.Cheatshee
 	if err := checkCheatsheetDestination(ctx, tx, job.VacationID, job.DestinationKey); err != nil {
 		return false, err
 	}
+	if job.Key != "sheet" {
+		if err := checkCheatsheetPhraseLanguage(ctx, tx, job.Phrase()); err != nil {
+			return false, err
+		}
+	}
 	full := false
 	if job.Status == "queued" || job.Status == "running" {
 		var pending int
@@ -142,10 +152,10 @@ func (s *SQLite) ReserveCheatsheetJob(ctx context.Context, job *models.Cheatshee
 	}
 	nextAttempt := dbTime(time.Now().UTC())
 	_, err = tx.ExecContext(ctx, `INSERT INTO cheatsheet_jobs
-		(vacation_id, source_language, destination_key, job_key, status, created_at) VALUES (?, ?, ?, ?, ?, ?)
+		(vacation_id, source_language, destination_key, job_key, status, created_at, original, target_language) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(vacation_id, source_language, destination_key, job_key) DO UPDATE SET
-		status = excluded.status, created_at = excluded.created_at`,
-		job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key, status, nextAttempt)
+		status = excluded.status, created_at = excluded.created_at, original = excluded.original, target_language = excluded.target_language`,
+		job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key, status, nextAttempt, job.Original, job.TargetLanguage)
 	if err != nil {
 		return false, err
 	}
@@ -161,15 +171,17 @@ func (s *SQLite) ReserveCheatsheetJob(ctx context.Context, job *models.Cheatshee
 
 func (s *SQLite) SetCheatsheetJobStatus(ctx context.Context, job *models.CheatsheetJob, status string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE cheatsheet_jobs SET status = ?
-		WHERE vacation_id = ? AND source_language = ? AND destination_key = ? AND job_key = ?`,
-		status, job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key)
+		WHERE vacation_id = ? AND source_language = ? AND destination_key = ? AND job_key = ?
+		AND (? = '' OR created_at = ?)`,
+		status, job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key, job.Attempt, job.Attempt)
 	return err
 }
 
 func (s *SQLite) ClaimCheatsheetJob(ctx context.Context, job *models.CheatsheetJob) (bool, error) {
 	result, err := s.db.ExecContext(ctx, `UPDATE cheatsheet_jobs SET status = 'running'
-		WHERE vacation_id = ? AND source_language = ? AND destination_key = ? AND job_key = ? AND status = 'queued'`,
-		job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key)
+		WHERE vacation_id = ? AND source_language = ? AND destination_key = ? AND job_key = ? AND status = 'queued'
+		AND (? = '' OR created_at = ?)`,
+		job.VacationID, job.SourceLanguage, job.DestinationKey, job.Key, job.Attempt, job.Attempt)
 	if err != nil {
 		return false, err
 	}
@@ -178,8 +190,8 @@ func (s *SQLite) ClaimCheatsheetJob(ctx context.Context, job *models.CheatsheetJ
 }
 
 func (s *SQLite) ListQueuedCheatsheetJobs(ctx context.Context) ([]models.CheatsheetJob, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT vacation_id, source_language, destination_key, job_key, status
-		FROM cheatsheet_jobs WHERE status = 'queued' AND job_key = 'sheet' ORDER BY created_at LIMIT 16`)
+	rows, err := s.db.QueryContext(ctx, `SELECT vacation_id, source_language, destination_key, job_key, status, created_at, original, target_language
+		FROM cheatsheet_jobs WHERE status = 'queued' ORDER BY created_at LIMIT 16`)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +199,30 @@ func (s *SQLite) ListQueuedCheatsheetJobs(ctx context.Context) ([]models.Cheatsh
 	var jobs []models.CheatsheetJob
 	for rows.Next() {
 		var job models.CheatsheetJob
-		if err := rows.Scan(&job.VacationID, &job.SourceLanguage, &job.DestinationKey, &job.Key, &job.Status); err != nil {
+		if err := rows.Scan(&job.VacationID, &job.SourceLanguage, &job.DestinationKey, &job.Key, &job.Status, &job.Attempt, &job.Original, &job.TargetLanguage); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *SQLite) ListCheatsheetPhraseJobs(ctx context.Context, profile *models.CustomTravelPhrase) ([]models.CheatsheetJob, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT job_key, status, created_at, original FROM cheatsheet_jobs
+		WHERE vacation_id = ? AND source_language = ? AND destination_key = ? AND target_language = ?
+		AND job_key != 'sheet' AND original != '' ORDER BY created_at, original`,
+		profile.VacationID, profile.SourceLanguage, profile.DestinationKey, profile.TargetLanguage)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var jobs []models.CheatsheetJob
+	for rows.Next() {
+		job := models.CheatsheetJob{
+			VacationID: profile.VacationID, SourceLanguage: profile.SourceLanguage,
+			DestinationKey: profile.DestinationKey, TargetLanguage: profile.TargetLanguage,
+		}
+		if err := rows.Scan(&job.Key, &job.Status, &job.Attempt, &job.Original); err != nil {
 			return nil, err
 		}
 		jobs = append(jobs, job)
@@ -234,8 +269,23 @@ func (s *SQLite) PutCustomCheatsheetPhrase(ctx context.Context, phrase *models.C
 	if err := checkCheatsheetDestination(ctx, tx, phrase.VacationID, phrase.DestinationKey); err != nil {
 		return err
 	}
+	if err := checkCheatsheetPhraseLanguage(ctx, tx, phrase); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO cheatsheet_custom_phrases
+		(vacation_id, source_language, destination_key, target_language, original, translation, pronunciation, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+		phrase.VacationID, phrase.SourceLanguage, phrase.DestinationKey, phrase.TargetLanguage,
+		phrase.Original, phrase.Text, phrase.Pronunciation, dbTime(time.Now().UTC()))
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func checkCheatsheetPhraseLanguage(ctx context.Context, tx *sql.Tx, phrase *models.CustomTravelPhrase) error {
 	var content string
-	err = tx.QueryRowContext(ctx, `SELECT content FROM cheatsheets WHERE vacation_id = ? AND source_language = ? AND destination_key = ?`,
+	err := tx.QueryRowContext(ctx, `SELECT content FROM cheatsheets WHERE vacation_id = ? AND source_language = ? AND destination_key = ?`,
 		phrase.VacationID, phrase.SourceLanguage, phrase.DestinationKey).Scan(&content)
 	if err != nil {
 		return err
@@ -247,13 +297,5 @@ func (s *SQLite) PutCustomCheatsheetPhrase(ctx context.Context, phrase *models.C
 	if sheet.Language != phrase.TargetLanguage {
 		return ErrCheatsheetDestinationChanged
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO cheatsheet_custom_phrases
-		(vacation_id, source_language, destination_key, target_language, original, translation, pronunciation, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
-		phrase.VacationID, phrase.SourceLanguage, phrase.DestinationKey, phrase.TargetLanguage,
-		phrase.Original, phrase.Text, phrase.Pronunciation, dbTime(time.Now().UTC()))
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	return nil
 }

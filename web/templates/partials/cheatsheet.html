@@ -1,62 +1,43 @@
 {{define "cheatsheet"}}
-<div id="cheatsheet-panel" class="panel"{{if .Active}}
-     hx-get="/vacations/{{.VacationID}}/cheatsheet" hx-trigger="every 3s" hx-swap="outerHTML"{{end}}>
+<div id="cheatsheet-panel" class="panel">
   <h2>{{t "tab.cheatsheet"}}</h2>
   <p class="muted">{{t "cheatsheet.intro"}} <strong>{{.Destination}}</strong></p>
-  {{if .Error}}<p class="alert alert--warn" role="alert">{{.Error}}</p>{{end}}
-  {{if .Stale}}<p class="muted">{{t "cheatsheet.destination_changed"}}</p>{{end}}
-  {{if .Active}}<p class="muted" role="status">{{t "cheatsheet.loading"}}</p>{{end}}
-  {{if eq .Status "failed"}}<p class="alert alert--warn" role="status">{{t "cheatsheet.failed"}}</p>{{end}}
-  {{with .Sheet}}
-  <p><strong>{{.Country}}</strong> · {{.Language}} <span class="muted small">({{fmtDate .CreatedAt}})</span></p>
+  {{template "cheatsheet-status" .}}
   <div class="cheatsheet-scroll">
     <table class="cheatsheet-table">
       <thead><tr><th scope="col">{{t "cheatsheet.meaning"}}</th><th scope="col">{{t "cheatsheet.translation"}}</th><th scope="col">{{t "cheatsheet.pronunciation"}}</th></tr></thead>
-      <tbody>{{range .Phrases}}
-        <tr><th scope="row">{{t (printf "cheatsheet.phrase.%s" .Key)}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>
-      {{end}}</tbody>
+      {{template "cheatsheet-rows" .}}
     </table>
   </div>
-  {{else}}
-  <p class="muted">{{t "cheatsheet.empty"}}</p>
-  {{end}}
-  {{if .Sheet}}
-  <h3>{{t "cheatsheet.custom_title"}}</h3>
-  {{if and .RetryToken .CanGenerate}}
+  {{if .CanGenerate}}
   <form class="form cheatsheet-custom-form" method="post" action="/vacations/{{.VacationID}}/cheatsheet/phrases"
-        hx-post="/vacations/{{.VacationID}}/cheatsheet/phrases" hx-target="#cheatsheet-panel" hx-swap="outerHTML" hx-disabled-elt="button">
-    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-    <input type="hidden" name="phrase" value="{{.RetryPhrase}}">
-    <input type="hidden" name="retry_attempt" value="{{.RetryToken}}">
-    <p>{{.RetryPhrase}}</p>
-    <div><button class="btn" type="submit">{{t "cheatsheet.custom_retry"}}</button></div>
-  </form>
-  {{end}}
-  {{if .Custom}}
-  <div class="cheatsheet-scroll">
-    <table class="cheatsheet-table">
-      <thead><tr><th scope="col">{{t "cheatsheet.meaning"}}</th><th scope="col">{{t "cheatsheet.translation"}}</th><th scope="col">{{t "cheatsheet.pronunciation"}}</th></tr></thead>
-      <tbody>{{range .Custom}}
-        <tr><th scope="row">{{.Original}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>
-      {{end}}</tbody>
-    </table>
-  </div>
-  {{end}}
-  {{if and .CanGenerate (not .Active)}}
-  <form class="form cheatsheet-custom-form" method="post" action="/vacations/{{.VacationID}}/cheatsheet/phrases"
-        hx-post="/vacations/{{.VacationID}}/cheatsheet/phrases" hx-target="#cheatsheet-panel" hx-swap="outerHTML"
+        hx-post="/vacations/{{.VacationID}}/cheatsheet/phrases?fragment=rows" hx-target="#cheatsheet-rows"
+        hx-swap="outerHTML show:none" hx-sync="#cheatsheet-panel:replace" data-reset
         hx-disabled-elt="button" hx-indicator="#custom-phrase-loading">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    {{template "cheatsheet-profile" .}}
     <label for="custom-phrase">{{t "cheatsheet.custom_label"}}</label>
     <textarea id="custom-phrase" name="phrase" rows="2" maxlength="500" required></textarea>
     <button class="btn" type="submit">{{t "cheatsheet.custom_translate"}}</button>
-    <p id="custom-phrase-loading" class="foundry-checking muted small" role="status">{{t "cheatsheet.loading"}}</p>
+    <p id="custom-phrase-loading" class="foundry-checking muted small" role="status">{{t "cheatsheet.queuing"}}</p>
   </form>
   {{end}}
+</div>
+{{end}}
+
+{{define "cheatsheet-status"}}
+<div id="cheatsheet-status"{{if .RowsOnly}} hx-swap-oob="outerHTML"{{end}}>
+  {{if .Error}}<p class="alert alert--warn" role="alert">{{.Error}}</p>{{end}}
+  {{if .Stale}}<p class="muted">{{t "cheatsheet.destination_changed"}}</p>{{end}}
+  {{if .SheetActive}}<p class="muted" role="status">{{t "cheatsheet.loading"}}</p>{{end}}
+  {{if eq .Status "failed"}}<p class="alert alert--warn" role="status">{{t "cheatsheet.failed"}}</p>{{end}}
+  {{with .Sheet}}
+  <p><strong>{{.Country}}</strong> · {{.Language}} <span class="muted small">({{fmtDate .CreatedAt}})</span></p>
   {{end}}
-  {{if and .CanGenerate (not .Active)}}
+  {{if and .CanGenerate (not .SheetActive)}}
   <form method="post" action="/vacations/{{.VacationID}}/cheatsheet"
-        hx-post="/vacations/{{.VacationID}}/cheatsheet" hx-target="#cheatsheet-panel" hx-swap="outerHTML"
+        hx-post="/vacations/{{.VacationID}}/cheatsheet?fragment=rows" hx-target="#cheatsheet-rows"
+        hx-swap="outerHTML show:none"
         hx-disabled-elt="button" hx-indicator="#cheatsheet-loading">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     {{if .Sheet}}<input type="hidden" name="refresh" value="1">{{end}}
@@ -66,4 +47,54 @@
   {{end}}
   {{if not .CanGenerate}}<p class="muted small">{{t "cheatsheet.configure_ai"}} <a href="/settings">{{t "nav.settings"}}</a></p>{{end}}
 </div>
+{{end}}
+
+{{define "cheatsheet-profile"}}
+<div id="cheatsheet-profile"{{if .RowsOnly}} hx-swap-oob="outerHTML"{{end}}>
+  {{with .Profile}}
+  <input type="hidden" name="destination_key" value="{{.DestinationKey}}">
+  <input type="hidden" name="source_language" value="{{.SourceLanguage}}">
+  <input type="hidden" name="target_language" value="{{.TargetLanguage}}">
+  {{end}}
+</div>
+{{end}}
+
+{{define "cheatsheet-rows"}}
+<tbody id="cheatsheet-rows"{{if .Active}}
+       hx-get="/vacations/{{.VacationID}}/cheatsheet?fragment=rows" hx-trigger="every 3s"
+       hx-swap="outerHTML show:none" hx-sync="#cheatsheet-panel:drop"{{end}}>
+  {{with .Sheet}}{{range .Phrases}}
+  <tr><th scope="row">{{t (printf "cheatsheet.phrase.%s" .Key)}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>
+  {{end}}{{else}}
+  <tr><td colspan="3" class="muted">{{t "cheatsheet.empty"}}</td></tr>
+  {{end}}
+  {{range .Custom}}
+  <tr><th scope="row">{{.Original}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>
+  {{end}}
+  {{range .PhraseJobs}}
+  <tr data-phrase-status="{{.Status}}">
+    <th scope="row">{{.Original}}</th>
+    <td class="muted" role="status">{{if eq .Status "queued"}}{{t "cheatsheet.queued"}}{{else if eq .Status "running"}}{{t "cheatsheet.translating"}}{{else}}{{t "cheatsheet.custom_failed"}}{{end}}</td>
+    <td>{{if and (eq .Status "failed") $.CanGenerate}}
+      <form method="post" action="/vacations/{{$.VacationID}}/cheatsheet/phrases"
+            hx-post="/vacations/{{$.VacationID}}/cheatsheet/phrases?fragment=rows" hx-target="#cheatsheet-rows"
+            hx-swap="outerHTML show:none" hx-sync="#cheatsheet-panel:replace" hx-disabled-elt="button">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+        <input type="hidden" name="phrase" value="{{.Original}}">
+        <input type="hidden" name="retry_attempt" value="{{.Attempt}}">
+        <input type="hidden" name="destination_key" value="{{.DestinationKey}}">
+        <input type="hidden" name="source_language" value="{{.SourceLanguage}}">
+        <input type="hidden" name="target_language" value="{{.TargetLanguage}}">
+        <button class="btn" type="submit">{{t "cheatsheet.custom_retry"}}</button>
+      </form>
+    {{end}}</td>
+  </tr>
+  {{end}}
+</tbody>
+{{end}}
+
+{{define "cheatsheet-rows-response"}}
+{{template "cheatsheet-rows" .}}
+{{template "cheatsheet-status" .}}
+{{template "cheatsheet-profile" .}}
 {{end}}

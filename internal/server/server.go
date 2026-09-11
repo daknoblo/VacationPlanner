@@ -35,6 +35,7 @@ type Server struct {
 	cheatsheetStart sync.Once
 	cheatsheetStop  func()
 	geo             *geo.Client
+	geography       *geographyWorker
 	routing         *route.Client
 	destImg         *destimg.Client
 	render          *renderer
@@ -71,6 +72,7 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		}
 		s.ai = ai.New(s.foundry)
 	}
+	s.geography = newGeographyWorker(s)
 	s.routes()
 	return s, nil
 }

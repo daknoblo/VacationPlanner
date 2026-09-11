@@ -132,7 +132,7 @@
         </div>
         <div id="ideas-backlog-day" class="ideas-backlog"
              hx-get="/vacations/{{$v.ID}}/api/ideas"
-             hx-trigger="itemsChanged from:body"
+             hx-trigger="itemsChanged from:body, geographyChanged from:body"
              hx-swap="innerHTML">
           {{template "ideas_backlog" .Data.Ideas}}
         </div>
@@ -192,7 +192,7 @@
       <div class="weekview" data-weekview>
         <div id="ideas-backlog-week" class="ideas-backlog"
              hx-get="/vacations/{{$v.ID}}/api/ideas"
-             hx-trigger="itemsChanged from:body"
+             hx-trigger="itemsChanged from:body, geographyChanged from:body"
              hx-swap="innerHTML">
           {{template "ideas_backlog" .Data.Ideas}}
         </div>
@@ -212,7 +212,7 @@
           <h2>{{t "overview.activities"}}</h2>
           <div id="overview-body"
                hx-get="/vacations/{{$v.ID}}/api/overview"
-               hx-trigger="itemsChanged from:body"
+               hx-trigger="itemsChanged from:body, geographyChanged from:body"
                hx-swap="innerHTML">
             {{template "overview_list" .Data.ActivityList}}
           </div>
@@ -228,7 +228,12 @@
              data-lng="{{coord $v.Longitude}}"
              data-zoom="{{if $v.MapZoom}}{{$v.MapZoom}}{{end}}"
              data-attribution="{{t "map.attribution"}}"></div>
-        <p id="map-status" class="muted small" role="status" data-empty="{{t "map.lodgings_empty"}}" data-error="{{t "map.lodgings_error"}}" hidden></p>
+        <p id="map-status" class="muted small" role="status" data-empty="{{t "map.lodgings_empty"}}" data-error="{{t "map.lodgings_error"}}"
+           data-pending="{{t "geography.pending"}}" data-unresolved="{{t "geography.unresolved"}}" data-limited="{{t "geography.limited"}}" hidden></p>
+        <form method="post" action="/vacations/{{$v.ID}}/geography/refresh" hx-post="/vacations/{{$v.ID}}/geography/refresh" hx-swap="none" hx-disabled-elt="button">
+          <input type="hidden" name="csrf_token" value="{{$csrf}}">
+          <button class="btn btn--sm" type="submit">{{t "geography.retry"}}</button>
+        </form>
         <div class="overview-notes">
           <h3>{{t "field.notes"}}</h3>
           <form hx-post="/vacations/{{$v.ID}}/notes"

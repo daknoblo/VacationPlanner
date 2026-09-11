@@ -37,14 +37,35 @@
   document.body.addEventListener("htmx:afterRequest", function (evt) {
     var form = evt.target;
     if (form && form.matches && form.matches("form[data-reset]") && evt.detail.successful) {
-      form.reset();
+      if (form.matches(".cheatsheet-custom-form")) {
+        var phrase = form.querySelector('[name="phrase"]');
+        if (phrase && phrase.value === evt.detail.xhr._submittedPhrase) phrase.value = "";
+      } else {
+        form.reset();
+      }
       resyncIconPicker(form);
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeRequest", function (evt) {
+    var form = evt.detail.elt;
+    if (form && form.matches && form.matches("form.cheatsheet-custom-form")) {
+      var phrase = form.querySelector('[name="phrase"]');
+      if (phrase) evt.detail.xhr._submittedPhrase = phrase.value;
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeSwap", function (evt) {
+    if (evt.detail.target && evt.detail.target.id === "cheatsheet-rows" && evt.detail.xhr.status === 422) {
+      evt.detail.shouldSwap = true;
+      evt.detail.isError = true;
     }
   });
 
   // Re-bind geo autocomplete on content swapped in by htmx (e.g. the travel editor).
   document.body.addEventListener("htmx:afterSwap", function () {
     initGeoLiteInputs();
+    applyIdeaRegionFilter();
   });
 
   // Once an AI suggestion has been added to the trip, remove its tile so it is
@@ -145,6 +166,9 @@
   var markerLayer = null;
   var markerRequest = null;
   var markerSignature = null;
+  var geographyPending = false;
+  var geographyInitialized = false;
+  var geographyTimer = null;
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -187,6 +211,7 @@
     if (!el || !map || !markerLayer) return;
     var url = el.dataset.markersUrl;
     if (!url) return;
+    if (geographyTimer) window.clearTimeout(geographyTimer);
     if (markerRequest) markerRequest.abort();
     var request = new AbortController();
     markerRequest = request;
@@ -216,10 +241,27 @@
           map.setView([data.center.lat, data.center.lng], parseInt(el.dataset.zoom, 10) || 5);
         }
         markerSignature = signature;
+        var geography = data.geography || {};
         if (status) {
-          status.textContent = bounds.length ? "" : status.dataset.empty;
-          status.hidden = bounds.length > 0;
+          var message = bounds.length ? "" : status.dataset.empty;
+          if (geography.pending) {
+            message = status.dataset.pending;
+          } else if (geography.unresolved && geography.unresolved.length) {
+            message = status.dataset.unresolved + ": " + geography.unresolved.join(", ");
+          } else if (geography.error) {
+            message = status.dataset.error;
+          }
+          if (geography.limited) message += " " + status.dataset.limited;
+          status.textContent = message;
+          status.hidden = !message;
         }
+        if (geography.pending) {
+          geographyTimer = window.setTimeout(refreshMarkers, 2000);
+        } else if (geographyPending || !geographyInitialized) {
+          document.body.dispatchEvent(new CustomEvent("geographyChanged"));
+        }
+        geographyPending = !!geography.pending;
+        geographyInitialized = true;
       })
       .catch(function (err) {
         if (err.name === "AbortError") return;
@@ -777,6 +819,42 @@
   }
 
   // ---- Item location autocomplete (geocode -> fills hidden lat/lng) ----
+  var selectedIdeaRegion = "*";
+  var selectedIdeaRegionLabel = "";
+
+  function applyIdeaRegionFilter() {
+    var roots = document.querySelectorAll("[data-ideas-regions]");
+    for (var i = 0; i < roots.length; i++) {
+      var root = roots[i];
+      var select = root.querySelector("[data-ideas-region-filter]");
+      if (!select) continue;
+      var exists = Array.prototype.some.call(select.options, function (option) { return option.value === selectedIdeaRegion; });
+      if (!exists && selectedIdeaRegion !== "*") {
+        var option = document.createElement("option");
+        option.value = selectedIdeaRegion;
+        option.textContent = selectedIdeaRegionLabel;
+        select.appendChild(option);
+      }
+      select.value = selectedIdeaRegion;
+      var groups = root.querySelectorAll("[data-ideas-region-group]");
+      var visible = 0;
+      for (var j = 0; j < groups.length; j++) {
+        groups[j].hidden = selectedIdeaRegion !== "*" && groups[j].dataset.ideasRegionGroup !== selectedIdeaRegion;
+        if (!groups[j].hidden) visible++;
+      }
+      var empty = root.querySelector("[data-ideas-region-empty]");
+      if (empty) empty.hidden = visible > 0;
+    }
+  }
+
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (!select.matches || !select.matches("[data-ideas-region-filter]")) return;
+    selectedIdeaRegion = select.value;
+    selectedIdeaRegionLabel = select.options[select.selectedIndex].textContent;
+    applyIdeaRegionFilter();
+  });
+
   function initGeoLiteInputs() {
     var inputs = document.querySelectorAll("[data-geo-lite]");
     for (var i = 0; i < inputs.length; i++) { initGeoLite(inputs[i]); }
@@ -1167,6 +1245,7 @@
 
   document.body.addEventListener("itemsChanged", refreshDayCards);
   document.body.addEventListener("infoChanged", refreshDayCards);
+  document.body.addEventListener("geographyChanged", refreshDayCards);
 
   document.body.addEventListener("htmx:beforeRequest", function (e) {
     var el = e.detail.elt;

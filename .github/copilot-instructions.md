@@ -98,7 +98,10 @@ a reverse proxy.
 - `POST /settings/ai/probe` – explicit text connection recheck.
 - `GET/POST /vacations/{id}/cheatsheet` – read or generate cached destination-language phrases.
 - `POST /vacations/{id}/cheatsheet/phrases` – translate and retain a custom word or sentence.
+- Custom phrases are queued individually and share the standard vocabulary table;
+  polling must not replace/reset the input form or trigger standard-list regeneration.
 - `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
+- `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
@@ -116,6 +119,9 @@ a reverse proxy.
 - Added ideas retain safe external reference links and supplied coordinates through edits
   and scheduling. The budget is derived from source bookings; editing it opens those
   originals, and missing payer assignments must not be guessed.
+- Ideas support geographic region grouping and an editable region override. Background
+  geography enrichment updates only unchanged geo fields; it must never overwrite costs,
+  payers or manual regions, or invent hotel locations from destination centers.
 - AI-generated content is **never rendered as raw HTML** (`html/template` escaping).
 - The UI language is switchable in Settings and persisted per client.
 

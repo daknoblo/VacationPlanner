@@ -150,8 +150,13 @@ func TestCheatsheetCustomValidationCacheAndEscaping(t *testing.T) {
 	}
 	for range 2 {
 		rec := postAISettings(s, path, url.Values{"phrase": {input}}, true)
-		if rec.Code != http.StatusOK || b.calls != 2 {
+		if rec.Code != http.StatusOK {
 			t.Fatalf("custom phrase duplicated or failed: %d %d %s", rec.Code, b.calls, rec.Body.String())
+		}
+		s.drainCheatsheets(context.Background())
+		rec = getCheatsheetPage(s, v)
+		if b.calls != 2 {
+			t.Fatalf("custom phrase dispatched more than once: %d", b.calls)
 		}
 		if strings.Contains(rec.Body.String(), "<script>") || !strings.Contains(rec.Body.String(), "&lt;script&gt;original") ||
 			!strings.Contains(rec.Body.String(), "&lt;script&gt;translation") {
@@ -172,6 +177,7 @@ func TestCheatsheetCustomCachePreservesOriginalCase(t *testing.T) {
 	s, b, v, path := customPhraseTest(t)
 	for i, text := range []string{"Sie", "sie", " Sie ", " sie "} {
 		rec := postAISettings(s, path, url.Values{"phrase": {text}}, true)
+		s.drainCheatsheets(context.Background())
 		wantCalls := 3
 		if i == 0 {
 			wantCalls = 2
@@ -199,13 +205,18 @@ func TestCheatsheetCustomFailureAndConcurrentRequestDoNotRetry(t *testing.T) {
 	input := url.Values{"phrase": {"Please help"}}
 	b.duringCall = func() {
 		rec := postAISettings(s, path, input, true)
-		if rec.Code != http.StatusUnprocessableEntity || b.calls != 2 {
+		if rec.Code != http.StatusOK || b.calls != 2 {
 			t.Errorf("concurrent duplicate custom phrase: %d %d", rec.Code, b.calls)
 		}
 	}
 	b.fail = true
+	if rec := postAISettings(s, path, input, true); rec.Code != http.StatusOK || b.calls != 1 {
+		t.Fatal("enqueue did not return before dispatch")
+	}
+	s.drainCheatsheets(context.Background())
 	for range 2 {
 		rec := postAISettings(s, path, input, true)
+		s.drainCheatsheets(context.Background())
 		if rec.Code != http.StatusUnprocessableEntity || b.calls != 2 {
 			t.Fatalf("unknown provider outcome was retried: %d %d", rec.Code, b.calls)
 		}
@@ -218,6 +229,7 @@ func TestCheatsheetCustomRegenerationAndDestinationChanges(t *testing.T) {
 	if rec := postAISettings(s, path, input, true); rec.Code != http.StatusOK {
 		t.Fatal(rec.Body.String())
 	}
+	s.drainCheatsheets(context.Background())
 	_, sheetBackend, _ := newCheatsheetTest(t)
 	b.response = sheetBackend.response
 	if rec := postAISettings(s, "/vacations/"+v.ID.String()+"/cheatsheet", url.Values{"refresh": {"1"}}, true); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "My custom phrase") {
@@ -249,9 +261,10 @@ func TestCheatsheetCustomDestinationEditDuringProviderCall(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	if rec := postAISettings(s, path, url.Values{"phrase": {"Do not save me"}}, true); rec.Code != http.StatusUnprocessableEntity {
-		t.Fatal("stale phrase accepted")
+	if rec := postAISettings(s, path, url.Values{"phrase": {"Do not save me"}}, true); rec.Code != http.StatusOK {
+		t.Fatal("enqueue failed")
 	}
+	s.drainCheatsheets(context.Background())
 	profile := &models.CustomTravelPhrase{VacationID: v.ID, SourceLanguage: "en", DestinationKey: oldKey, TargetLanguage: "French"}
 	if phrases, err := s.store.ListCustomCheatsheetPhrases(context.Background(), profile); err != nil || len(phrases) != 0 {
 		t.Fatalf("stale in-flight phrase saved: %+v %v", phrases, err)
