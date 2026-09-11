@@ -5,10 +5,41 @@
 [![Go](https://img.shields.io/github/go-mod/go-version/daknoblo/VacationPlanner)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-vacationplanner-blue?logo=docker)](https://github.com/daknoblo/VacationPlanner/pkgs/container/vacationplanner)
+[![Demo](https://img.shields.io/badge/demo-GitHub%20Pages-green)](https://daknoblo.github.io/VacationPlanner/)
 
 A web-based vacation planner written in **Go** with a modern, lightweight server-rendering
 architecture (HTMX + Leaflet), SQLite persistence, Microsoft Foundry AI recommendations,
 a **multi-language UI (English / German)**, and a **multi-arch, distroless** Docker image.
+
+## Documentation & demo
+
+**[Documentation and screenshot gallery](https://daknoblo.github.io/VacationPlanner/)**
+· **[English demo](https://daknoblo.github.io/VacationPlanner/demo/en/index.html)**
+· **[German demo](https://daknoblo.github.io/VacationPlanner/demo/de/index.html)**
+
+The demo renders the **real application templates with synthetic example data**.
+It is a static, read-only preview: nothing is saved, no credentials or private trip
+data are used, and no AI, geocoding or routing requests are sent. Maps are explicitly
+illustrative local graphics rather than live OpenStreetMap tiles. Interactive tabs,
+day/week switching and regional idea filters let you explore the UI; editing,
+dragging, translations and other backend actions are disabled.
+
+Documentation is generated from this README. On every push to `main`, the Pages
+workflow builds both demo languages and captures fresh screenshots from that same
+build before publishing the complete site. Pull requests run the same validation
+without publishing. The site records its source version; the screenshot manifest
+also records the commit, browser version and image hashes. The demo follows `main`,
+which can be ahead of the latest released container.
+
+| Trip overview | Budget |
+| --- | --- |
+| ![Accommodation overview](https://daknoblo.github.io/VacationPlanner/screenshots/en/overview.png) | ![Budget overview](https://daknoblo.github.io/VacationPlanner/screenshots/en/budget.png) |
+| Day planner | Travel cheatsheet |
+| ![Day planner](https://daknoblo.github.io/VacationPlanner/screenshots/en/day-planner.png) | ![Unified travel vocabulary](https://daknoblo.github.io/VacationPlanner/screenshots/en/cheatsheet.png) |
+
+All views, including mobile and German screenshots, are available in the
+[gallery](https://daknoblo.github.io/VacationPlanner/). Generated HTML and PNGs are
+published together as a Pages artifact, not checked into the repository.
 
 ## Features
 
@@ -111,7 +142,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 ### Overview & budget
 
 - **Overview** – a chronological list of travel totals, lodging and activities with color-coded
-  categories, weekday/date/time, cost, and **click-to-recenter** on the map, plus **quick notes**.
+  categories, weekday/date/time and cost, plus **quick notes**. The adjacent map contains
+  accommodation markers only; it is not an activity/idea marker map.
 - **Budget** – budget vs. spent across items, lodging and travel, broken down by category with
   icons, in the configured **currency** (€ / $).
 - Larger summary/payer cards, separated booking metadata and amounts, and responsive
@@ -131,8 +163,8 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 - **AI recommendations** – via **Microsoft Foundry / Azure OpenAI**, using explicit
   service-principal authentication. Anchored to the destination with an adjustable **radius**, filtered
   against items already on the trip, with **thumbnails**; add a suggestion as an item in one click.
-- **Activity suggestions** as you type, plus robust JSON extraction for chatty models and clear
-  error surfacing in the log viewer.
+- **Robust AI response parsing** – JSON extraction for chatty models and clear error
+  surfacing in the log viewer. Recommendations are requested explicitly in the Ideas tab.
 - **Identity-only AI** – automatic account-scoped endpoint and
   deployment discovery, saved text deployment selection and separate metadata/connection checks.
   Only text Chat Completions are used: no embeddings, RAG, vision, image generation, streaming
@@ -189,7 +221,7 @@ a **multi-language UI (English / German)**, and a **multi-arch, distroless** Doc
 
 | Area      | Technology                                                            |
 | --------- | -------------------------------------------------------------------- |
-| Language  | Go 1.25 (static binary, `CGO_ENABLED=0`)                             |
+| Language  | Go 1.25 module/compatibility tests; Go 1.26 container build (`CGO_ENABLED=0`) |
 | Routing   | `chi/v5` on top of the standard `net/http`                           |
 | Database  | SQLite via `modernc.org/sqlite` (pure Go, no CGO), embedded migrations |
 | Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |
@@ -216,7 +248,9 @@ flowchart LR
 ```
 
 All templates and static assets (including Leaflet & HTMX) are embedded into the binary via
-`//go:embed` – the image stays fully self-contained and works offline.
+`//go:embed` – no separate frontend asset server or CDN is required. Core planning
+and stored data work offline; map tiles, destination photos, geocoding, road routing
+and AI features need network access to their respective providers.
 
 ## Quick start (Docker Compose)
 
@@ -534,6 +568,37 @@ govulncheck ./...        # known vulnerabilities in dependencies
 gofmt -l .              # formatting check
 ```
 
+### Regenerating documentation, demo and screenshots
+
+The application still requires **no Node.js runtime or frontend build**. Node.js 22+
+and Playwright are development/CI tools used only to verify the static demo and
+capture documentation images. The exporter does not load the application's
+environment configuration or open its database.
+
+```bash
+make demo                           # current templates + README -> dist/
+npm ci --prefix tools/screenshots
+cd tools/screenshots
+npx --no-install playwright install chromium
+cd ../..
+make screenshots                    # regenerate, validate, capture EN/DE
+```
+
+`make demo VERSION=v2.5.0` sets the displayed source label explicitly; it does not
+check out or recreate that release's UI. By default the current Git description
+(including uncommitted changes) is used. Open `dist/index.html` through a static
+HTTP server to browse the generated site. The screenshot command starts and stops
+its own loopback-only server on an available port.
+
+Screenshots cover the dashboard/archive, overview, travel, accommodation, day/week
+planners, ideas, budget, Cheatsheet, settings, About and mobile layouts, in both
+languages. The capture validates project-subpath links, accommodation markers,
+combined vocabulary rows and read-only controls. Browser errors, broken requests,
+unexpected external requests or mobile overflow fail the build, preventing a bad
+site from replacing the published version. Image metadata is written to
+`dist/screenshots/manifest.json`. If needed, use `PLAYWRIGHT_CHANNEL=chrome` or
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to select an already installed browser.
+
 ## CI/CD (GitHub Actions)
 
 - **CI** (`ci.yml`): formatting, `go vet`, build, tests (race + coverage), golangci-lint,
@@ -541,7 +606,12 @@ gofmt -l .              # formatting check
 - **CodeQL** (`codeql.yml`): static security analysis.
 - **Docker** (`docker-publish.yml`): multi-arch (`amd64` + `arm64`) build & push to GHCR with SBOM +
   provenance, followed by a Trivy image scan.
-- **Dependabot**: weekly updates for Go modules, GitHub Actions and Docker.
+- **Pages** (`pages.yml`): render the real UI with example data, generate documentation
+  from README, capture and verify English/German screenshots, then publish one static
+  artifact. Only `main` deploys; pull requests cannot publish. GitHub Pages must use
+  **GitHub Actions** as its source. The workflow can also be started manually.
+- **Dependabot**: weekly updates for Go modules, GitHub Actions, Docker and the
+  build-only screenshot tools.
 
 Actions are pinned to version tags (e.g. `@v4`), which track the latest release within that major.
 
@@ -549,11 +619,13 @@ Actions are pinned to version tags (e.g. `@v4`), which track the latest release 
 
 ```
 cmd/server/            main + health-probe subcommand
+cmd/demo/              static demo/documentation exporter (build-only)
 internal/
   ai/                  Foundry-backed text recommendations and suggestions
   applog/              structured logging + runtime level + in-memory log ring
   config/              env configuration & logger
   destimg/             destination image lookup/proxy (Wikipedia)
+  demo/                read-only static export, sample illustrations and site assets
   foundry/             explicit Azure identity, ARM discovery/catalog cache, guarded inference
   geo/                 server-proxied geocoding (Photon/Nominatim)
   i18n/                translation catalog (en/de) + resolver
@@ -567,7 +639,8 @@ internal/
 web/
   templates/           layout, pages, partials
   static/              CSS, JS, vendored Leaflet/HTMX
-.github/workflows/     CI, CodeQL, Docker
+tools/screenshots/     isolated Playwright capture/validation tooling
+.github/workflows/     CI, CodeQL, Docker, documentation/demo Pages deployment
 Dockerfile             multi-stage, multi-arch, distroless
 docker-compose.yml     app + SQLite volume
 ```

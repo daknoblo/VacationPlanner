@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="450" viewBox="0 0 960 450">
+  <title>Original illustrative alpine landscape</title>
+  <desc>Geometric mountain, lake and village artwork created for the synthetic VacationPlanner demo.</desc>
+  <rect width="960" height="450" fill="#d8edf4"/>
+  <circle cx="765" cy="87" r="42" fill="#f7d894"/>
+  <path d="M0 285 200 57 407 280 558 73 807 277 960 175V450H0Z" fill="#8caab4"/>
+  <path d="m124 144 76-87 79 86-51-15-29 19-29-24zm356 28 78-99 95 78-64-14-32 20-28-25z" fill="#f2f7f4"/>
+  <path d="M0 290Q230 206 415 302T960 288V450H0Z" fill="#65958d"/>
+  <path d="M0 345Q260 273 490 346T960 320V450H0Z" fill="#79bdc7"/>
+  <path d="M70 400q260-48 500 0M330 368q120-22 260 0M520 430q160-20 310-5" fill="none" stroke="#d8eff0" stroke-width="5"/>
+  <path d="M0 339q125-53 245 2l-56 109H0Z" fill="#b5c496"/>
+  <path d="M120 290h63v57h-63z" fill="#fff3d9"/>
+  <path d="m111 290 40-35 41 35z" fill="#b26452"/>
+  <path d="M142 317h17v30h-17z" fill="#596d72"/>
+  <path d="M73 268v85m-27-26 27-52 28 52zm157-14 24-60 23 60z" fill="#326c64" stroke="#326c64" stroke-width="5"/>
+</svg>

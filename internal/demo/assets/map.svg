@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700">
+  <title>Illustrative accommodation map</title>
+  <desc>Original schematic artwork, not geographic or navigation data.</desc>
+  <rect width="1000" height="700" fill="#e8eddc"/>
+  <path d="M0 20 240 0 360 165 215 240 0 150zm650-20 350 0v265l-151-45-120-105zM0 440l180-65 180 200-40 125H0zm600 90 170-120 230 93v197H638z" fill="#c5d9b7"/>
+  <path d="M650-30Q380 125 590 255T460 489Q300 580 420 750" fill="none" stroke="#9dcbd6" stroke-width="65"/>
+  <path d="M-10 345Q270 195 420 370T1010 290M270-20Q370 235 215 510T240 740M720-10Q830 245 691 490T660 720" fill="none" stroke="#c9c1af" stroke-width="17"/>
+  <path d="M-10 345Q270 195 420 370T1010 290M270-20Q370 235 215 510T240 740M720-10Q830 245 691 490T660 720" fill="none" stroke="#fffdf3" stroke-width="11"/>
+  <path d="m150 88 52 90-105 0zm718 455 48 81h-96zM48 558l55 95H0" fill="#a2b999"/>
+  <g fill="#ddc7af" stroke="#c5b29d" stroke-width="2">
+    <path d="M341 261h34v24h-34zm45 6h29v25h-29zm-53 37h30v22h-30zm57 18h38v24h-38z"/>
+    <path d="M721 388h32v26h-32zm46 8h27v25h-27zm-31 40h31v27h-31z"/>
+    <path d="M199 469h29v20h-29zm-15 32h28v25h-28z"/>
+  </g>
+  <path d="M19 205Q170 233 209 375M798 56Q656 123 634 166M82 578Q177 634 310 603" fill="none" stroke="#a3b095" stroke-width="3" stroke-dasharray="8 7"/>
+</svg>

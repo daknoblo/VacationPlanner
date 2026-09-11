@@ -16,14 +16,14 @@ localizable; **English and German** ship initially and are switchable under Sett
 A web-based **vacation planner**: the user manages multiple planned trips with a date
 range, destination and notes, plans arrival and departure as travel segments and collects
 sights (points of interest) including category, date and a "visited" state. An interactive
-map (Leaflet + OpenStreetMap) visualizes all sights; optional AI recommendations suggest
+map (Leaflet + OpenStreetMap) visualizes the trip's accommodation records; optional AI recommendations suggest
 further destinations. The app is strictly private, without authentication, and runs behind
 a reverse proxy.
 
 ## 2. Technology stack (project-specific)
 
 - **Language:** Go 1.25 (stdlib preferred; minimal, well-maintained dependencies).
-  Static binary, `CGO_ENABLED=0`.
+  Static binary, `CGO_ENABLED=0`; container builds use Go 1.26.
 - **Module path:** `github.com/daknoblo/vacationplanner`.
 - **Routing:** `go-chi/chi/v5` on top of the standard `net/http`.
 - **Persistence:** **SQLite** via `modernc.org/sqlite` (pure Go, no CGO). The database

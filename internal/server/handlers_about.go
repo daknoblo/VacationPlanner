@@ -10,7 +10,7 @@ import (
 // Project links shown on the About page.
 const (
 	aboutRepoURL = "https://github.com/daknoblo/vacationplanner"
-	aboutDocsURL = "https://github.com/daknoblo/vacationplanner#readme"
+	aboutDocsURL = "https://daknoblo.github.io/VacationPlanner/docs.html"
 )
 
 // aboutView is the data envelope for the About page.

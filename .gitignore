@@ -29,3 +29,6 @@ trivy-report.*
 
 # Docker build cache
 .buildx-cache/
+
+# Build-only documentation screenshot tools
+tools/screenshots/node_modules/

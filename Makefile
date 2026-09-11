@@ -3,6 +3,7 @@ PKG        := ./...
 IMAGE      ?= ghcr.io/daknoblo/vacationplanner
 TAG        ?= dev
 PLATFORMS  ?= linux/amd64,linux/arm64
+VERSION    ?= $(shell git describe --tags --always --dirty)
 
 .DEFAULT_GOAL := help
 
@@ -42,6 +43,14 @@ sec: ## Run gosec static security scanner (must be installed)
 .PHONY: vuln
 vuln: ## Run govulncheck (must be installed)
 	govulncheck $(PKG)
+
+.PHONY: demo
+demo: ## Render current UI and README as a static demo in ./dist
+	go run ./cmd/demo -out dist -version "$(VERSION)"
+
+.PHONY: screenshots
+screenshots: demo ## Validate demo and capture screenshots (install tooling first)
+	node tools/screenshots/capture.mjs --site=dist --revision="$(shell git rev-parse HEAD)"
 
 .PHONY: docker-build
 docker-build: ## Build a single-arch image for local use

@@ -1,0 +1,67 @@
+name: Documentation & Demo (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Render and verify the documentation demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/screenshots/package-lock.json
+      - name: Test demo rendering and static export
+        run: |
+          go test ./internal/server -run Demo
+          go test ./internal/demo ./cmd/demo
+      - name: Render current templates and documentation
+        run: go run ./cmd/demo -out dist -version "$(git describe --tags --always)"
+      - name: Install screenshot tooling
+        working-directory: tools/screenshots
+        run: |
+          npm ci
+          npx --no-install playwright install --with-deps chromium
+      - name: Validate both languages and capture screenshots
+        run: node tools/screenshots/capture.mjs --site=dist --revision="${GITHUB_SHA}"
+      - name: Upload verified site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: Publish documentation and demo
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

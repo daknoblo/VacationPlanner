@@ -16,3 +16,4 @@ coverage.*
 gosec-report.*
 trivy-report.*
 .buildx-cache
+tools/screenshots/node_modules

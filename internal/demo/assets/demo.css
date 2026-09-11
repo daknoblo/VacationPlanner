@@ -1,0 +1,43 @@
+.demo-banner {
+  background: #133b4f;
+  color: #fff;
+  padding: 0.8rem max(1rem, calc((100% - 1280px) / 2));
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+.demo-banner strong { font-weight: 650; }
+.demo-banner span { color: #d4e9f1; }
+.demo-banner nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+.demo-banner a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.demo-map-note {
+  border-left: 3px solid #298390;
+  padding: 0.4rem 0.65rem;
+  background: #e8f4f5;
+  color: #234a54;
+  font-size: 0.8rem;
+}
+button:disabled, input:disabled, textarea:disabled, select:disabled, a[aria-disabled="true"] { cursor: not-allowed; }
+a[aria-disabled="true"] { opacity: 0.6; text-decoration: none; }
+.planner-block, .weekcal-block, .idea-chip { cursor: default !important; }
+.detail__main, .detail__map { min-width: 0; }
+.planner-block__resize, .planner__resize { display: none !important; }
+[hidden] { display: none !important; }
+.demo-site main { padding-top: 2rem; padding-bottom: 3rem; }
+.demo-hero { padding: clamp(1.5rem, 4vw, 4rem); }
+.demo-hero h1 { font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1.1; max-width: 18ch; }
+.demo-hero p { max-width: 75ch; }
+.demo-hero .btn { margin: 0.35rem 0.35rem 0.35rem 0; }
+.demo-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 1.3rem; }
+.demo-gallery a { display: flex; flex-direction: column; gap: 0.6rem; border: 1px solid #d5e0e5; padding: 0.7rem; border-radius: 0.7rem; }
+.demo-gallery img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 0.4rem; background: #eaf1f4; }
+.demo-readme { line-height: 1.65; overflow-wrap: anywhere; max-width: 100%; }
+.demo-readme h1, .demo-readme h2, .demo-readme h3 { line-height: 1.25; margin-top: 1.6em; scroll-margin-top: 2rem; }
+.demo-readme img { max-width: 100%; height: auto; border-radius: 0.4rem; }
+.demo-readme pre { white-space: pre; overflow-x: auto; padding: 1rem; border-radius: 0.5rem; background: #edf2f5; }
+.demo-readme code { font-size: 0.9em; }
+.demo-readme table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; }
+.demo-readme th, .demo-readme td { border: 1px solid #d5e0e5; padding: 0.55rem 0.75rem; vertical-align: top; }
+.demo-readme blockquote { border-left: 3px solid #93b4bf; margin-left: 0; padding-left: 1rem; color: #4d6570; }
+@media print { .demo-banner nav { display: none; } .demo-banner { color: #111; background: white; padding: 0.5rem 0; } .demo-banner span { color: #333; } }
