@@ -38,6 +38,16 @@ type CheatsheetJob struct {
 	TargetLanguage string
 }
 
+const IntroductionPlaceholder = "{name}"
+
+func (j *CheatsheetJob) IntroductionKey() string {
+	return fmt.Sprintf("introduction:%x", sha256.Sum256([]byte(j.TargetLanguage)))
+}
+
+func (j *CheatsheetJob) IsIntroduction() bool {
+	return j.Key == j.IntroductionKey()
+}
+
 func (j *CheatsheetJob) Phrase() *CustomTravelPhrase {
 	return &CustomTravelPhrase{
 		VacationID: j.VacationID, SourceLanguage: j.SourceLanguage, DestinationKey: j.DestinationKey,
@@ -53,8 +63,12 @@ func (j *CheatsheetJob) ValidatePhrase() error {
 	if j.VacationID == uuid.Nil || j.DestinationKey == "" ||
 		(j.SourceLanguage != "en" && j.SourceLanguage != "de") ||
 		strings.TrimSpace(j.TargetLanguage) == "" || len(j.TargetLanguage) > 150 ||
-		!utf8.ValidString(j.TargetLanguage) || original != j.Original || j.Key != j.Phrase().JobKey() {
+		!utf8.ValidString(j.TargetLanguage) || original != j.Original ||
+		(j.Key != j.Phrase().JobKey() && !j.IsIntroduction()) {
 		return errors.New("invalid phrase job profile or payload")
+	}
+	if j.IsIntroduction() && strings.Count(j.Original, IntroductionPlaceholder) != 1 {
+		return errors.New("introduction job requires exactly one name placeholder")
 	}
 	return nil
 }
@@ -106,13 +120,31 @@ type TravelPhrase struct {
 }
 
 type Cheatsheet struct {
-	VacationID     uuid.UUID      `json:"-"`
-	SourceLanguage string         `json:"-"`
-	DestinationKey string         `json:"-"`
-	CreatedAt      time.Time      `json:"-"`
-	Country        string         `json:"country"`
-	Language       string         `json:"language"`
-	Phrases        []TravelPhrase `json:"phrases"`
+	VacationID     uuid.UUID           `json:"-"`
+	SourceLanguage string              `json:"-"`
+	DestinationKey string              `json:"-"`
+	CreatedAt      time.Time           `json:"-"`
+	Country        string              `json:"country"`
+	Language       string              `json:"language"`
+	Phrases        []TravelPhrase      `json:"phrases"`
+	Introduction   *IntroductionPhrase `json:"introduction,omitempty"`
+}
+
+// IntroductionPhrase keeps names out of provider calls. The translated frame
+// is reused for current trip participants, independently of the fixed vocabulary.
+type IntroductionPhrase struct {
+	Text          string `json:"text"`
+	Pronunciation string `json:"pronunciation"`
+}
+
+func (p *IntroductionPhrase) Validate() error {
+	for _, text := range []string{p.Text, p.Pronunciation} {
+		if !utf8.ValidString(text) || utf8.RuneCountInString(text) > 2000 ||
+			strings.Count(text, IntroductionPlaceholder) != 1 {
+			return errors.New("introduction must contain exactly one name placeholder")
+		}
+	}
+	return nil
 }
 
 type PhraseMeaning struct {
@@ -136,6 +168,11 @@ func TravelPhraseMeanings() []PhraseMeaning {
 
 // Validate requires one usable translation for every fixed phrase.
 func (c *Cheatsheet) Validate() error {
+	if c.Introduction != nil {
+		if err := c.Introduction.Validate(); err != nil {
+			return err
+		}
+	}
 	if strings.TrimSpace(c.Country) == "" || strings.TrimSpace(c.Language) == "" ||
 		len(c.Country) > 150 || len(c.Language) > 150 || len(c.Phrases) != len(TravelPhraseMeanings()) {
 		return errors.New("cheatsheet has incomplete country, language or phrase metadata")

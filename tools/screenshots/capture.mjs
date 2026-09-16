@@ -6,6 +6,8 @@ import { createServer } from "node:http";
 import { extname, join, relative, resolve, sep } from "node:path";
 import { once } from "node:events";
 import { chromium } from "playwright";
+import { verifyCalendarRegionUpdates } from "./calendar-regions.mjs";
+import { verifyAISearchCenters } from "./ai-centers.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -161,6 +163,8 @@ try {
   // Gallery images are generated above, before checking documentation/site links.
   await verifyLinks(page, "index.html");
   await verifyLinks(page, "docs.html");
+  await verifyCalendarRegionUpdates(browser);
+  await verifyAISearchCenters(browser);
   assert.deepEqual(failures, [], "The demo must work without failed requests or external services");
   await writeFile(join(output, "manifest.json"), JSON.stringify({
     version: metadata.version,
@@ -188,17 +192,41 @@ async function verifyView(page, shot) {
   if (["overview", "mobile"].includes(shot.name)) {
     await page.locator("#map.leaflet-container").waitFor();
     assert.equal(await page.locator("#map .leaflet-marker-icon").count(), 3, "All three lodgings, no ideas");
+    const marker = page.locator("#map .leaflet-marker-icon").first();
+    const title = await marker.getAttribute("title");
+    const dates = title.match(/\d{2}\.\d{2}\.\d{4} – \d{2}\.\d{2}\.\d{4}/);
+    assert.ok(dates, "Accommodation hover title contains the booked date range");
+    await marker.click();
+    assert.ok((await page.locator(".leaflet-popup-content").innerText()).includes(dates[0]),
+      "The accommodation popup contains the same date range");
+    await page.locator(".leaflet-popup-close-button").click();
   }
   if (shot.name === "cheatsheet") {
     assert.equal(await page.locator(".cheatsheet-table").count(), 1);
-    assert.ok(await page.locator("#cheatsheet-rows tr").count() >= 24, "22 standard and two custom phrases");
+    assert.equal(await page.locator("#cheatsheet-rows tr").count(), 26, "22 standard, two participant and two custom phrases");
+    assert.equal(await page.locator("#cheatsheet-rows [data-introduction]").count(), 2);
+    assert.ok((await page.locator("#cheatsheet-rows [data-introduction]").allTextContents()).every(
+      text => text.includes("Mi chiamo") && !text.includes("{name}"),
+    ), "Participants receive complete self-introductions rather than placeholders");
   }
   if (shot.name === "day-planner") {
     assert.ok(await page.locator("[data-day-view] .day-journey__stop:visible").count() > 0,
       "The route must contain actual planned stops, not a loading placeholder");
+    assert.equal((await page.locator("[data-region-day]:visible").innerText()).trim(), "Toscana",
+      "Day view shows the booked accommodation region");
+    const transfer = await page.locator("[data-region-day]").allTextContents();
+    assert.ok(transfer.some(text => text.includes("Toscana · Lazio")),
+      "Transfer day contains both accommodation regions");
   }
   if (["day-planner", "week-planner"].includes(shot.name)) {
     const scope = page.locator(shot.view === "day" ? "[data-day-view]" : "[data-weekview]");
+    if (shot.view === "week") {
+      const bands = await scope.locator("[data-region-week] .calendar-region-band").allTextContents();
+      assert.ok(bands.some(text => text.includes("Toscana · Lazio")), "Week band includes the transfer");
+      assert.ok(await scope.locator("[data-region-week] .calendar-region-band").evaluateAll(
+        elements => elements.some(element => /span [2-7]/.test(element.style.gridColumn)),
+      ), "Consecutive days in the same region share one horizontal band");
+    }
     const counts = await scope.locator("[data-day-count]").allTextContents();
     assert.ok(counts.some(count => /\([1-9]\d*\)/.test(count)), "Planner shows activity counts");
     const filter = scope.locator("[data-ideas-region-filter]");
@@ -227,6 +255,12 @@ async function verifyView(page, shot) {
     assert.ok(await page.locator("#ai-deployment option").count() >= 2,
       "The current Foundry deployment chooser is rendered");
     assert.equal(await page.locator("#foundry-settings-panel input[type=checkbox]").count(), 0);
+  }
+  if (shot.name === "ideas") {
+    assert.equal(await page.locator("#ai-center").inputValue(), "destination");
+    assert.equal(await page.locator("#ai-center option").count(), 4, "Destination, two accommodation regions and custom point");
+    const labels = await page.locator("#ai-center option").allTextContents();
+    assert.ok(labels.includes("Toscana") && labels.includes("Lazio"), "Each accommodation region appears once");
   }
   if (shot.mobile) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

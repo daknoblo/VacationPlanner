@@ -66,22 +66,6 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Search center: defaults to the trip destination, but the user can move it
-	// with the location picker. The radius is measured from this point.
-	locationName := formStr(r, "ai_location")
-	if !maxLen(locationName, 200) {
-		s.formError(w, r, "#ai-error", loc.T("error.interests_toolong"))
-		return
-	}
-	if locationName == "" {
-		locationName = v.Destination
-	}
-	originLat, originLng, err := parseCoords(r, "ai_lat", "ai_lng")
-	if err != nil {
-		s.formError(w, r, "#ai-error", validationMessage(err))
-		return
-	}
-
 	view := aiSuggestionsView{VacationID: vacationID.String()}
 
 	items, err := s.store.ListItems(r.Context(), vacationID)
@@ -102,6 +86,38 @@ func (s *Server) handleAIRecommend(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+	locationName := v.Destination
+	var originLat, originLng *float64
+	centerKey := formStr(r, "ai_center")
+	if centerKey == "" || centerKey == "custom" {
+		// Older forms and explicitly selected custom points retain the existing
+		// location picker behavior. Presets are resolved from current bookings.
+		if name := formStr(r, "ai_location"); name != "" {
+			locationName = name
+		}
+		if !maxLen(locationName, 200) {
+			s.formError(w, r, "#ai-error", loc.T("error.interests_toolong"))
+			return
+		}
+		originLat, originLng, err = parseCoords(r, "ai_lat", "ai_lng")
+		if err != nil {
+			s.formError(w, r, "#ai-error", validationMessage(err))
+			return
+		}
+	} else {
+		found := false
+		for _, center := range aiSearchCenters(loc, v, lodgings) {
+			if center.Key == centerKey && (center.Key == "destination" || center.Lat != nil && center.Lng != nil) {
+				locationName, originLat, originLng = center.Name, center.Lat, center.Lng
+				found = true
+				break
+			}
+		}
+		if !found {
+			s.formError(w, r, "#ai-error", loc.T("ai.center.unavailable"))
+			return
+		}
 	}
 	hotels := make([]route.Point, 0, len(lodgings))
 	for _, lo := range lodgings {

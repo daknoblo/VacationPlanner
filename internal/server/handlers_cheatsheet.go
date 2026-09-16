@@ -11,20 +11,24 @@ import (
 )
 
 type cheatsheetView struct {
-	VacationID  string
-	Destination string
-	Sheet       *models.Cheatsheet
-	CanGenerate bool
-	Stale       bool
-	Error       string
-	CSRF        string
-	Active      bool
-	SheetActive bool
-	Status      string
-	Custom      []models.CustomTravelPhrase
-	PhraseJobs  []models.CheatsheetJob
-	Profile     *models.CustomTravelPhrase
-	RowsOnly    bool
+	VacationID          string
+	Destination         string
+	Sheet               *models.Cheatsheet
+	CanGenerate         bool
+	Stale               bool
+	Error               string
+	CSRF                string
+	Active              bool
+	SheetActive         bool
+	Status              string
+	Custom              []models.CustomTravelPhrase
+	PhraseJobs          []models.CheatsheetJob
+	Profile             *models.CustomTravelPhrase
+	RowsOnly            bool
+	Introductions       []introductionRow
+	IntroductionMissing bool
+	IntroductionStatus  string
+	IntroductionAttempt string
 }
 
 func cheatsheetDestinationKey(v *models.Vacation) (string, error) {
@@ -83,6 +87,9 @@ func (s *Server) cheatsheetData(ctx context.Context, v *models.Vacation) (cheats
 				saved[phrase.Original] = true
 			}
 			for _, job := range jobs {
+				if job.IsIntroduction() {
+					continue
+				}
 				if saved[job.Original] || job.Status == "ready" {
 					continue
 				}
@@ -101,6 +108,9 @@ func (s *Server) cheatsheetData(ctx context.Context, v *models.Vacation) (cheats
 	}
 	view.SheetActive = view.Status == "queued" || view.Status == "running"
 	view.Active = view.Active || view.SheetActive
+	if err := s.addCheatsheetIntroductions(ctx, &view); err != nil {
+		return view, err
+	}
 	return view, nil
 }
 
@@ -251,6 +261,12 @@ func (s *Server) handleTranslateCheatsheetPhrase(w http.ResponseWriter, r *http.
 		if cached.Original == original {
 			s.renderCheatsheet(w, r, v, "")
 			return
+		}
+		for _, cached := range view.Introductions {
+			if cached.Text != "" && introductionMatch(cached.Original) == introductionMatch(original) {
+				s.renderCheatsheet(w, r, v, "")
+				return
+			}
 		}
 	}
 	if !view.CanGenerate {

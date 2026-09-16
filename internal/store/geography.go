@@ -30,6 +30,26 @@ func (s *SQLite) UpdateLodgingCoordinates(ctx context.Context, original *models.
 	return n > 0, err
 }
 
+// UpdateLodgingRegion enriches only the unchanged geographic source, without
+// writing booking fields that may have been edited while the lookup was running.
+func (s *SQLite) UpdateLodgingRegion(ctx context.Context, original *models.Lodging, region string) (bool, error) {
+	region = strings.TrimSpace(region)
+	if original == nil || !original.HasCoords() || original.Region != "" || region == "" {
+		return false, nil
+	}
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE lodging SET region = ?
+		WHERE id = ? AND vacation_id = ? AND name = ? AND location = ?
+		AND latitude IS ? AND longitude IS ? AND region = ?`,
+		region, original.ID, original.VacationID, original.Name, original.Location,
+		original.Latitude, original.Longitude, original.Region)
+	if err != nil {
+		return false, fmt.Errorf("store: enriching lodging region: %w", err)
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // UpdateItemRegion uses compare-and-swap so manual edits and moved items win.
 func (s *SQLite) UpdateItemRegion(ctx context.Context, original *models.Item, region string) (bool, error) {
 	region = strings.TrimSpace(region)

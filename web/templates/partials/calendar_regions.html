@@ -1,0 +1,9 @@
+{{define "calendar_region_day"}}
+<span class="calendar-region-band" title="{{.Title}}">{{.Label}}</span>
+{{end}}
+
+{{define "calendar_region_week"}}
+{{range .}}
+<span class="calendar-region-band" style="grid-column:{{add .Start 2}} / span {{.Span}}" title="{{.Title}}">{{.Label}}</span>
+{{end}}
+{{end}}

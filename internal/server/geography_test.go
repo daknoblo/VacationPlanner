@@ -92,6 +92,13 @@ func TestGeographyWorkerEnrichesWithoutDestinationBias(t *testing.T) {
 	s, st, v := newGeographyTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		q := r.URL.Query()
+		if r.URL.Path == "/reverse" {
+			if q.Get("accept-language") != "en" || q.Get("lat") != "50.000000" || q.Get("lon") != "-1.000000" {
+				t.Errorf("unexpected reverse lookup: %v", q)
+			}
+			_, _ = w.Write([]byte(`{"display_name":"Hotel","lat":"50","lon":"-1","address":{"state":"Sussex","country":"United Kingdom"}}`))
+			return
+		}
 		if q.Has("lat") || q.Has("lon") || q.Get("q") != "12 Quay, Brighton, United Kingdom" {
 			t.Errorf("arrival accommodation biased to destination: %v", q)
 		}
@@ -111,11 +118,12 @@ func TestGeographyWorkerEnrichesWithoutDestinationBias(t *testing.T) {
 	t.Cleanup(stop)
 	s.queueGeography(v.ID, "de")
 	status := waitGeography(t, s, v.ID)
-	if status.Error || status.Pending || status.UpdatedCount != 1 || len(status.Unresolved) != 0 || status.UnknownRegions != 1 || calls.Load() != 1 {
+	if status.Error || status.Pending || status.UpdatedCount != 2 || len(status.Unresolved) != 0 || status.UnknownRegions != 1 ||
+		status.UnknownLodgingRegions != 0 || status.Completed != 2 || status.Total != 2 || calls.Load() != 2 {
 		t.Fatalf("unexpected status: %+v, calls=%d", status, calls.Load())
 	}
 	got, err := st.GetLodging(ctx, l.ID)
-	if err != nil || !got.HasCoords() || *got.Latitude != lat || *got.Longitude != lng {
+	if err != nil || !got.HasCoords() || *got.Latitude != lat || *got.Longitude != lng || got.Region != "Sussex, United Kingdom" {
 		t.Fatalf("lodging not enriched: %+v %v", got, err)
 	}
 	s.queueGeography(v.ID, "de")

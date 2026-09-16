@@ -88,6 +88,21 @@ published together as a Pages artifact, not checked into the repository.
   and offers a shared region filter. Region metadata is resolved from located items;
   unlocated ideas stay visible in the unknown group. Override or clear the region in
   an item's editor when a different area grouping is more useful.
+- **Refresh regions** – **Refresh locations and regions** is available directly above
+  the day/week planner as well as under the overview map. It queues a bounded background
+  retry and reports progress in the header. Ideas without coordinates are marked
+  **select a location first**: choose a geocoded location in their editor before retrying.
+  The inline editor now has a separate **Place / address** field: choosing a suggestion
+  saves coordinates without replacing the idea title, links, notes or payer assignment.
+  Manual region assignments are not overwritten. A failed or ambiguous geocoder lookup
+  is not replaced with a guessed region; large batches can be continued with another refresh.
+- **Accommodation region band** – a horizontal row above each calendar week shows
+  where you are staying, including days without activities. Consecutive days in the same
+  region are combined. The day view shows the same information. Both accommodation
+  regions appear on transfer days (including the local checkout date); gaps and regions
+  not yet determined remain explicit. Hover over a band for its accommodation names.
+  Background completion refreshes only these bands, preserving the active day/week,
+  collapsed weeks, idea filter and planner interactions.
 - **Inline editing** and **image thumbnails** (Wikipedia) on activities and idea rows.
 - **Saved references** – adding an AI idea preserves its external links and supplied
   coordinates through editing and scheduling. Existing items without saved references
@@ -96,6 +111,18 @@ published together as a Pages artifact, not checked into the repository.
 
 ### Travel cheatsheet
 
+- **Participant introductions** – in addition to the fixed vocabulary, the table
+  contains **My name is …** for each person selected for this trip, not everyone in
+  Settings. Names are inserted unchanged into one validated, cached translation
+  frame; names themselves are not sent to the AI provider. Adding/removing participants
+  updates the rows without regenerating the standard list or making another name
+  translation call. Identical already-saved custom introductions are reused and shown
+  only once; other custom phrases remain unchanged.
+- Existing cached sheets receive their missing introduction frame through the bounded
+  background worker, without opening the page or regenerating vocabulary. The selected
+  AI deployment must be configured. Failed calls require an explicit retry; page reads
+  and table polling never queue or dispatch generation. The frame is preserved when
+  regenerating a sheet for the same destination/language.
 - Creating a vacation automatically queues a fixed selection of 22 useful words and
   phrases with the existing AI deployment: greetings, please/thank you, yes/no, help,
   food, directions and payment. The destination and coordinates guide country/language
@@ -124,6 +151,8 @@ published together as a Pages artifact, not checked into the repository.
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel
   endpoints are excluded. The general item-data API remains available separately.
+  Hovering over a marker or opening its popup shows the accommodation name and
+  check-in/check-out dates in the configured display timezone.
   Automatic framing leaves approximately 15% padding on each map edge (at least
   30 pixels), with a maximum initial zoom of 13. Refreshes that do not move markers
   preserve the manually chosen zoom and position.
@@ -135,6 +164,9 @@ published together as a Pages artifact, not checked into the repository.
   When several POIs share an address, an exactly matching accommodation name takes
   precedence over unrelated restaurants or businesses; equally supported lodging
   locations still require clarification.
+- Accommodation regions are reverse-geocoded from their saved coordinates and cached
+  separately from idea regions. Location/coordinate changes invalidate the cached
+  accommodation region; changing dates, notes or payment details does not.
 - **Location pickers** still support clicking to fill coordinates for a new entry;
   **zoom is remembered** per trip and chosen
   sensibly per geocoding result (country → city → address).
@@ -163,6 +195,14 @@ published together as a Pages artifact, not checked into the repository.
 - **AI recommendations** – via **Microsoft Foundry / Azure OpenAI**, using explicit
   service-principal authentication. Anchored to the destination with an adjustable **radius**, filtered
   against items already on the trip, with **thumbnails**; add a suggestion as an item in one click.
+- **Search-center dropdown** – defaults to the trip's existing saved destination
+  center, with one option per located accommodation region. Selecting a region uses
+  the unweighted geographic midpoint of that region's booked accommodations, not the
+  geographic center of the administrative region. The map and search radius use this
+  point. Region options refresh after background enrichment or booking edits without
+  resetting interests, radius or suggestion count. A custom place/map point remains
+  available; a removed region requires a new selection rather than silently falling
+  back to the destination.
 - **Robust AI response parsing** – JSON extraction for chatty models and clear error
   surfacing in the log viewer. Recommendations are requested explicitly in the Ideas tab.
 - **Identity-only AI** – automatic account-scoped endpoint and

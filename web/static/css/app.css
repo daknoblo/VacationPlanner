@@ -815,6 +815,14 @@ code {
 
 /* Week calendar — calendar weeks (Mon–Sun rows) */
 .weekcal { display: flex; flex-direction: column; gap: 1.25rem; width: 100%; }
+.planner-region-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin-block: 0.75rem; }
+.planner-region-tools p { flex: 1 1 22rem; margin: 0; }
+.planner-region-tools [role="status"] { flex-basis: 100%; }
+.calendar-region-week { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); margin-bottom: 0.3rem; padding-inline: 1px; }
+.calendar-region-day { display: flex; margin-bottom: 0.75rem; }
+.calendar-region-band { min-width: 0; border: 1px solid #a7c4b5; border-left: 3px solid #3e8061; border-radius: 5px; background: #e8f3ec; color: #245239; padding: 0.35rem 0.45rem; font-size: 0.75rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.calendar-region-week .calendar-region-band { grid-row: 1; margin-right: 2px; }
+.calendar-region-day .calendar-region-band { flex: 1; }
 .weekcal__wk { width: 100%; }
 .weekcal__wk-sum {
   list-style: none; cursor: pointer; user-select: none;

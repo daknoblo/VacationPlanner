@@ -52,6 +52,7 @@ type Store interface {
 	CreateLodging(ctx context.Context, l *models.Lodging) error
 	UpdateLodging(ctx context.Context, l *models.Lodging) error
 	UpdateLodgingCoordinates(ctx context.Context, original *models.Lodging, lat, lng float64) (bool, error)
+	UpdateLodgingRegion(ctx context.Context, original *models.Lodging, region string) (bool, error)
 	UpdateItemRegion(ctx context.Context, original *models.Item, region string) (bool, error)
 	GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error)
 	ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error)
@@ -70,6 +71,8 @@ type Store interface {
 	PutSetting(ctx context.Context, key, value string) error
 	GetCheatsheet(ctx context.Context, vacationID uuid.UUID, sourceLanguage string) (*models.Cheatsheet, error)
 	PutCheatsheet(ctx context.Context, sheet *models.Cheatsheet) error
+	PutCheatsheetIntroduction(ctx context.Context, profile *models.CustomTravelPhrase, phrase *models.IntroductionPhrase) error
+	ListCheatsheetsForIntroductions(ctx context.Context, after string) ([]models.Cheatsheet, error)
 	GetCheatsheetJob(ctx context.Context, job *models.CheatsheetJob) (string, error)
 	ReserveCheatsheetJob(ctx context.Context, job *models.CheatsheetJob, retry bool) (bool, error)
 	SetCheatsheetJobStatus(ctx context.Context, job *models.CheatsheetJob, status string) error

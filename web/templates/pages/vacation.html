@@ -116,9 +116,23 @@
 
   <section class="tab-panel" data-tab-panel="tagesplan">
     {{if $v.Days}}
-    <div class="tagesplan" data-tagesplan data-day-counts-url="/vacations/{{$v.ID}}/api/daycounts">
+    <div class="tagesplan" data-tagesplan data-day-counts-url="/vacations/{{$v.ID}}/api/daycounts"
+         data-calendar-regions-url="/vacations/{{$v.ID}}/api/calendar-regions">
       <p class="muted small">{{t "planner.count_hint"}}</p>
       <p class="form-error" role="status" data-day-counts-error data-error="{{t "planner.count_error"}}" hidden></p>
+      <div class="planner-region-tools">
+        <form method="post" action="/vacations/{{$v.ID}}/geography/refresh" data-geography-refresh
+              hx-post="/vacations/{{$v.ID}}/geography/refresh" hx-swap="none" hx-disabled-elt="button">
+          <input type="hidden" name="csrf_token" value="{{$csrf}}">
+          <button class="btn btn--sm" type="submit">{{t "geography.retry"}}</button>
+        </form>
+        <p class="muted small">{{t "ideas.region.refresh_hint"}}</p>
+        <p class="muted small" role="status" data-planner-geography-status
+           data-pending="{{t "geography.pending"}}" data-error="{{t "planner.regions.lookup_error"}}"
+           data-limited="{{t "geography.limited"}}" data-done="{{t "planner.regions.updated"}}" hidden></p>
+      </div>
+      <p class="muted small">{{t "planner.regions.hint"}}</p>
+      <p class="form-error" role="status" data-calendar-regions-error data-error="{{t "planner.regions.load_error"}}" hidden></p>
       <div class="viewtoggle" data-viewtoggle>
         <button type="button" class="viewtoggle__btn" data-view="day">{{t "tagesplan.view.day"}}</button>
         <button type="button" class="viewtoggle__btn is-active" data-view="week">{{t "tagesplan.view.week"}}</button>
@@ -141,6 +155,9 @@
         <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">
           <div class="panel">
             <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+            <div class="calendar-region-day" data-region-day="{{dateInput $d}}" aria-label="{{t "planner.regions.heading"}}">
+              {{with $.Data.CalendarRegions}}{{template "calendar_region_day" (index .Days (dateInput $d))}}{{end}}
+            </div>
 
             <div id="day-route-{{dateInput $d}}" class="day-route-summary" data-day-route data-day="{{dateInput $d}}"
                  data-loading="{{t "dayroute.loading"}}" data-error="{{t "dayroute.error"}}"
@@ -230,7 +247,7 @@
              data-attribution="{{t "map.attribution"}}"></div>
         <p id="map-status" class="muted small" role="status" data-empty="{{t "map.lodgings_empty"}}" data-error="{{t "map.lodgings_error"}}"
            data-pending="{{t "geography.pending"}}" data-unresolved="{{t "geography.unresolved"}}" data-limited="{{t "geography.limited"}}" hidden></p>
-        <form method="post" action="/vacations/{{$v.ID}}/geography/refresh" hx-post="/vacations/{{$v.ID}}/geography/refresh" hx-swap="none" hx-disabled-elt="button">
+        <form method="post" action="/vacations/{{$v.ID}}/geography/refresh" data-geography-refresh hx-post="/vacations/{{$v.ID}}/geography/refresh" hx-swap="none" hx-disabled-elt="button">
           <input type="hidden" name="csrf_token" value="{{$csrf}}">
           <button class="btn btn--sm" type="submit">{{t "geography.retry"}}</button>
         </form>
@@ -278,8 +295,15 @@
               <input id="ai-interests" name="interests" maxlength="500" placeholder="{{t "ai.interests_placeholder"}}">
             </div>
             <div class="ai-input-row__col">
-              <label for="ai-location">{{t "ai.location_label"}}</label>
-              <div class="location-picker__field">
+              <label for="ai-center">{{t "ai.location_label"}}</label>
+              <select id="ai-center" name="ai_center" data-ai-center data-ai-centers-url="/vacations/{{$v.ID}}/api/ai-centers">
+                {{range .Data.AISearchCenters}}
+                <option value="{{.Key}}" data-name="{{.Name}}" data-lat="{{coord .Lat}}" data-lng="{{coord .Lng}}" data-zoom="{{.Zoom}}"
+                        {{if eq .Key "destination"}}selected{{else if and (ne .Key "custom") (not .Lat)}}disabled{{end}}>{{.Label}}</option>
+                {{end}}
+              </select>
+              <div class="location-picker__field" data-ai-custom-location hidden>
+                <label for="ai-location">{{t "ai.center.custom"}}</label>
                 <input id="ai-location" name="ai_location" autocomplete="off" maxlength="200"
                        data-geocode-input value="{{$v.Destination}}">
                 <div class="suggest" data-geocode-list hidden></div>
@@ -290,6 +314,8 @@
           <input type="hidden" name="ai_lng" data-geocode-lng value="{{coord $v.Longitude}}">
           <div class="location-map" data-geocode-map data-lat="{{coord $v.Latitude}}" data-lng="{{coord $v.Longitude}}"></div>
           <p class="muted small">{{t "ai.location_hint"}}</p>
+          <p class="form-error" role="status" data-ai-centers-error
+             data-error="{{t "ai.center.load_error"}}" data-unavailable="{{t "ai.center.unavailable"}}" hidden></p>
         </div>
         <div class="field field--wide ai-controls-row">
           <div class="ai-controls-row__radius">

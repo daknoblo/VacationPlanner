@@ -624,10 +624,10 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 	l.CreatedAt, l.UpdatedAt = now, now
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO lodging (id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO lodging (id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at, region)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.ID, l.VacationID, l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
-		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt))
+		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.CreatedAt), dbTime(l.UpdatedAt), l.Region)
 	if err != nil {
 		return fmt.Errorf("store: creating lodging: %w", err)
 	}
@@ -636,21 +636,28 @@ func (s *SQLite) CreateLodging(ctx context.Context, l *models.Lodging) error {
 
 func (s *SQLite) UpdateLodging(ctx context.Context, l *models.Lodging) error {
 	l.UpdatedAt = time.Now().UTC()
-	res, err := s.db.ExecContext(ctx, `
+	// Read the cache inside this update: forms may predate region enrichment.
+	err := s.db.QueryRowContext(ctx, `
 		UPDATE lodging
-		SET name = ?, location = ?, latitude = ?, longitude = ?, check_in = ?, check_out = ?, cost = ?, paid_by = ?, notes = ?, updated_at = ?
-		WHERE id = ?`,
+		SET region = CASE WHEN lower(trim(location)) = lower(trim(?))
+			AND latitude IS ? AND longitude IS ? THEN region ELSE '' END,
+		name = ?, location = ?, latitude = ?, longitude = ?, check_in = ?, check_out = ?, cost = ?, paid_by = ?, notes = ?, updated_at = ?
+		WHERE id = ? RETURNING region`,
+		l.Location, l.Latitude, l.Longitude,
 		l.Name, l.Location, l.Latitude, l.Longitude, dbTime(l.CheckIn), dbTime(l.CheckOut),
-		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.UpdatedAt), l.ID)
+		l.Cost, dbUUIDPtr(l.PaidBy), l.Notes, dbTime(l.UpdatedAt), l.ID).Scan(&l.Region)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("store: updating lodging: %w", err)
 	}
-	return checkAffected(res)
+	return nil
 }
 
 func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at, region
 		FROM lodging WHERE id = ?`, id)
 	var l models.Lodging
 	if err := scanLodging(row, &l); err != nil {
@@ -664,7 +671,7 @@ func (s *SQLite) GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging,
 
 func (s *SQLite) ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at
+		SELECT id, vacation_id, name, location, latitude, longitude, check_in, check_out, cost, paid_by, notes, created_at, updated_at, region
 		FROM lodging WHERE vacation_id = ? ORDER BY check_in ASC, created_at ASC`, vacationID)
 	if err != nil {
 		return nil, fmt.Errorf("store: listing lodging: %w", err)
@@ -697,7 +704,7 @@ func scanLodging(sc rowScanner, l *models.Lodging) error {
 	var checkIn, checkOut, created, updated string
 	var paidBy uuid.NullUUID
 	if err := sc.Scan(&l.ID, &l.VacationID, &l.Name, &l.Location, &l.Latitude, &l.Longitude,
-		&checkIn, &checkOut, &l.Cost, &paidBy, &l.Notes, &created, &updated); err != nil {
+		&checkIn, &checkOut, &l.Cost, &paidBy, &l.Notes, &created, &updated, &l.Region); err != nil {
 		return err
 	}
 	if paidBy.Valid {

@@ -56,6 +56,25 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Regional AI search-center dropdown — retain the saved destination default,
+      add unique accommodation-region midpoints, and keep custom search/map points.
+      Refresh presets after enrichment without resetting search settings; resolve
+      selections from current bookings and reject removed regions before provider calls.
+
+- [x] Participant introductions in Cheatsheet — add current selected travelers'
+      self-introductions to the standard table, reuse matching custom phrases and
+      preserve vocabulary when participants change. Backfill one validated translated
+      name frame per cached destination/language through the bounded worker; no names
+      sent to the provider and no paid work from GET/poll requests.
+
+- [x] Accommodation marker dates — overview map hover titles and popups include
+      the booked check-in/check-out dates in the configured display timezone.
+
+- [x] Calendar accommodation regions and refresh controls — safe cached accommodation
+      regions, continuous day/week bands, both regions on transfer days and non-disruptive
+      background refresh. Existing ideas can select a geocoded location without losing
+      titles, links or payments; missing coordinates and lookup failures are explicit.
+
 - [x] Shared-address lodging lookup — prefer the name-confirmed accommodation over
       restaurants or other POIs at the same address, without hiding intermediate stays.
 - [x] Background progress — top-right activity indicator with live geographic batch

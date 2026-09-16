@@ -222,6 +222,7 @@ type Lodging struct {
 	Location   string
 	Latitude   *float64
 	Longitude  *float64
+	Region     string // canonical region automatically resolved from coordinates
 	CheckIn    time.Time
 	CheckOut   time.Time
 	Cost       *float64

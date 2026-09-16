@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -108,11 +109,11 @@ func parseCoords(r *http.Request, latKey, lngKey string) (lat, lng *float64, err
 		return nil, nil, errValidation(loc.T("error.coords_together"))
 	}
 	latV, err := strconv.ParseFloat(latRaw, 64)
-	if err != nil || latV < -90 || latV > 90 {
+	if err != nil || math.IsNaN(latV) || latV < -90 || latV > 90 {
 		return nil, nil, errValidation(loc.T("error.lat_range"))
 	}
 	lngV, err := strconv.ParseFloat(lngRaw, 64)
-	if err != nil || lngV < -180 || lngV > 180 {
+	if err != nil || math.IsNaN(lngV) || lngV < -180 || lngV > 180 {
 		return nil, nil, errValidation(loc.T("error.lng_range"))
 	}
 	return &latV, &lngV, nil

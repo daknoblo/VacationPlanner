@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 	"github.com/daknoblo/vacationplanner/internal/store"
 )
@@ -81,6 +82,7 @@ func (s *Server) StartCheatsheetWorker(ctx context.Context) func() {
 					recovered = s.recoverCheatsheets(ctx)
 				}
 				if recovered {
+					s.queueCheatsheetIntroductions(ctx)
 					s.drainCheatsheets(ctx)
 				}
 				select {
@@ -160,7 +162,11 @@ func (s *Server) runCheatsheetJob(ctx context.Context, job *models.CheatsheetJob
 		return
 	}
 	if job.Key != "sheet" {
-		if s.runCheatsheetPhrase(ctx, job, sheet) {
+		if job.IsIntroduction() {
+			if s.runCheatsheetIntroduction(ctx, job, sheet) {
+				status = "ready"
+			}
+		} else if s.runCheatsheetPhrase(ctx, job, sheet) {
 			status = "ready"
 		}
 		return
@@ -189,6 +195,88 @@ func (s *Server) runCheatsheetJob(ctx context.Context, job *models.CheatsheetJob
 		return
 	}
 	status = "ready"
+}
+
+func introductionJob(sheet *models.Cheatsheet) *models.CheatsheetJob {
+	lang, _ := i18n.ParseLang(sheet.SourceLanguage)
+	job := &models.CheatsheetJob{
+		VacationID: sheet.VacationID, SourceLanguage: sheet.SourceLanguage, DestinationKey: sheet.DestinationKey,
+		TargetLanguage: sheet.Language, Status: "queued",
+		Original: i18n.NewLocalizer(lang).T("cheatsheet.introduction_name", models.IntroductionPlaceholder),
+	}
+	job.Key = job.IntroductionKey()
+	return job
+}
+
+// Only the lifecycle worker discovers missing frames. Reads and polling never
+// enqueue work; capacity and idempotency remain governed by the durable queue.
+func (s *Server) queueCheatsheetIntroductions(parent context.Context) {
+	if !s.ai.Enabled() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
+	defer cancel()
+	settings, err := s.settings(ctx)
+	if err != nil {
+		s.log.Warn("cannot load introduction configuration", "err", err)
+		return
+	}
+	if s.foundryDeployment(settings) == "" {
+		return
+	}
+	sheets, err := s.store.ListCheatsheetsForIntroductions(ctx, s.cheatsheetIntroductionCursor)
+	if err != nil {
+		s.log.Warn("cannot find missing introductions", "err", err)
+		return
+	}
+	for _, sheet := range sheets {
+		s.cheatsheetIntroductionCursor = sheet.VacationID.String() + "/" + sheet.SourceLanguage
+		if _, err := s.store.ReserveCheatsheetJob(ctx, introductionJob(&sheet), false); err != nil {
+			if errors.Is(err, store.ErrCheatsheetQueueFull) {
+				return
+			}
+			if !errors.Is(err, store.ErrCheatsheetDestinationChanged) {
+				s.log.Warn("cannot queue introduction", "err", err, "vacation_id", sheet.VacationID)
+			}
+		}
+	}
+	if len(sheets) < 16 {
+		s.cheatsheetIntroductionCursor = ""
+	}
+}
+
+func (s *Server) runCheatsheetIntroduction(ctx context.Context, job *models.CheatsheetJob, sheet *models.Cheatsheet) bool {
+	if err := job.ValidatePhrase(); err != nil {
+		s.log.Warn("invalid introduction job", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	if sheet == nil || sheet.DestinationKey != job.DestinationKey || sheet.Language != job.TargetLanguage {
+		s.log.Warn("introduction profile changed", "vacation_id", job.VacationID)
+		return false
+	}
+	if sheet.Introduction != nil {
+		return true
+	}
+	settings, err := s.settings(ctx)
+	if err != nil {
+		s.log.Warn("cannot load introduction configuration", "err", err)
+		return false
+	}
+	if !s.ai.Enabled() || s.foundryDeployment(settings) == "" {
+		s.log.Warn("introduction translation is not configured", "vacation_id", job.VacationID)
+		return false
+	}
+	phrase := job.Phrase()
+	introduction, err := s.ai.TranslateCheatsheetIntroduction(ctx, s.foundryDeployment(settings), phrase)
+	if err != nil {
+		s.log.Warn("introduction translation failed", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	if err := s.store.PutCheatsheetIntroduction(ctx, phrase, introduction); err != nil {
+		s.log.Warn("cannot save introduction translation", "err", err, "vacation_id", job.VacationID)
+		return false
+	}
+	return true
 }
 
 func (s *Server) runCheatsheetPhrase(ctx context.Context, job *models.CheatsheetJob, sheet *models.Cheatsheet) bool {

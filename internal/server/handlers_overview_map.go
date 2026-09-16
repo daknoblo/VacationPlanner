@@ -9,8 +9,13 @@ import (
 
 type overviewMapPayload struct {
 	Center    *centerPoint    `json:"center,omitempty"`
-	Lodgings  []itemMarker    `json:"lodgings"`
+	Lodgings  []lodgingMarker `json:"lodgings"`
 	Geography geographyStatus `json:"geography"`
+}
+
+type lodgingMarker struct {
+	itemMarker
+	DateRange string `json:"date_range"`
 }
 
 // handleOverviewMap uses accommodation records only. POIs, even ones labeled
@@ -37,7 +42,8 @@ func (s *Server) handleOverviewMap(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	payload := overviewMapPayload{Lodgings: make([]itemMarker, 0, len(lodgings)), Geography: status}
+	_, tz := s.regionSettings(r.Context())
+	payload := overviewMapPayload{Lodgings: make([]lodgingMarker, 0, len(lodgings)), Geography: status}
 	if v.HasCoords() {
 		payload.Center = &centerPoint{Lat: *v.Latitude, Lng: *v.Longitude}
 	}
@@ -45,8 +51,11 @@ func (s *Server) handleOverviewMap(w http.ResponseWriter, r *http.Request) {
 		if !lodging.HasCoords() {
 			continue
 		}
-		payload.Lodgings = append(payload.Lodgings, itemMarker{
-			ID: lodging.ID.String(), Title: lodging.Name, Lat: *lodging.Latitude, Lng: *lodging.Longitude,
+		payload.Lodgings = append(payload.Lodgings, lodgingMarker{
+			itemMarker: itemMarker{
+				ID: lodging.ID.String(), Title: lodging.Name, Lat: *lodging.Latitude, Lng: *lodging.Longitude,
+			},
+			DateRange: fmtDate(lodging.CheckIn.In(tz)) + " – " + fmtDate(lodging.CheckOut.In(tz)),
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")

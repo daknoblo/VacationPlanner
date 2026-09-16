@@ -179,6 +179,8 @@ func keepData(key string) bool {
 	case "data-tabs", "data-tab", "data-tab-panel", "data-view", "data-viewtoggle",
 		"data-goto-day", "data-day-view", "data-weekview", "data-tagesplan",
 		"data-day-count", "data-day", "data-day-route", "data-week-start",
+		"data-region-day", "data-region-week",
+		"data-introduction",
 		"data-ideas-regions", "data-ideas-region-filter", "data-ideas-region-group",
 		"data-ideas-region-empty", "data-budget-filter", "data-payer-filter", "data-payer",
 		"data-id", "data-travel-source-id",

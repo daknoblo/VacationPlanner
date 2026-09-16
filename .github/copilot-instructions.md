@@ -101,9 +101,21 @@ a reverse proxy.
 - `POST /vacations/{id}/cheatsheet/phrases` – translate and retain a custom word or sentence.
 - Custom phrases are queued individually and share the standard vocabulary table;
   polling must not replace/reset the input form or trigger standard-list regeneration.
+- Cheatsheets add "My name is ..." for current selected trip participants. A validated
+  translated `{name}` frame is cached alongside the fixed vocabulary; personal names
+  are inserted locally, never sent to the provider. The lifecycle worker backfills
+  existing sheets through the bounded durable queue, never from GET/poll handlers.
+  Participant changes do not regenerate vocabulary; matching custom introductions are
+  reused without deleting custom data. Failed frame jobs require attempt-bound retries.
 - `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
 - `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
+- `GET /vacations/{id}/api/calendar-regions` – read-only saved accommodation regions
+  for horizontal day/week calendar bands; never starts provider work.
+- `GET /vacations/{id}/api/ai-centers` – read-only destination and accommodation-region
+  search presets. Regional midpoints use all located accommodations in that region.
+  Recommendation POSTs re-resolve presets from current trip bookings; custom map points
+  remain supported, and missing/removed regional presets fail before any AI call.
 - `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
@@ -125,6 +137,11 @@ a reverse proxy.
 - Ideas support geographic region grouping and an editable region override. Background
   geography enrichment updates only unchanged geo fields; it must never overwrite costs,
   payers or manual regions, or invent hotel locations from destination centers.
+- Existing ideas can select a location in their inline editor to persist coordinates
+  for background region lookup, without changing their title or reference links.
+  Accommodation regions are cached separately and shown as merged horizontal calendar
+  bands. Local check-in/check-out dates are inclusive; transfer days show both regions.
+  Missing regions and missing accommodations remain explicit, never inferred from POIs.
 - AI-generated content is **never rendered as raw HTML** (`html/template` escaping).
 - The UI language is switchable in Settings and persisted per client.
 

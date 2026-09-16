@@ -147,7 +147,7 @@ func (s *Server) handleUpdateLodging(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if !lo.HasCoords() {
+	if !lo.HasCoords() || lo.Region == "" {
 		s.retryGeography(lo.VacationID, i18n.FromContext(r.Context()).Code())
 	}
 	hxTrigger(w, "itemsChanged")

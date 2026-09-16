@@ -81,6 +81,8 @@
              data-geo-lite data-geo-near-lat="{{coord .V.Latitude}}" data-geo-near-lng="{{coord .V.Longitude}}"
              placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}{{t "placeholder.sight.name"}}{{end}}">
       <div class="suggest" data-geo-lite-list hidden></div>
+      <p class="muted small" role="status" data-geo-lite-status
+         data-error="{{t "item.location_error"}}" data-empty="{{t "item.location_empty"}}" hidden></p>
     </div>
     <input type="hidden" name="latitude" data-geo-lite-lat>
     <input type="hidden" name="longitude" data-geo-lite-lng>
@@ -138,6 +140,21 @@
     <div class="field field--wide">
       <label>{{t "field.title"}}</label>
       <input name="title" required maxlength="200" value="{{.Item.Title}}">
+    </div>
+    <div class="field field--wide">
+      <label for="item-location-{{.Item.ID}}">{{t "item.location"}}</label>
+      <div class="location-picker__field">
+        <input id="item-location-{{.Item.ID}}" name="location" maxlength="200" autocomplete="off"
+               data-geo-lite {{with .Vacation}}data-geo-near-lat="{{coord .Latitude}}" data-geo-near-lng="{{coord .Longitude}}"{{end}}
+               value="{{.Item.Location}}" placeholder="{{.Item.Title}}">
+        <div class="suggest" data-geo-lite-list hidden></div>
+        <p class="muted small" role="status" data-geo-lite-status
+           data-error="{{t "item.location_error"}}" data-empty="{{t "item.location_empty"}}" hidden></p>
+      </div>
+      <input type="hidden" name="latitude" data-geo-lite-lat value="{{coord .Item.Latitude}}">
+      <input type="hidden" name="longitude" data-geo-lite-lng value="{{coord .Item.Longitude}}">
+      <p class="muted small">{{t "item.region_location_hint"}}</p>
+      {{if .Item.HasCoords}}<p class="muted small">{{t "item.saved_coordinates"}}: {{coord .Item.Latitude}}, {{coord .Item.Longitude}}</p>{{end}}
     </div>
     <div class="field">
       <label>{{t "sight.planned"}} <span class="muted">{{t "label.optional"}}</span></label>

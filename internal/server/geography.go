@@ -22,14 +22,15 @@ const (
 
 // geographyStatus contains presentation data only, never provider errors or URLs.
 type geographyStatus struct {
-	Pending        bool     `json:"pending"`
-	Error          bool     `json:"error"`
-	Limited        bool     `json:"limited"`
-	Unresolved     []string `json:"unresolved"`
-	UnknownRegions int      `json:"unknown_regions"`
-	UpdatedCount   int      `json:"updated_count"`
-	Completed      int      `json:"completed"`
-	Total          int      `json:"total"`
+	Pending               bool     `json:"pending"`
+	Error                 bool     `json:"error"`
+	Limited               bool     `json:"limited"`
+	Unresolved            []string `json:"unresolved"`
+	UnknownRegions        int      `json:"unknown_regions"`
+	UnknownLodgingRegions int      `json:"unknown_lodging_regions"`
+	UpdatedCount          int      `json:"updated_count"`
+	Completed             int      `json:"completed"`
+	Total                 int      `json:"total"`
 }
 
 type geographyJob struct {
@@ -191,12 +192,20 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		}
 		w.mu.Lock()
 		state := w.states[job.id]
-		retry := state.retry
+		if state.retry && parent.Err() == nil {
+			// Publish the follow-up atomically so polling cannot see a false
+			// completion between coordinate enrichment and region lookup.
+			select {
+			case w.queue <- job:
+				status.Pending = true
+				status.Error, status.Limited = false, false
+				status.Completed, status.Total = 0, 0
+			default:
+				status.Error, status.Limited = true, true
+			}
+		}
 		state.status, state.finished, state.cursor, state.retry = status, time.Now(), nextCursor, false
 		w.mu.Unlock()
-		if retry && parent.Err() == nil {
-			w.enqueue(job.id, job.lang, true)
-		}
 	}()
 	s := w.server
 	if s.geo == nil || s.store == nil {
@@ -225,10 +234,16 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	var work []lookup
 	for idx := range lodgings {
 		l := &lodgings[idx]
-		if l.Latitude == nil && l.Longitude == nil {
+		if l.Region == "" {
+			status.UnknownLodgingRegions++
+		}
+		switch {
+		case l.Latitude == nil && l.Longitude == nil:
 			work = append(work, lookup{lodging: l})
-		} else if !l.HasCoords() {
+		case !l.HasCoords():
 			status.Unresolved = append(status.Unresolved, l.Name)
+		case l.Region == "":
+			work = append(work, lookup{lodging: l})
 		}
 	}
 	for idx := range items {
@@ -243,15 +258,19 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	if len(work) == 0 {
 		return
 	}
+	initialWorkCount := len(work)
+	cursor %= initialWorkCount
+	rotated := make([]lookup, 0, initialWorkCount)
+	rotated = append(rotated, work[cursor:]...)
+	work = append(rotated, work[:cursor]...)
 	status.Total = min(len(work), geographyLookupLimit)
 	w.setProgress(job.id, 0, status.Total)
 	baseURL := settings[settingGeoBaseURL]
 	processed := 0
 	for processed < len(work) && processed < geographyLookupLimit && ctx.Err() == nil {
-		idx := (cursor + processed) % len(work)
-		entry := work[idx]
+		entry := work[processed]
 		lookupCtx, lookupCancel := context.WithTimeout(ctx, 8*time.Second)
-		if entry.lodging != nil {
+		if entry.lodging != nil && !entry.lodging.HasCoords() {
 			l := entry.lodging
 			query := strings.TrimSpace(l.Location)
 			if query == "" {
@@ -269,6 +288,13 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 				}
 				if changed {
 					status.UpdatedCount++
+					l.Latitude, l.Longitude = &result.Lat, &result.Lng
+					if l.Region == "" {
+						// Reverse lookup is a separate budgeted operation; never
+						// silently exceed the batch's provider-call limit.
+						work = append(work, lookup{lodging: l})
+						status.Total = min(len(work), geographyLookupLimit)
+					}
 				} else {
 					status.Unresolved = append(status.Unresolved, l.Name)
 				}
@@ -276,20 +302,35 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 				status.Unresolved = append(status.Unresolved, l.Name)
 			}
 		} else {
-			item := entry.item
+			var lat, lng float64
+			if entry.lodging != nil {
+				lat, lng = *entry.lodging.Latitude, *entry.lodging.Longitude
+			} else {
+				lat, lng = *entry.item.Latitude, *entry.item.Longitude
+			}
 			// Persist canonical English region labels, independent of who opened
 			// the page first; manually entered labels remain untouched.
-			result, ok, lookupErr := s.geo.Reverse(lookupCtx, baseURL, *item.Latitude, *item.Longitude, "en")
+			result, ok, lookupErr := s.geo.Reverse(lookupCtx, baseURL, lat, lng, "en")
 			if lookupErr != nil {
 				status.Error = true
 			} else if ok && result.Region != "" {
-				changed, updateErr := s.store.UpdateItemRegion(ctx, item, result.Region)
+				var changed bool
+				var updateErr error
+				if entry.lodging != nil {
+					changed, updateErr = s.store.UpdateLodgingRegion(ctx, entry.lodging, result.Region)
+				} else {
+					changed, updateErr = s.store.UpdateItemRegion(ctx, entry.item, result.Region)
+				}
 				if updateErr != nil {
 					status.Error = true
 				}
 				if changed {
 					status.UpdatedCount++
-					status.UnknownRegions--
+					if entry.lodging != nil {
+						status.UnknownLodgingRegions--
+					} else {
+						status.UnknownRegions--
+					}
 				}
 			}
 		}
@@ -301,11 +342,18 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	status.Limited = processed < len(work)
 	// Rotate across failed and outstanding entries rather than allowing the
 	// first ambiguous accommodation to starve a large idea collection.
-	nextCursor = (cursor + processed) % len(work)
+	nextCursor = (cursor + processed) % initialWorkCount
 	for offset := processed; offset < len(work); offset++ {
-		if l := work[(cursor+offset)%len(work)].lodging; l != nil {
+		if l := work[offset].lodging; l != nil && !l.HasCoords() {
 			status.Unresolved = append(status.Unresolved, l.Name)
 		}
+	}
+	if len(work) > initialWorkCount && processed < len(work) && ctx.Err() == nil {
+		// Newly located accommodations still need a region. Follow up once
+		// without bypassing the per-job budget or retrying failed reverse calls.
+		w.mu.Lock()
+		w.states[job.id].retry = true
+		w.mu.Unlock()
 	}
 }
 

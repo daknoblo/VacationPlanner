@@ -66,11 +66,11 @@ func seedDemo(ctx context.Context, st store.Store, lang i18n.Lang) (*models.Vaca
 		return nil, err
 	}
 	for _, l := range []models.Lodging{
-		{ID: demoID(20), Name: "Hotel Arno", Location: "Firenze, Toscana", Latitude: demoPtr(43.7723), Longitude: demoPtr(11.2497),
+		{ID: demoID(20), Name: "Hotel Arno", Region: "Toscana", Location: "Firenze, Toscana", Latitude: demoPtr(43.7723), Longitude: demoPtr(11.2497),
 			CheckIn: at(0, 13), CheckOut: at(2, 10), Cost: demoPtr(320.0), PaidBy: &alex},
-		{ID: demoID(21), Name: "Casa delle Colline", Location: "Siena, Toscana", Latitude: demoPtr(43.3227), Longitude: demoPtr(11.3272),
+		{ID: demoID(21), Name: "Casa delle Colline", Region: "Toscana", Location: "Siena, Toscana", Latitude: demoPtr(43.3227), Longitude: demoPtr(11.3272),
 			CheckIn: at(2, 15), CheckOut: at(5, 10), Cost: demoPtr(450.0)},
-		{ID: demoID(22), Name: "Hotel Giardino", Location: "Roma, Lazio", Latitude: demoPtr(41.9008), Longitude: demoPtr(12.4958),
+		{ID: demoID(22), Name: "Hotel Giardino", Region: "Lazio", Location: "Roma, Lazio", Latitude: demoPtr(41.9008), Longitude: demoPtr(12.4958),
 			CheckIn: at(5, 15), CheckOut: at(6, 10), Cost: demoPtr(180.0), PaidBy: &riley},
 	} {
 		l.VacationID = trip.ID
@@ -157,6 +157,7 @@ func seedDemoCheatsheet(ctx context.Context, st store.Store, trip *models.Vacati
 	sheet := &models.Cheatsheet{
 		VacationID: trip.ID, SourceLanguage: string(lang), DestinationKey: key,
 		Country: demoText(lang, "Italy", "Italien"), Language: demoText(lang, "Italian", "Italienisch"),
+		Introduction: &models.IntroductionPhrase{Text: "Mi chiamo {name}", Pronunciation: "mee KYAH-moh {name}"},
 	}
 	for _, phrase := range [][3]string{
 		{"hello", "Ciao", "chow"}, {"good_day", "Buongiorno", "bwohn-JOR-no"},

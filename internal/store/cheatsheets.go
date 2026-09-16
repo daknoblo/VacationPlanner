@@ -59,12 +59,81 @@ func (s *SQLite) PutCheatsheet(ctx context.Context, sheet *models.Cheatsheet) er
 	_, err = tx.ExecContext(ctx, `INSERT INTO cheatsheets
 		(vacation_id, source_language, destination_key, content, created_at) VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(vacation_id, source_language) DO UPDATE SET
-		destination_key = excluded.destination_key, content = excluded.content, created_at = excluded.created_at`,
+		destination_key = excluded.destination_key,
+		content = CASE WHEN cheatsheets.destination_key = excluded.destination_key
+			AND json_extract(cheatsheets.content, '$.language') = json_extract(excluded.content, '$.language')
+			AND json_extract(excluded.content, '$.introduction') IS NULL
+			THEN json_set(excluded.content, '$.introduction', json_extract(cheatsheets.content, '$.introduction'))
+			ELSE excluded.content END,
+		created_at = excluded.created_at`,
 		sheet.VacationID, sheet.SourceLanguage, sheet.DestinationKey, string(content), dbTime(sheet.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("store: saving cheatsheet: %w", err)
 	}
 	return tx.Commit()
+}
+
+// Only the introduction member is updated: existing vocabulary, creation time
+// and custom translations survive a concurrent introduction completion.
+func (s *SQLite) PutCheatsheetIntroduction(ctx context.Context, profile *models.CustomTravelPhrase, phrase *models.IntroductionPhrase) error {
+	if err := phrase.Validate(); err != nil {
+		return err
+	}
+	content, err := json.Marshal(phrase)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := checkCheatsheetDestination(ctx, tx, profile.VacationID, profile.DestinationKey); err != nil {
+		return err
+	}
+	if err := checkCheatsheetPhraseLanguage(ctx, tx, profile); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE cheatsheets SET content = json_set(content, '$.introduction', json(?))
+		WHERE vacation_id = ? AND source_language = ? AND destination_key = ?`,
+		string(content), profile.VacationID, profile.SourceLanguage, profile.DestinationKey); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// A bounded, keyset-paginated scan supports existing sheets and later participant
+// selections. Failed/running/completed attempts are excluded, never replayed.
+func (s *SQLite) ListCheatsheetsForIntroductions(ctx context.Context, after string) ([]models.Cheatsheet, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT c.vacation_id, c.source_language, c.destination_key, c.content
+		FROM cheatsheets c
+		WHERE c.vacation_id || '/' || c.source_language > ?
+		AND json_extract(c.content, '$.introduction') IS NULL
+		AND EXISTS (SELECT 1 FROM vacation_people vp WHERE vp.vacation_id = c.vacation_id)
+		AND NOT EXISTS (SELECT 1 FROM cheatsheet_jobs j WHERE j.vacation_id = c.vacation_id
+			AND j.source_language = c.source_language AND j.destination_key = c.destination_key
+			AND j.target_language = json_extract(c.content, '$.language') AND j.job_key LIKE 'introduction:%')
+		ORDER BY c.vacation_id, c.source_language LIMIT 16`, after)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var sheets []models.Cheatsheet
+	for rows.Next() {
+		var sheet models.Cheatsheet
+		var content string
+		if err := rows.Scan(&sheet.VacationID, &sheet.SourceLanguage, &sheet.DestinationKey, &content); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(content), &sheet); err != nil {
+			return nil, err
+		}
+		if err := sheet.Validate(); err != nil {
+			return nil, err
+		}
+		sheets = append(sheets, sheet)
+	}
+	return sheets, rows.Err()
 }
 
 var ErrCheatsheetDestinationChanged = errors.New("store: cheatsheet destination or language changed")

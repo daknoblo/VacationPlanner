@@ -3,6 +3,9 @@
   {{range $wi, $week := .Weeks}}
   <details class="weekcal__wk" open>
     <summary class="weekcal__wk-sum">{{t "tab.week"}} {{add $wi 1}}</summary>
+    <div class="calendar-region-week" data-region-week="{{$week.Start}}" aria-label="{{t "planner.regions.heading"}}">
+      {{template "calendar_region_week" $week.Regions}}
+    </div>
     <div class="weekcal__week">
       <div class="weekcal__axis">
         <div class="weekcal__corner"></div>

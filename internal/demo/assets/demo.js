@@ -143,9 +143,13 @@
     lodgings.forEach(function (lodging) {
       var label = document.createElement("span");
       label.textContent = lodging.title + (german ? " · Beispielunterkunft" : " · Sample accommodation");
+      if (lodging.date_range) {
+        label.appendChild(document.createElement("br"));
+        label.appendChild(document.createTextNode(lodging.date_range));
+      }
       L.marker([lodging.lat, lodging.lng], {
         icon: L.divIcon({className: "lodging-marker", html: "\u{1f6cf}", iconSize: [28, 28], iconAnchor: [14, 14]}),
-        title: lodging.title
+        title: lodging.title + (lodging.date_range ? " · " + lodging.date_range : "")
       })
         .bindPopup(label).addTo(map);
     });

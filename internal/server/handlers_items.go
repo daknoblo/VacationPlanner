@@ -293,8 +293,14 @@ func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
 		categories = append(categories, models.Category{Name: item.Category})
 	}
 	participants := s.formPayerOptions(r.Context(), item.VacationID)
+	vacation, err := s.store.GetVacation(r.Context(), item.VacationID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.fragment(w, r, "item_edit", map[string]any{
 		"Item":         item,
+		"Vacation":     vacation,
 		"Cats":         categories,
 		"Participants": participants,
 		"CSRF":         s.ensureCSRFToken(w, r),
@@ -343,6 +349,35 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	location := existing.Location
+	if r.PostForm.Has("location") {
+		location = formStr(r, "location")
+		if !maxLen(location, 200) {
+			s.formError(w, r, "#item-error", loc.T("error.input_toolong"))
+			return
+		}
+	}
+	lat, lng := existing.Latitude, existing.Longitude
+	hasLat, hasLng := r.PostForm.Has("latitude"), r.PostForm.Has("longitude")
+	if hasLat || hasLng {
+		if !hasLat || !hasLng {
+			s.formError(w, r, "#item-error", loc.T("error.coords_together"))
+			return
+		}
+		lat, lng, err = parseCoords(r, "latitude", "longitude")
+		if err != nil {
+			s.formError(w, r, "#item-error", err.Error())
+			return
+		}
+	} else if location != existing.Location {
+		lat, lng = nil, nil
+	}
+	sameCoordinate := func(a, b *float64) bool {
+		return a == nil && b == nil || a != nil && b != nil && *a == *b
+	}
+	locationChanged := location != existing.Location ||
+		!sameCoordinate(lat, existing.Latitude) || !sameCoordinate(lng, existing.Longitude)
+	existing.Location, existing.Latitude, existing.Longitude = location, lat, lng
 	existing.Title = title
 	existing.Category = category
 	existing.Description = description
@@ -351,6 +386,9 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	if r.PostForm.Has("region") && region != existing.Region {
 		existing.Region = region
 		existing.RegionManual = region != ""
+	}
+	if locationChanged && !existing.RegionManual {
+		existing.Region = ""
 	}
 	paidBy, err := parseBudgetPayer(r)
 	if err != nil {

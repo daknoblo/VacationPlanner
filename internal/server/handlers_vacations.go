@@ -594,6 +594,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	s.page(w, r, "vacation", v.Title, map[string]any{
 		"Vacation":        v,
 		"AIEnabled":       s.ai.Enabled(),
+		"AISearchCenters": aiSearchCenters(loc, v, v.Lodgings),
 		"Budget":          budget,
 		"Currency":        currency,
 		"Categories":      categories,
@@ -605,6 +606,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"DayCards":        cardMap,
 		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
+		"CalendarRegions": calendarRegions(loc, tz, mondayStart, v),
 		"Lodgings":        lodgingBlock(tz, v),
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),
@@ -861,7 +863,9 @@ type calDay struct {
 // calWeek is one calendar-week row; Days is indexed by weekday column
 // (nil where the day falls outside the trip).
 type calWeek struct {
-	Days [7]*calDay
+	Days    [7]*calDay
+	Start   string
+	Regions []calendarRegionSpan
 }
 
 // buildWeekCalendar groups the trip days into calendar weeks (Mon–Sun rows),
@@ -871,6 +875,7 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 	lodging := lodgingDayStrips(tz, v.Lodgings)
 	days := v.Days()
 	counts := plannedDayCounts(days, v.Items)
+	regions := calendarRegions(loc, tz, mondayStart, v)
 	var weeks []calWeek
 	idx := make(map[string]int)
 	for i, d := range days {
@@ -880,7 +885,7 @@ func buildWeekCalendar(loc *i18n.Localizer, tz *time.Location, mondayStart bool,
 		if !ok {
 			wi = len(weeks)
 			idx[key] = wi
-			weeks = append(weeks, calWeek{})
+			weeks = append(weeks, calWeek{Start: key, Regions: regions.Weeks[key]})
 		}
 		cd := &calDay{
 			Date:      d,

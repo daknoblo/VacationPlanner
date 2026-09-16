@@ -19,7 +19,7 @@
       {{range .Items}}
       <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
         <span class="idea-chip__grip" aria-hidden="true">⠿</span>
-        <span class="idea-chip__title">{{.Title}}</span>
+        <span class="idea-chip__title">{{.Title}}{{if and (not .Region) (not .HasCoords)}} <span class="muted small">{{t "ideas.region.needs_location"}}</span>{{end}}</span>
         {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
       </div>
       {{end}}

@@ -56,7 +56,7 @@
   });
 
   document.body.addEventListener("htmx:beforeSwap", function (evt) {
-    if (evt.detail.target && (evt.detail.target.id === "cheatsheet-rows" || evt.detail.target.id === "archive-error") && evt.detail.xhr.status === 422) {
+    if (evt.detail.target && (evt.detail.target.id === "cheatsheet-rows" || evt.detail.target.id === "archive-error" || evt.detail.target.id === "item-error" || evt.detail.target.id === "ai-error") && evt.detail.xhr.status === 422) {
       evt.detail.shouldSwap = true;
       evt.detail.isError = true;
     }
@@ -66,6 +66,15 @@
   document.body.addEventListener("htmx:afterSwap", function () {
     initGeoLiteInputs();
     applyIdeaRegionFilter();
+  });
+
+  document.body.addEventListener("htmx:afterRequest", function (event) {
+    var form = event.detail && event.detail.elt;
+    if (!form || !form.matches || !form.matches("[data-geography-refresh]")) return;
+    var status = document.querySelector("[data-planner-geography-status]");
+    if (!status) return;
+    status.textContent = event.detail.successful ? status.dataset.pending : status.dataset.error;
+    status.hidden = false;
   });
 
   // Once an AI suggestion has been added to the trip, remove its tile so it is
@@ -230,8 +239,9 @@
         markerLayer.clearLayers();
         var bounds = [];
         data.lodgings.forEach(function (s) {
-          var marker = L.marker([s.lat, s.lng], { icon: lodgingMarkerIcon(), title: s.title });
-          marker.bindPopup(escapeHtml("🛏 " + s.title));
+          var title = s.title + (s.date_range ? " · " + s.date_range : "");
+          var marker = L.marker([s.lat, s.lng], { icon: lodgingMarkerIcon(), title: title });
+          marker.bindPopup(escapeHtml("🛏 " + s.title) + (s.date_range ? "<br>" + escapeHtml(s.date_range) : ""));
           marker.addTo(markerLayer);
           bounds.push([s.lat, s.lng]);
         });
@@ -246,6 +256,14 @@
         }
         markerSignature = signature;
         var geography = data.geography || {};
+        var plannerStatus = document.querySelector("[data-planner-geography-status]");
+        if (plannerStatus) {
+          var plannerMessage = geography.pending ? plannerStatus.dataset.pending :
+            geography.error ? plannerStatus.dataset.error : plannerStatus.dataset.done;
+          if (geography.limited) plannerMessage += " " + plannerStatus.dataset.limited;
+          plannerStatus.textContent = plannerMessage;
+          plannerStatus.hidden = false;
+        }
         if (status) {
           var message = bounds.length ? "" : status.dataset.empty;
           if (geography.pending) {
@@ -273,8 +291,141 @@
           status.textContent = status.dataset.error;
           status.hidden = false;
         }
+        var plannerStatus = document.querySelector("[data-planner-geography-status]");
+        if (plannerStatus) {
+          plannerStatus.textContent = plannerStatus.dataset.error;
+          plannerStatus.hidden = false;
+        }
       });
   }
+
+  var calendarRegionRequest = null;
+  function refreshCalendarRegions() {
+    var root = document.querySelector("[data-calendar-regions-url]");
+    if (!root) return;
+    if (calendarRegionRequest) calendarRegionRequest.abort();
+    var request = new AbortController();
+    calendarRegionRequest = request;
+    var error = root.querySelector("[data-calendar-regions-error]");
+    fetch(root.dataset.calendarRegionsUrl, { headers: { "Accept": "application/json" }, signal: request.signal })
+      .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error("Calendar regions unavailable")); })
+      .then(function (data) {
+        if (request.signal.aborted || !root.isConnected) return;
+        var days = root.querySelectorAll("[data-region-day]");
+        var weeks = root.querySelectorAll("[data-region-week]");
+        function validEntry(entry) {
+          return entry && typeof entry.label === "string" && typeof entry.title === "string";
+        }
+        days.forEach(function (day) {
+          if (!data.days || !validEntry(data.days[day.dataset.regionDay])) throw new Error("Invalid day regions");
+        });
+        weeks.forEach(function (week) {
+          var entries = data.weeks && data.weeks[week.dataset.regionWeek];
+          if (!Array.isArray(entries) || !entries.length) throw new Error("Invalid week regions");
+          var end = 0;
+          entries.forEach(function (entry) {
+            if (!validEntry(entry) || !Number.isInteger(entry.start) || !Number.isInteger(entry.span) ||
+                entry.start < end || entry.start < 0 || entry.span < 1 || entry.start + entry.span > 7) {
+              throw new Error("Invalid region span");
+            }
+            end = entry.start + entry.span;
+          });
+        });
+        function band(entry) {
+          var span = document.createElement("span");
+          span.className = "calendar-region-band";
+          span.textContent = entry.label;
+          span.title = entry.title;
+          return span;
+        }
+        days.forEach(function (day) {
+          day.replaceChildren(band(data.days[day.dataset.regionDay]));
+        });
+        weeks.forEach(function (week) {
+          var fragment = document.createDocumentFragment();
+          data.weeks[week.dataset.regionWeek].forEach(function (entry) {
+            var span = band(entry);
+            span.style.gridColumn = (entry.start + 2) + " / span " + entry.span;
+            fragment.appendChild(span);
+          });
+          week.replaceChildren(fragment);
+        });
+        if (error) error.hidden = true;
+      })
+      .catch(function (err) {
+        if (err.name === "AbortError") return;
+        if (error) {
+          error.textContent = error.dataset.error;
+          error.hidden = false;
+        }
+      });
+  }
+  document.body.addEventListener("itemsChanged", refreshCalendarRegions);
+  document.body.addEventListener("infoChanged", refreshCalendarRegions);
+  document.body.addEventListener("geographyChanged", refreshCalendarRegions);
+
+  var aiCentersRequest = null;
+  function refreshAISearchCenters() {
+    var select = document.querySelector("[data-ai-center]");
+    if (!select) return;
+    var status = select.closest(".location-picker").querySelector("[data-ai-centers-error]");
+    if (aiCentersRequest) aiCentersRequest.abort();
+    var request = new AbortController();
+    aiCentersRequest = request;
+    fetch(select.dataset.aiCentersUrl, { headers: { "Accept": "application/json" }, signal: request.signal })
+      .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error("Search centers unavailable")); })
+      .then(function (centers) {
+        if (request.signal.aborted || !select.isConnected) return;
+        if (!Array.isArray(centers) || centers.length < 2) throw new Error("Invalid search centers");
+        var keys = new Set();
+        centers.forEach(function (center) {
+          if (!center || typeof center.key !== "string" || keys.has(center.key) ||
+              typeof center.label !== "string" || typeof center.name !== "string" ||
+              !Number.isInteger(center.zoom) || center.zoom < 1 || center.zoom > 19 ||
+              !(center.lat === null && center.lng === null ||
+                Number.isFinite(center.lat) && Math.abs(center.lat) <= 90 &&
+                Number.isFinite(center.lng) && Math.abs(center.lng) <= 180)) {
+            throw new Error("Invalid search center");
+          }
+          keys.add(center.key);
+        });
+        if (!keys.has("destination") || !keys.has("custom")) throw new Error("Missing default search centers");
+        var current = select.value;
+        var old = select.selectedOptions[0];
+        var options = document.createDocumentFragment();
+        centers.forEach(function (center) {
+          var option = document.createElement("option");
+          option.value = center.key;
+          option.textContent = center.label;
+          option.dataset.name = center.name;
+          option.dataset.lat = center.lat === null ? "" : String(center.lat);
+          option.dataset.lng = center.lng === null ? "" : String(center.lng);
+          option.dataset.zoom = String(center.zoom);
+          option.disabled = center.key !== "destination" && center.key !== "custom" && center.lat === null;
+          if (option.disabled && center.key === current) {
+            option.disabled = false;
+            option.dataset.unavailable = "true";
+          }
+          options.appendChild(option);
+        });
+        if (!keys.has(current) && old) {
+          var unavailable = old.cloneNode(true);
+          unavailable.dataset.unavailable = "true";
+          unavailable.disabled = false;
+          options.appendChild(unavailable);
+        }
+        select.replaceChildren(options);
+        select.value = current;
+        select.dispatchEvent(new CustomEvent("ai:centers-refreshed"));
+      })
+      .catch(function (err) {
+        if (err.name === "AbortError") return;
+        if (status) { status.textContent = status.dataset.error; status.hidden = false; }
+      });
+  }
+  document.body.addEventListener("itemsChanged", refreshAISearchCenters);
+  document.body.addEventListener("infoChanged", refreshAISearchCenters);
+  document.body.addEventListener("geographyChanged", refreshAISearchCenters);
 
   // Counts are refreshed from saved items, including untimed activities. Updating
   // only the badges preserves the active day and its current planner state.
@@ -333,12 +484,12 @@
 
   // Resolve a clicked point to a place name and fill the picker's text field.
   // Shows the coordinates immediately, then upgrades to the resolved name.
-  function reverseGeocode(lat, lng, input) {
+  function reverseGeocode(lat, lng, input, isCurrent) {
     input.value = lat.toFixed(5) + ", " + lng.toFixed(5);
     fetch("/api/reverse-geocode?lat=" + encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lng),
       { headers: { "Accept": "application/json" } })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (data) { if (data && data.display_name) { input.value = data.display_name; } })
+      .then(function (data) { if (data && data.display_name && (!isCurrent || isCurrent())) { input.value = data.display_name; } })
       .catch(function () { /* keep the coordinate fallback */ });
   }
 
@@ -349,6 +500,9 @@
     var lngIn = pk.querySelector("[data-geocode-lng]");
     var zoomIn = pk.querySelector("[data-geocode-zoom]");
     var mapEl = pk.querySelector("[data-geocode-map]");
+    var centerSelect = pk.querySelector("[data-ai-center]");
+    var customLocation = pk.querySelector("[data-ai-custom-location]");
+    var centerStatus = pk.querySelector("[data-ai-centers-error]");
     if (!mapEl) return;
 
     var lat = parseFloat(latIn && latIn.value);
@@ -366,7 +520,9 @@
     locationMaps.push(lmap);
 
     var marker = null;
+    var pointVersion = 0;
     function setPoint(la, ln, zoom, persist) {
+      pointVersion++;
       var z = zoom || lmap.getZoom();
       if (latIn) latIn.value = la.toFixed(6);
       if (lngIn) lngIn.value = ln.toFixed(6);
@@ -377,13 +533,59 @@
     }
     if (hasPoint) setPoint(lat, lng, hasStoredZoom ? storedZoom : 6, false);
 
+    function customCenter() {
+      if (!centerSelect) return;
+      centerSelect.value = "custom";
+      centerSelect.setCustomValidity("");
+      if (customLocation) customLocation.hidden = false;
+      if (centerStatus) centerStatus.hidden = true;
+    }
+    function applyCenter() {
+      var choice = centerSelect.selectedOptions[0];
+      if (!choice || choice.dataset.unavailable === "true" || choice.disabled) {
+        centerSelect.setCustomValidity(centerStatus.dataset.unavailable);
+        centerStatus.textContent = centerStatus.dataset.unavailable;
+        centerStatus.hidden = false;
+        return;
+      }
+      centerSelect.setCustomValidity("");
+      if (centerStatus) centerStatus.hidden = true;
+      pointVersion++;
+      hideList();
+      if (timer) window.clearTimeout(timer);
+      if (customLocation) customLocation.hidden = choice.value !== "custom";
+      if (choice.value === "custom") return;
+      if (input) input.value = choice.dataset.name;
+      var la = parseFloat(choice.dataset.lat), ln = parseFloat(choice.dataset.lng);
+      if (Number.isFinite(la) && Number.isFinite(ln)) {
+        setPoint(la, ln, parseInt(choice.dataset.zoom, 10), false);
+      } else {
+        if (latIn) latIn.value = "";
+        if (lngIn) lngIn.value = "";
+        if (marker) { marker.remove(); marker = null; }
+      }
+    }
+    if (centerSelect) {
+      centerSelect.addEventListener("change", applyCenter);
+      centerSelect.addEventListener("ai:centers-refreshed", function () {
+        // Updating the region list must not touch a manually selected point,
+        // its text, or an in-flight reverse lookup for that custom point.
+        if (centerSelect.value !== "custom") {
+          applyCenter();
+        } else if (centerStatus) {
+          centerStatus.hidden = true;
+        }
+      });
+    }
     // When the picker resolves clicks to a place name (e.g. the AI search
     // center), a raw map click has no matching label, so reverse-geocode the
     // point and fill the field with the resolved place name.
     var reverseOnClick = pk.hasAttribute("data-geocode-reverse");
     lmap.on("click", function (e) {
+      customCenter();
       setPoint(e.latlng.lat, e.latlng.lng, null, true);
-      if (reverseOnClick && input) { reverseGeocode(e.latlng.lat, e.latlng.lng, input); }
+      var version = pointVersion;
+      if (reverseOnClick && input) { reverseGeocode(e.latlng.lat, e.latlng.lng, input, function () { return version === pointVersion; }); }
     });
     window.setTimeout(function () { lmap.invalidateSize(); }, 200);
 
@@ -399,6 +601,7 @@
         opt.className = "suggest__item";
         opt.textContent = it.display_name;
         opt.addEventListener("click", function () {
+          customCenter();
           if (input) input.value = it.display_name;
           setPoint(it.lat, it.lng, zoomForResult(it), true);
           hideList();
@@ -408,20 +611,29 @@
       list.hidden = false;
     }
 
-    function search(q) {
+    function search(q, version) {
       fetch("/api/geocode?q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-        .then(function (data) { renderSuggestions((data && data.results) || []); })
-        .catch(function () { hideList(); });
+        .then(function (data) {
+          if (version === pointVersion) renderSuggestions((data && data.results) || []);
+        })
+        .catch(function () { if (version === pointVersion) hideList(); });
     }
 
     if (input) {
       var timer = null;
       input.addEventListener("input", function () {
+        var version = ++pointVersion;
+        if (centerSelect) {
+          customCenter();
+          if (latIn) latIn.value = "";
+          if (lngIn) lngIn.value = "";
+          if (marker) { marker.remove(); marker = null; }
+        }
         var q = input.value.trim();
         if (timer) window.clearTimeout(timer);
         if (q.length < 2) { hideList(); return; }
-        timer = window.setTimeout(function () { search(q); }, 350);
+        timer = window.setTimeout(function () { search(q, version); }, 350);
       });
       input.addEventListener("blur", function () { window.setTimeout(hideList, 200); });
     }
@@ -869,17 +1081,21 @@
     input.dataset.geoBound = "1";
     var wrap = input.closest(".location-picker__field") || input.parentNode;
     var list = wrap.querySelector("[data-geo-lite-list]");
+    var status = wrap.querySelector("[data-geo-lite-status]");
     var form = input.closest("form");
     var latName = input.getAttribute("data-geo-lat");
     var lngName = input.getAttribute("data-geo-lng");
     var latIn = form ? (latName ? form.querySelector('[name="' + latName + '"]') : form.querySelector("[data-geo-lite-lat]")) : null;
     var lngIn = form ? (lngName ? form.querySelector('[name="' + lngName + '"]') : form.querySelector("[data-geo-lite-lng]")) : null;
     var timer = null;
+    var searchVersion = 0;
 
     function clearCoords() { if (latIn) latIn.value = ""; if (lngIn) lngIn.value = ""; }
     function hide() { if (list) { list.hidden = true; list.innerHTML = ""; } }
 
     function choose(it) {
+      searchVersion++;
+      if (status) status.hidden = true;
       input.value = it.display_name || input.value;
       if (latIn) latIn.value = it.lat;
       if (lngIn) lngIn.value = it.lng;
@@ -888,6 +1104,8 @@
     }
 
     input.addEventListener("input", function () {
+      var version = ++searchVersion;
+      if (status) status.hidden = true;
       clearCoords();
       var q = input.value.trim();
       if (timer) window.clearTimeout(timer);
@@ -900,9 +1118,14 @@
         fetch(url, { headers: { "Accept": "application/json" } })
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
           .then(function (data) {
+            if (version !== searchVersion || !input.isConnected) return;
             if (!list) return;
             var results = (data && data.results) || [];
-            if (!results.length) { hide(); return; }
+            if (!results.length) {
+              hide();
+              if (status) { status.textContent = status.dataset.empty; status.hidden = false; }
+              return;
+            }
             list.innerHTML = "";
             results.slice(0, 6).forEach(function (it) {
               var b = document.createElement("button");
@@ -914,7 +1137,11 @@
             });
             list.hidden = false;
           })
-          .catch(function () { hide(); });
+          .catch(function () {
+            if (version !== searchVersion || !input.isConnected) return;
+            hide();
+            if (status) { status.textContent = status.dataset.error; status.hidden = false; }
+          });
       }, 300);
     });
 

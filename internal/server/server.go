@@ -21,26 +21,27 @@ import (
 
 // Server is the top-level HTTP application.
 type Server struct {
-	cfg             *config.Config
-	log             *slog.Logger
-	logs            *applog.Controller
-	store           store.Store
-	ai              *ai.Client
-	foundry         foundryConnection
-	aiDiscoveries   atomic.Int32
-	aiSelectionGate chan struct{}
-	cheatsheetJobs  sync.Map
-	cheatsheetGate  chan struct{}
-	cheatsheetWake  chan struct{}
-	cheatsheetStart sync.Once
-	cheatsheetStop  func()
-	geo             *geo.Client
-	geography       *geographyWorker
-	routing         *route.Client
-	destImg         *destimg.Client
-	render          *renderer
-	limiter         *ipRateLimiter
-	router          chi.Router
+	cfg                          *config.Config
+	log                          *slog.Logger
+	logs                         *applog.Controller
+	store                        store.Store
+	ai                           *ai.Client
+	foundry                      foundryConnection
+	aiDiscoveries                atomic.Int32
+	aiSelectionGate              chan struct{}
+	cheatsheetJobs               sync.Map
+	cheatsheetGate               chan struct{}
+	cheatsheetWake               chan struct{}
+	cheatsheetIntroductionCursor string
+	cheatsheetStart              sync.Once
+	cheatsheetStop               func()
+	geo                          *geo.Client
+	geography                    *geographyWorker
+	routing                      *route.Client
+	destImg                      *destimg.Client
+	render                       *renderer
+	limiter                      *ipRateLimiter
+	router                       chi.Router
 }
 
 // New constructs a Server and wires up all routes.

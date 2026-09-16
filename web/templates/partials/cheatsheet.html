@@ -31,6 +31,20 @@
   {{if .Stale}}<p class="muted">{{t "cheatsheet.destination_changed"}}</p>{{end}}
   {{if .SheetActive}}<p class="muted" role="status">{{t "cheatsheet.loading"}}</p>{{end}}
   {{if eq .Status "failed"}}<p class="alert alert--warn" role="status">{{t "cheatsheet.failed"}}</p>{{end}}
+  {{if and .IntroductionMissing (eq .IntroductionStatus "failed")}}
+  <p class="alert alert--warn" role="status">{{t "cheatsheet.introduction_failed"}}</p>
+  {{if .CanGenerate}}
+  <form method="post" action="/vacations/{{.VacationID}}/cheatsheet/introductions"
+        hx-post="/vacations/{{.VacationID}}/cheatsheet/introductions?fragment=rows"
+        hx-target="#cheatsheet-rows" hx-swap="outerHTML show:none"
+        hx-sync="#cheatsheet-panel:replace" hx-disabled-elt="button">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="hidden" name="retry_attempt" value="{{.IntroductionAttempt}}">
+    {{with .Profile}}<input type="hidden" name="destination_key" value="{{.DestinationKey}}">
+    <input type="hidden" name="target_language" value="{{.TargetLanguage}}">{{end}}
+    <button class="btn btn--sm" type="submit">{{t "cheatsheet.introduction_retry"}}</button>
+  </form>
+  {{end}}{{end}}
   {{with .Sheet}}
   <p><strong>{{.Country}}</strong> · {{.Language}} <span class="muted small">({{fmtDate .CreatedAt}})</span></p>
   {{end}}
@@ -67,6 +81,13 @@
   <tr><th scope="row">{{t (printf "cheatsheet.phrase.%s" .Key)}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>
   {{end}}{{else}}
   <tr><td colspan="3" class="muted">{{t "cheatsheet.empty"}}</td></tr>
+  {{end}}
+  {{range .Introductions}}
+  <tr data-introduction>
+    <th scope="row">{{.Original}}</th>
+    <td>{{if .Text}}{{.Text}}{{else}}<span class="muted" role="status">{{if eq $.IntroductionStatus "failed"}}{{t "cheatsheet.introduction_failed"}}{{else if $.CanGenerate}}{{t "cheatsheet.queued"}}{{else}}{{t "cheatsheet.configure_ai"}}{{end}}</span>{{end}}</td>
+    <td class="muted">{{.Pronunciation}}</td>
+  </tr>
   {{end}}
   {{range .Custom}}
   <tr><th scope="row">{{.Original}}</th><td>{{.Text}}</td><td class="muted">{{.Pronunciation}}</td></tr>

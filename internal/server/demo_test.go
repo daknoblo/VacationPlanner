@@ -67,9 +67,10 @@ func TestDemoSnapshots(t *testing.T) {
 				t.Errorf("built-in and custom phrases must share one table body, got %d", got)
 			}
 			rows := regexp.MustCompile(`(?s)<tbody id="cheatsheet-rows"[^>]*>(.*?)</tbody>`).FindSubmatch(sheet)
-			if len(rows) != 2 || bytes.Count(rows[1], []byte("<tr>")) != 24 {
-				t.Error("unified cheatsheet must render all 24 phrase rows")
+			if len(rows) != 2 || bytes.Count(rows[1], []byte("<tr")) != 26 {
+				t.Error("unified cheatsheet must render 22 standard, two participant and two custom phrase rows")
 			}
+			requireDemoContains(t, sheet, "Mi chiamo Alex Morgan", "Mi chiamo Riley Bennett")
 			countLabels := regexp.MustCompile(`data-day-count="([^"]+)"[^>]*>\((\d+)\)</span>`).
 				FindAllSubmatch(snapshot.Pages["vacation.html"], -1)
 			firstDayCount := 0

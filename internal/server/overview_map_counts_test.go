@@ -67,11 +67,49 @@ func TestOverviewMapOnlyUsesRecordedAccommodations(t *testing.T) {
 		if marker.Title != "Arrival hotel" && marker.Title != "Mid-trip cottage" && marker.Title != "Departure hotel" {
 			t.Fatalf("non-accommodation marker: %+v", marker)
 		}
+		if marker.DateRange != "09.10.2026 – 12.10.2026" {
+			t.Fatalf("marker missing its accommodation dates: %+v", marker)
+		}
 	}
 	var original itemsPayload
 	readTripJSON(t, s, "/vacations/"+v.ID.String()+"/api/items", &original)
 	if len(original.Items) != 3 {
 		t.Fatal("the general item API was stripped of POIs")
+	}
+}
+
+func TestOverviewMapDatesUseConfiguredTimezoneAndRefresh(t *testing.T) {
+	s := newIntegrationServer(t)
+	ctx := t.Context()
+	if err := s.store.PutSetting(ctx, settingTimezone, "Europe/Copenhagen"); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 10, 24, 0, 0, 0, 0, time.UTC)
+	v := &models.Vacation{Title: "Dates", StartDate: start, EndDate: start.AddDate(0, 0, 4)}
+	if err := s.store.CreateVacation(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	lodging := &models.Lodging{
+		VacationID: v.ID, Name: "<b>Example</b>", Latitude: fptr(55), Longitude: fptr(9),
+		CheckIn:  start.Add(22*time.Hour + 30*time.Minute),
+		CheckOut: start.AddDate(0, 0, 1).Add(23 * time.Hour),
+	}
+	if err := s.store.CreateLodging(ctx, lodging); err != nil {
+		t.Fatal(err)
+	}
+	path := "/vacations/" + v.ID.String() + "/api/overview-map"
+	var payload overviewMapPayload
+	readTripJSON(t, s, path, &payload)
+	if len(payload.Lodgings) != 1 || payload.Lodgings[0].DateRange != "25.10.2026 – 26.10.2026" || payload.Lodgings[0].Title != lodging.Name {
+		t.Fatalf("wrong local dates across DST or modified name: %+v", payload)
+	}
+	lodging.CheckOut = lodging.CheckOut.AddDate(0, 0, 1)
+	if err := s.store.UpdateLodging(ctx, lodging); err != nil {
+		t.Fatal(err)
+	}
+	readTripJSON(t, s, path, &payload)
+	if payload.Lodgings[0].DateRange != "25.10.2026 – 27.10.2026" {
+		t.Fatalf("date edits not reflected: %+v", payload.Lodgings[0])
 	}
 }
 
