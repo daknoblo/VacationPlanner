@@ -41,6 +41,7 @@ func newIntegrationServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	srv.wikipedia = nil // Provider tests inject their own local Wikipedia stub.
 	return srv
 }
 

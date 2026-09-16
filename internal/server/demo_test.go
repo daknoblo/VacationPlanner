@@ -194,7 +194,7 @@ func TestDemoFixtureCalculationsAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(v.Participants) != 2 || len(v.Lodgings) != 3 || v.Nights() != 6 || len(v.Items) != 14 {
+	if len(v.Participants) != 2 || len(v.Lodgings) != 3 || v.Nights() != 6 || len(v.Items) != 15 {
 		t.Fatalf("incomplete fixture: %+v", v)
 	}
 	var scheduled, untimed, ideas int
@@ -213,7 +213,7 @@ func TestDemoFixtureCalculationsAndIsolation(t *testing.T) {
 			t.Errorf("idea reference was not preserved: %+v", item)
 		}
 	}
-	if scheduled != 10 || untimed != 2 || ideas != 4 || regions["Toscana"] != 2 || regions["Lazio"] != 2 {
+	if scheduled != 10 || untimed != 2 || ideas != 5 || regions["Toscana"] != 2 || regions["Lazio"] != 2 || regions[""] != 1 {
 		t.Errorf("incomplete activity fixture: scheduled=%d untimed=%d ideas=%d regions=%v", scheduled, untimed, ideas, regions)
 	}
 	vacations, err := s.store.ListVacations(ctx)

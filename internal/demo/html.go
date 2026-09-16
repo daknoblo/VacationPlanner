@@ -225,6 +225,9 @@ func sanitize(n *html.Node, tripID string, text labels) {
 				}
 				if c.Data == "a" {
 					target := navigation(attr(c, "href"), tripID)
+					if hasAttr(c, "data-idea-location-edit") {
+						target = ""
+					}
 					if target == "" {
 						setAttr(c, "aria-disabled", "true")
 						setAttr(c, "title", text.disabled)

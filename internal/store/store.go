@@ -54,6 +54,7 @@ type Store interface {
 	UpdateLodgingCoordinates(ctx context.Context, original *models.Lodging, lat, lng float64) (bool, error)
 	UpdateLodgingRegion(ctx context.Context, original *models.Lodging, region string) (bool, error)
 	UpdateItemRegion(ctx context.Context, original *models.Item, region string) (bool, error)
+	UpdateItemGeography(ctx context.Context, original *models.Item, vacation *models.Vacation, lat, lng float64, location, region string) (bool, error)
 	GetLodging(ctx context.Context, id uuid.UUID) (*models.Lodging, error)
 	ListLodgings(ctx context.Context, vacationID uuid.UUID) ([]models.Lodging, error)
 	DeleteLodging(ctx context.Context, id uuid.UUID) error

@@ -260,6 +260,9 @@
         if (plannerStatus) {
           var plannerMessage = geography.pending ? plannerStatus.dataset.pending :
             geography.error ? plannerStatus.dataset.error : plannerStatus.dataset.done;
+          if (!geography.pending && geography.unresolved_ideas && geography.unresolved_ideas.length) {
+            plannerMessage += " " + plannerStatus.dataset.ideasUnresolved + " (" + geography.unresolved_ideas.length + ")";
+          }
           if (geography.limited) plannerMessage += " " + plannerStatus.dataset.limited;
           plannerStatus.textContent = plannerMessage;
           plannerStatus.hidden = false;
@@ -900,10 +903,11 @@
   var budgetSourceRequest = null;
   var budgetSourceGeneration = 0;
 
-  function focusBudgetSource(el) {
+  function focusBudgetSource(el, field) {
     if (!el || !el.isConnected) return;
     el.scrollIntoView({ block: "center" });
-    var control = el.querySelector('input[name="cost"]:not([disabled])') ||
+    var control = (field === "location" ? el.querySelector('input[name="location"]:not([disabled])') : null) ||
+      el.querySelector('input[name="cost"]:not([disabled])') ||
       el.querySelector('[name="paid_by"]:not([disabled])') ||
       el.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
     if (!control) {
@@ -913,7 +917,7 @@
     control.focus({ preventScroll: true });
   }
 
-  function jumpBudgetSource(kind, id) {
+  function jumpBudgetSource(kind, id, field) {
     if (!/^(item|lodging|travel)$/.test(kind) ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
     var tabs = document.querySelector("[data-tabs]");
@@ -933,7 +937,7 @@
     if (budgetSourceRequest && typeof htmx !== "undefined") htmx.trigger(budgetSourceRequest, "htmx:abort");
     budgetSourceRequest = null;
     if (kind !== "item" || (target && target.classList.contains("is-editing"))) {
-      focusBudgetSource(target);
+      focusBudgetSource(target, field);
       return true;
     }
     if (typeof htmx === "undefined") return false;
@@ -959,19 +963,36 @@
       if (generation !== budgetSourceGeneration) return;
       budgetSourceRequest = null;
       var row = document.getElementById("item-" + id);
-      if (panel.classList.contains("is-active")) focusBudgetSource(row);
+      if (panel.classList.contains("is-active")) focusBudgetSource(row, field);
     }).catch(function () {
-      if (generation === budgetSourceGeneration) budgetSourceRequest = null;
+      if (generation === budgetSourceGeneration) {
+        budgetSourceRequest = null;
+        var error = document.getElementById("item-error");
+        if (error) error.textContent = error.dataset.editError;
+      }
     });
     return true;
   }
 
   function jumpBudgetSourceHash() {
+    var locationMatch = /^#idea-location-([0-9a-f-]+)$/i.exec(window.location.hash || "");
+    if (locationMatch) {
+      jumpBudgetSource("item", locationMatch[1], "location");
+      return;
+    }
     var match = /^#budget-source-(item|lodging|travel)-([0-9a-f-]+)$/i.exec(window.location.hash || "");
     if (match) jumpBudgetSource(match[1], match[2]);
   }
 
   document.addEventListener("click", function (e) {
+    var locationLink = e.target && e.target.closest ? e.target.closest("[data-idea-location-edit]") : null;
+    if (locationLink && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button <= 0) {
+      var itemID = locationLink.getAttribute("data-idea-location-edit");
+      if (!jumpBudgetSource("item", itemID, "location")) return;
+      e.preventDefault();
+      window.history.replaceState(null, "", "#idea-location-" + itemID);
+      return;
+    }
     var link = e.target && e.target.closest ? e.target.closest("[data-budget-source]") : null;
     if (!link || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button > 0) return;
     var kind = link.getAttribute("data-budget-source");

@@ -90,12 +90,23 @@ published together as a Pages artifact, not checked into the repository.
   an item's editor when a different area grouping is more useful.
 - **Refresh regions** – **Refresh locations and regions** is available directly above
   the day/week planner as well as under the overview map. It queues a bounded background
-  retry and reports progress in the header. Ideas without coordinates are marked
-  **select a location first**: choose a geocoded location in their editor before retrying.
+  retry and reports progress in the header. Ideas without coordinates are searched by
+  their saved name/address with trip-location context. When the geocoder omits a named
+  landmark, exact Wikipedia article titles and redirects provide a second coordinate
+  source; disambiguation pages, non-Earth coordinates, fuzzy names and distant matches
+  are rejected. No arbitrary reference URLs or article descriptions are downloaded.
+  Only unambiguous results populate missing coordinates/address/region; generic plans
+  such as beachcombing still need a concrete location.
+  **Check location** beside an unresolved planner idea opens its existing editor and
+  focuses the location field directly.
   The inline editor now has a separate **Place / address** field: choosing a suggestion
   saves coordinates without replacing the idea title, links, notes or payer assignment.
   Manual region assignments are not overwritten. A failed or ambiguous geocoder lookup
   is not replaced with a guessed region; large batches can be continued with another refresh.
+  Each background batch remains limited to 40 lookups and 90 seconds, with paced,
+  cached provider requests. Existing coordinates, manually chosen regions and
+  concurrent edits are not overwritten. A cost-only save from an already open editor
+  also preserves geography resolved since that editor was opened.
 - **Accommodation region band** – a horizontal row above each calendar week shows
   where you are staying, including days without activities. Consecutive days in the same
   region are combined. The day view shows the same information. Both accommodation

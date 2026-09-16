@@ -823,6 +823,7 @@ code {
 .calendar-region-band { min-width: 0; border: 1px solid #a7c4b5; border-left: 3px solid #3e8061; border-radius: 5px; background: #e8f3ec; color: #245239; padding: 0.35rem 0.45rem; font-size: 0.75rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .calendar-region-week .calendar-region-band { grid-row: 1; margin-right: 2px; }
 .calendar-region-day .calendar-region-band { flex: 1; }
+.idea-chip__location { flex: 0 0 auto; font-size: 0.7rem; text-decoration: underline; padding: 0.15rem 0.3rem; }
 .weekcal__wk { width: 100%; }
 .weekcal__wk-sum {
   list-style: none; cursor: pointer; user-select: none;

@@ -130,6 +130,10 @@
         hx-target="closest .item-row"
         hx-swap="outerHTML">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="hidden" name="geo_original_location" value="{{.Item.Location}}">
+    <input type="hidden" name="geo_original_latitude" value="{{coord .Item.Latitude}}">
+    <input type="hidden" name="geo_original_longitude" value="{{coord .Item.Longitude}}">
+    <input type="hidden" name="geo_original_region" value="{{.Item.Region}}">
     <div class="field">
       <label>{{t "sight.category"}}</label>
       <select name="category">

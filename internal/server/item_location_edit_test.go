@@ -10,6 +10,30 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
+func TestIdeaUnchangedLocationFormRetainsBackgroundEnrichment(t *testing.T) {
+	s := newIntegrationServer(t)
+	v := sampleVacation()
+	if err := s.store.CreateVacation(t.Context(), v); err != nil {
+		t.Fatal(err)
+	}
+	item := &models.Item{VacationID: v.ID, Title: "Blue Museum"}
+	if err := s.store.CreateItem(t.Context(), item); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := s.store.UpdateItemGeography(t.Context(), item, v, 55, 9, "Blue Museum, Denmark", "Southern Denmark"); err != nil || !changed {
+		t.Fatalf("enrichment failed: %v %v", changed, err)
+	}
+	rec := postAISettings(s, "/items/"+item.ID.String()+"/edit", url.Values{
+		"title": {item.Title}, "cost": {"25"}, "location": {""}, "latitude": {""}, "longitude": {""}, "region": {""},
+		"geo_original_location": {""}, "geo_original_latitude": {""}, "geo_original_longitude": {""}, "geo_original_region": {""},
+	}, true)
+	got, err := s.store.GetItem(t.Context(), item.ID)
+	if rec.Code != http.StatusOK || err != nil || !got.HasCoords() || got.Region != "Southern Denmark" ||
+		got.Location != "Blue Museum, Denmark" || got.Cost == nil || *got.Cost != 25 {
+		t.Fatalf("untouched stale editor discarded enrichment: %d %+v %v", rec.Code, got, err)
+	}
+}
+
 func TestIdeaLocationEditEnablesRegionLookupWithoutLosingBooking(t *testing.T) {
 	s := newIntegrationServer(t)
 	ctx := t.Context()

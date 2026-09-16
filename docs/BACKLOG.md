@@ -18,8 +18,6 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 - [ ] **Edit sights & travel segments** — currently only create/delete are supported;
       add inline edit (name, category, coordinates, dates, notes).
-- [ ] **Geocode AI suggestions** — look up coordinates (e.g. OpenStreetMap Nominatim,
-      rate-limited + cached) so AI-added sights appear on the map immediately.
 - [ ] **Trusted proxy handling** — when running behind Traefik, resolve the real client
       IP from `X-Forwarded-For` (with a configurable trusted-proxy list) for rate
       limiting and logging; currently `RemoteAddr` is used to avoid header spoofing.
@@ -55,6 +53,11 @@ each section. Keep items small and actionable; move done items to **Done**.
       **not** done for now; version tags are preferred).
 
 ## Done
+
+- [x] Background idea geocoding — resolve missing coordinates/regions from saved
+      place names and addresses, with exact Wikipedia-coordinate fallback for omitted
+      landmarks. Keep ambiguous plans unlocated, preserve concurrent edits and expose
+      direct location-editor links in the planner.
 
 - [x] Regional AI search-center dropdown — retain the saved destination default,
       add unique accommodation-region midpoints, and keep custom search/map points.

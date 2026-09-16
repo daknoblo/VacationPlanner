@@ -372,6 +372,14 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	} else if location != existing.Location {
 		lat, lng = nil, nil
 	}
+	if r.PostForm.Has("geo_original_location") && r.PostForm.Has("geo_original_latitude") &&
+		r.PostForm.Has("geo_original_longitude") &&
+		formStr(r, "location") == formStr(r, "geo_original_location") &&
+		formStr(r, "latitude") == formStr(r, "geo_original_latitude") &&
+		formStr(r, "longitude") == formStr(r, "geo_original_longitude") {
+		// An untouched editor must not erase geography filled in after opening it.
+		location, lat, lng = existing.Location, existing.Latitude, existing.Longitude
+	}
 	sameCoordinate := func(a, b *float64) bool {
 		return a == nil && b == nil || a != nil && b != nil && *a == *b
 	}
@@ -383,7 +391,8 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 	existing.Description = description
 	existing.Day = day
 	existing.Cost = cost
-	if r.PostForm.Has("region") && region != existing.Region {
+	if r.PostForm.Has("region") && region != existing.Region &&
+		(!r.PostForm.Has("geo_original_region") || region != formStr(r, "geo_original_region")) {
 		existing.Region = region
 		existing.RegionManual = region != ""
 	}

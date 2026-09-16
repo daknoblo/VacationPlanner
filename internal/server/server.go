@@ -36,6 +36,7 @@ type Server struct {
 	cheatsheetStart              sync.Once
 	cheatsheetStop               func()
 	geo                          *geo.Client
+	wikipedia                    wikipediaLookup
 	geography                    *geographyWorker
 	routing                      *route.Client
 	destImg                      *destimg.Client
@@ -61,6 +62,7 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		cheatsheetGate:  make(chan struct{}, 1),
 		cheatsheetWake:  make(chan struct{}, 1),
 		geo:             geo.New(cfg.GeocoderAPIKey),
+		wikipedia:       geo.NewWikipedia(),
 		routing:         route.New(cfg.RouterAPIKey),
 		destImg:         destimg.New(),
 		render:          r,

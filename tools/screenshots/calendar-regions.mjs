@@ -8,6 +8,8 @@ export async function verifyCalendarRegionUpdates(browser) {
   const page = await context.newPage();
   const errors = [];
   const script = await readFile(new URL("../../web/static/js/app.js", import.meta.url), "utf8");
+  const htmx = await readFile(new URL("../../web/static/vendor/htmx/htmx.min.js", import.meta.url), "utf8");
+  const ideaID = "11111111-1111-4111-8111-111111111111";
   const firstDay = "2026-10-09";
   const week = "2026-10-05";
   let calls = 0;
@@ -23,6 +25,12 @@ export async function verifyCalendarRegionUpdates(browser) {
     const path = new URL(route.request().url()).pathname;
     if (path === "/app.js") {
       await route.fulfill({ contentType: "text/javascript", body: script });
+    } else if (path === "/htmx.js") {
+      await route.fulfill({ contentType: "text/javascript", body: htmx });
+    } else if (path === `/items/${ideaID}/edit`) {
+      await route.fulfill({ contentType: "text/html", body: `<li class="item-row is-editing" id="item-${ideaID}">
+        <form><input name="title" value="Unresolved idea"><input name="cost" value="25">
+        <input name="location" value="Choose this location"></form></li>` });
     } else if (path === "/api/geocode") {
       await route.fulfill({ status: geocoderFail ? 503 : 200, contentType: "application/json", body: JSON.stringify({
         results: geocoderEmpty ? [] : [{ display_name: "Ribe, Southern Denmark", lat: 55.328, lng: 8.762 }],
@@ -38,13 +46,15 @@ export async function verifyCalendarRegionUpdates(browser) {
       await route.fulfill({ contentType: "text/html", body: `<!doctype html>
         <html lang="en"><body>
         <div data-tabs>
-          <button type="button" data-tab="overview">Overview</button>
-          <button type="button" data-tab="tagesplan" class="is-active">Day plan</button>
-          <section data-tab-panel="overview"></section>
-          <section data-tab-panel="tagesplan" class="is-active">
+          <button type="button" data-tab="overview" class="tabs__tab">Overview</button>
+          <button type="button" data-tab="tagesplan" class="tabs__tab is-active">Day plan</button>
+          <button type="button" data-tab="ideen" class="tabs__tab">Ideas</button>
+          <section data-tab-panel="overview" class="tab-panel"></section>
+          <section data-tab-panel="tagesplan" class="tab-panel is-active">
             <div data-tagesplan data-calendar-regions-url="/regions">
               <input id="draft" value="Unchanged draft">
-              <div id="item-error" role="alert"></div>
+              <div id="item-error" role="alert" data-edit-error="Cannot open editor"></div>
+              <a href="#idea-location-${ideaID}" data-idea-location-edit="${ideaID}" draggable="false">Check location</a>
               <details id="week-visibility"><summary>Week</summary>
                 <div data-region-week="${week}"><span>Unknown</span></div>
               </details>
@@ -64,8 +74,9 @@ export async function verifyCalendarRegionUpdates(browser) {
               <p data-planner-geography-status data-error="Lookup failed" data-pending="Resolving" hidden></p>
             </div>
           </section>
+          <section data-tab-panel="ideen" class="tab-panel"><ul id="ideen-list"><li class="item-row" id="item-${ideaID}">Unresolved idea</li></ul></section>
         </div>
-        <script src="/app.js"></script></body></html>` });
+        <script src="/htmx.js"></script><script src="/app.js"></script></body></html>` });
     } else {
       errors.push(`Unexpected live regression request: ${path}`);
       await route.abort();
@@ -138,6 +149,11 @@ export async function verifyCalendarRegionUpdates(browser) {
       return { shouldSwap: detail.shouldSwap, isError: detail.isError };
     }), { shouldSwap: true, isError: true }, "Invalid location submissions must display their server error");
     assert.ok(calls >= 4, "Region completion and edit events must read updated saved values");
+    await page.locator("[data-idea-location-edit]").click();
+    await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "location");
+    assert.equal(await page.locator('[data-tab-panel="ideen"]').evaluate(element => element.classList.contains("is-active")), true);
+    assert.equal(await page.locator(`#item-${ideaID} [name="location"]`).inputValue(), "Choose this location");
+    assert.ok(page.url().endsWith(`#idea-location-${ideaID}`));
     assert.deepEqual(errors, []);
     console.log("Validated live calendar region updates, retained planner state, and explicit error handling.");
   } finally {

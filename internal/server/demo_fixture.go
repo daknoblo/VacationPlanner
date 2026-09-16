@@ -126,6 +126,8 @@ func seedDemo(ctx context.Context, st store.Store, lang i18n.Lang) (*models.Vaca
 			Links: []models.ItemLink{{Kind: "wikipedia", URL: "https://en.wikipedia.org/wiki/Villa_Borghese_gardens"}}},
 		{Title: "Trastevere", Category: "Food", Latitude: demoPtr(41.8893), Longitude: demoPtr(12.4699), Region: "Lazio",
 			Links: []models.ItemLink{{Kind: "wikipedia", URL: "https://en.wikipedia.org/wiki/Trastevere"}}},
+		{Title: demoText(lang, "Beachcombing on the coast", "Strandgut an der Küste suchen"), Category: "Activity",
+			Links: []models.ItemLink{{Kind: "wikipedia", URL: "https://en.wikipedia.org/wiki/Beachcombing"}}},
 	}
 	for i := range items {
 		it := &items[i]

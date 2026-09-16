@@ -21,7 +21,7 @@
     </div>
   </div>
 
-  <div id="item-error" class="form-error" role="alert"></div>
+  <div id="item-error" class="form-error" role="alert" data-edit-error="{{t "ideas.region.edit_error"}}"></div>
 
   <section class="tab-panel" data-tab-panel="cheatsheet">
     <div hx-get="/vacations/{{$v.ID}}/cheatsheet" hx-trigger="load, infoChanged from:body" hx-swap="innerHTML">
@@ -129,7 +129,8 @@
         <p class="muted small">{{t "ideas.region.refresh_hint"}}</p>
         <p class="muted small" role="status" data-planner-geography-status
            data-pending="{{t "geography.pending"}}" data-error="{{t "planner.regions.lookup_error"}}"
-           data-limited="{{t "geography.limited"}}" data-done="{{t "planner.regions.updated"}}" hidden></p>
+           data-limited="{{t "geography.limited"}}" data-done="{{t "planner.regions.updated"}}"
+           data-ideas-unresolved="{{t "ideas.region.unresolved"}}" hidden></p>
       </div>
       <p class="muted small">{{t "planner.regions.hint"}}</p>
       <p class="form-error" role="status" data-calendar-regions-error data-error="{{t "planner.regions.load_error"}}" hidden></p>

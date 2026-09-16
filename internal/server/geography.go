@@ -26,6 +26,7 @@ type geographyStatus struct {
 	Error                 bool     `json:"error"`
 	Limited               bool     `json:"limited"`
 	Unresolved            []string `json:"unresolved"`
+	UnresolvedIdeas       []string `json:"unresolved_ideas"`
 	UnknownRegions        int      `json:"unknown_regions"`
 	UnknownLodgingRegions int      `json:"unknown_lodging_regions"`
 	UpdatedCount          int      `json:"updated_count"`
@@ -126,6 +127,7 @@ func (s *Server) geographyStatus(id uuid.UUID) geographyStatus {
 	if state := w.states[id]; state != nil {
 		status := state.status
 		status.Unresolved = append([]string(nil), status.Unresolved...)
+		status.UnresolvedIdeas = append([]string(nil), status.UnresolvedIdeas...)
 		return status
 	}
 	return geographyStatus{Error: w.stopped}
@@ -182,11 +184,17 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
 	status := geographyStatus{}
+	var items []models.Item
 	w.mu.Lock()
 	cursor := w.states[job.id].cursor
 	w.mu.Unlock()
 	nextCursor := cursor
 	defer func() {
+		for _, item := range items {
+			if !item.HasCoords() {
+				status.UnresolvedIdeas = append(status.UnresolvedIdeas, item.Title)
+			}
+		}
 		if ctx.Err() != nil {
 			status.Error = true
 		}
@@ -222,14 +230,22 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		status.Error = true
 		return
 	}
-	items, err := s.store.ListItems(ctx, job.id)
+	items, err = s.store.ListItems(ctx, job.id)
 	if err != nil {
 		status.Error = true
 		return
 	}
+	vacation, err := s.store.GetVacation(ctx, job.id)
+	if err != nil {
+		status.Error = true
+		return
+	}
+	anchors := ideaGeographyAnchors(vacation, lodgings)
 	type lookup struct {
-		lodging *models.Lodging
-		item    *models.Item
+		lodging   *models.Lodging
+		item      *models.Item
+		query     string
+		wikipedia string
 	}
 	var work []lookup
 	for idx := range lodgings {
@@ -250,9 +266,18 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		item := &items[idx]
 		if item.Region == "" {
 			status.UnknownRegions++
-			if item.HasCoords() && !item.RegionManual {
-				work = append(work, lookup{item: item})
+		}
+		if item.Latitude == nil && item.Longitude == nil {
+			for _, query := range ideaGeographyQueries(item, vacation) {
+				work = append(work, lookup{item: item, query: query})
 			}
+			if s.wikipedia != nil && len(ideaWikipediaNames(item)) > 0 {
+				for _, language := range ideaWikipediaLanguages(item, job.lang) {
+					work = append(work, lookup{item: item, wikipedia: language})
+				}
+			}
+		} else if item.HasCoords() && item.Region == "" && !item.RegionManual {
+			work = append(work, lookup{item: item})
 		}
 	}
 	if len(work) == 0 {
@@ -260,6 +285,9 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	}
 	initialWorkCount := len(work)
 	cursor %= initialWorkCount
+	for cursor > 0 && work[cursor].item != nil && work[cursor-1].item == work[cursor].item {
+		cursor--
+	}
 	rotated := make([]lookup, 0, initialWorkCount)
 	rotated = append(rotated, work[cursor:]...)
 	work = append(rotated, work[:cursor]...)
@@ -267,10 +295,68 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 	w.setProgress(job.id, 0, status.Total)
 	baseURL := settings[settingGeoBaseURL]
 	processed := 0
+	skipped := 0
+	followUp := false
+	ambiguousItems := make(map[*models.Item]bool)
 	for processed < len(work) && processed < geographyLookupLimit && ctx.Err() == nil {
 		entry := work[processed]
+		if entry.item != nil && (entry.query != "" || entry.wikipedia != "") && (entry.item.HasCoords() || ambiguousItems[entry.item]) {
+			work = append(work[:processed], work[processed+1:]...)
+			skipped++
+			status.Total = min(len(work), geographyLookupLimit)
+			w.setProgress(job.id, status.Completed, status.Total)
+			continue
+		}
 		lookupCtx, lookupCancel := context.WithTimeout(ctx, 8*time.Second)
-		if entry.lodging != nil && !entry.lodging.HasCoords() {
+		switch {
+		case entry.item != nil && (entry.query != "" || entry.wikipedia != ""):
+			item := entry.item
+			biasLat, biasLng := 0.0, 0.0
+			if len(anchors) > 0 {
+				biasLat, biasLng = anchors[0].Lat, anchors[0].Lng
+			}
+			var results []geo.Result
+			var lookupErr error
+			if entry.wikipedia != "" {
+				results, lookupErr = s.wikipedia.Lookup(lookupCtx, entry.wikipedia, ideaWikipediaNames(item))
+			} else {
+				results, lookupErr = s.geo.Search(lookupCtx, baseURL, entry.query, "en", 10, biasLat, biasLng)
+			}
+			if lookupErr != nil {
+				status.Error = true
+				// A provider error is not evidence of an alternative spelling.
+				ambiguousItems[item] = true
+			} else {
+				result, matched, ambiguous := matchIdeaPlace(item, vacation, anchors, results)
+				ambiguousItems[item] = ambiguous
+				if matched {
+					changed, updateErr := s.store.UpdateItemGeography(ctx, item, vacation, result.Lat, result.Lng, result.DisplayName, result.Region)
+					if updateErr != nil {
+						status.Error = true
+						ambiguousItems[item] = true
+					}
+					if changed {
+						status.UpdatedCount++
+						item.Latitude, item.Longitude = &result.Lat, &result.Lng
+						if item.Location == "" {
+							item.Location = result.DisplayName
+						}
+						if item.Region == "" && !item.RegionManual {
+							if result.Region != "" {
+								item.Region = result.Region
+								status.UnknownRegions--
+							} else {
+								work = append(work, lookup{item: item})
+								status.Total = min(len(work), geographyLookupLimit)
+								followUp = true
+							}
+						}
+					} else {
+						ambiguousItems[item] = true
+					}
+				}
+			}
+		case entry.lodging != nil && !entry.lodging.HasCoords():
 			l := entry.lodging
 			query := strings.TrimSpace(l.Location)
 			if query == "" {
@@ -294,6 +380,7 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 						// silently exceed the batch's provider-call limit.
 						work = append(work, lookup{lodging: l})
 						status.Total = min(len(work), geographyLookupLimit)
+						followUp = true
 					}
 				} else {
 					status.Unresolved = append(status.Unresolved, l.Name)
@@ -301,7 +388,7 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 			} else {
 				status.Unresolved = append(status.Unresolved, l.Name)
 			}
-		} else {
+		default:
 			var lat, lng float64
 			if entry.lodging != nil {
 				lat, lng = *entry.lodging.Latitude, *entry.lodging.Longitude
@@ -339,17 +426,26 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		status.Completed = processed
 		w.setProgress(job.id, status.Completed, status.Total)
 	}
+	remaining := work[:processed]
+	for _, entry := range work[processed:] {
+		if entry.item != nil && (entry.query != "" || entry.wikipedia != "") && (entry.item.HasCoords() || ambiguousItems[entry.item]) {
+			continue
+		}
+		remaining = append(remaining, entry)
+	}
+	work = remaining
+	status.Total = min(len(work), geographyLookupLimit)
 	status.Limited = processed < len(work)
 	// Rotate across failed and outstanding entries rather than allowing the
 	// first ambiguous accommodation to starve a large idea collection.
-	nextCursor = (cursor + processed) % initialWorkCount
+	nextCursor = (cursor + processed + skipped) % initialWorkCount
 	for offset := processed; offset < len(work); offset++ {
 		if l := work[offset].lodging; l != nil && !l.HasCoords() {
 			status.Unresolved = append(status.Unresolved, l.Name)
 		}
 	}
-	if len(work) > initialWorkCount && processed < len(work) && ctx.Err() == nil {
-		// Newly located accommodations still need a region. Follow up once
+	if followUp && processed < len(work) && ctx.Err() == nil {
+		// Newly located entries still need a region. Follow up once
 		// without bypassing the per-job budget or retrying failed reverse calls.
 		w.mu.Lock()
 		w.states[job.id].retry = true

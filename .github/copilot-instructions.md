@@ -139,6 +139,12 @@ a reverse proxy.
   payers or manual regions, or invent hotel locations from destination centers.
 - Existing ideas can select a location in their inline editor to persist coordinates
   for background region lookup, without changing their title or reference links.
+  Unlocated ideas also receive bounded background name/address geocoding with exact-name
+  and trip-locality checks. Exact Wikipedia titles/redirects can provide coordinates
+  for omitted landmarks; only fixed Wikipedia API hosts are used, never arbitrary
+  reference URLs. Ambiguous/generic/distant matches stay unlocated. CAS updates protect
+  source names, links, manual regions, coordinates and destination edits, while leaving
+  costs, payers, schedules and notes intact. Planner links open the original location editor.
   Accommodation regions are cached separately and shown as merged horizontal calendar
   bands. Local check-in/check-out dates are inclusive; transfer days show both regions.
   Missing regions and missing accommodations remain explicit, never inferred from POIs.
@@ -188,6 +194,10 @@ a reverse proxy.
 - Before committing, these must be green: `gofmt`, `go vet ./...`, `go build ./...`,
   `go test -race ./...`. Additionally `golangci-lint run` (incl. gosec and misspell) and
   `govulncheck ./...`.
+- After completing user-requested changes and passing validation, publish a new
+  release directly; the user has authorized automatic publication without a separate
+  approval prompt. Verify CI, versioned multi-architecture images and updated Pages
+  documentation/screenshots before reporting publication as successful.
 - Comments and documentation are in **English**; UI strings are **not** hard-coded but
   live in the `internal/i18n` catalogs (a test enforces catalog completeness). `misspell`
   is enabled and excludes `internal/i18n/messages.go` (which holds non-English translations).
