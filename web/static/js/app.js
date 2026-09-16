@@ -69,6 +69,26 @@
   });
 
   document.body.addEventListener("htmx:afterRequest", function (event) {
+    var root = event.detail && event.detail.elt;
+    if (!root || root.id !== "background-status" || !root.isConnected || event.detail.successful) return;
+    var content = document.createElement("div");
+    content.className = "background-status__content";
+    content.dataset.state = "unavailable";
+    content.setAttribute("role", "status");
+    var label = document.createElement("span");
+    label.className = "background-status__error";
+    label.textContent = root.dataset.unavailableShort;
+    var dot = document.createElement("span");
+    dot.className = "background-status__idle-dot background-status__idle-dot--error";
+    dot.setAttribute("aria-hidden", "true");
+    var detail = document.createElement("span");
+    detail.className = "background-status__detail";
+    detail.textContent = root.dataset.unavailable;
+    content.append(label, dot, detail);
+    root.replaceChildren(content);
+  });
+
+  document.body.addEventListener("htmx:afterRequest", function (event) {
     var form = event.detail && event.detail.elt;
     if (!form || !form.matches || !form.matches("[data-geography-refresh]")) return;
     var status = document.querySelector("[data-planner-geography-status]");

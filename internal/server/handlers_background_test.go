@@ -79,7 +79,38 @@ func TestBackgroundStatusEndpointOnlyReadsLocalState(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/background-status", nil))
 	if strings.Contains(rec.Body.String(), "<progress") {
-		t.Fatal("idle loader remains visible")
+		t.Fatal("idle status must not pretend to be loading")
+	}
+	if !strings.Contains(rec.Body.String(), `data-state="idle"`) || !strings.Contains(rec.Body.String(), "No active requests") {
+		t.Fatal("idle status disappeared")
+	}
+	if backend.calls != 0 || backend.refreshes != 0 || len(s.geography.states) != 0 {
+		t.Fatal("idle status polling dispatched work")
+	}
+}
+
+func TestBackgroundIdleAndInitialStatusAreLocalized(t *testing.T) {
+	s := newIntegrationServer(t)
+	for _, language := range []string{"en", "de"} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/background-status", nil)
+		req.AddCookie(&http.Cookie{Name: "lang", Value: language})
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		want, initial := "No active requests", "Checking status"
+		if language == "de" {
+			want, initial = "Keine aktiven Abfragen", "Status wird geprüft"
+		}
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), want) || strings.Contains(rec.Body.String(), "<progress") {
+			t.Fatalf("incorrect %s idle state: %s", language, rec.Body.String())
+		}
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: "lang", Value: language})
+		rec = httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `data-state="checking"`) ||
+			!strings.Contains(rec.Body.String(), initial) {
+			t.Fatalf("initial page has an empty status area: %s", rec.Body.String())
+		}
 	}
 }
 

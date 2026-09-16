@@ -122,6 +122,9 @@ a reverse proxy.
 - `GET /healthz`, `GET /readyz` – health/readiness.
 - `GET /api/background-status` – read-only local progress for geography, translation
   jobs and AI discovery; never enqueue work or make provider calls from status polling.
+- The header's background status remains visible while idle, using a neutral
+  "No active requests" state rather than claiming all data is resolved. Initial loads
+  and status-fetch failures are explicit; only genuinely active work animates.
 
 ### Behavior
 

@@ -9,6 +9,7 @@ import (
 )
 
 type backgroundStatusView struct {
+	Checking    bool
 	Active      bool
 	Determinate bool
 	Completed   int

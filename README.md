@@ -254,7 +254,10 @@ published together as a Pages artifact, not checked into the repository.
 - **Background indicator** – a compact top-right status shows active location/region
   lookups, translation jobs and AI deployment discovery. Geography batches report
   attempted lookups completed/total; mixed or unknown-size work uses an indeterminate
-  bar. The indicator disappears when jobs finish, even if some regions remain unknown.
+  bar. The indicator stays visible when jobs finish and reads **No active requests**,
+  even if some regions remain unknown; idle is not a claim that every lookup succeeded.
+  The first page render shows **Checking status**, and failed status requests show
+  **Status unavailable** instead of leaving a stale loading bar on screen.
   Status polling reads local state only and never starts provider requests.
 - **Database maintenance** – on-demand **optimize** (VACUUM) and a configurable **auto-vacuum**
   schedule.

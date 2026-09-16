@@ -16,6 +16,8 @@ export async function verifyCalendarRegionUpdates(browser) {
   let fail = false;
   let geocoderFail = false;
   let geocoderEmpty = false;
+  let backgroundActive = false;
+  let backgroundFailed = false;
   let payload = {
     days: { [firstDay]: { label: "Southern Denmark", title: "First guesthouse" } },
     weeks: { [week]: [{ label: "Southern Denmark", title: "First guesthouse", start: 4, span: 3 }] },
@@ -27,6 +29,14 @@ export async function verifyCalendarRegionUpdates(browser) {
       await route.fulfill({ contentType: "text/javascript", body: script });
     } else if (path === "/htmx.js") {
       await route.fulfill({ contentType: "text/javascript", body: htmx });
+    } else if (path === "/background-status") {
+      if (backgroundFailed) {
+        await route.abort("failed");
+      } else {
+        await route.fulfill({ contentType: "text/html", body: backgroundActive
+          ? '<div class="background-status__content" data-state="active" role="status">Updating data<progress value="3" max="10"></progress></div>'
+          : '<div class="background-status__content" data-state="idle" role="status">No active requests</div>' });
+      }
     } else if (path === `/items/${ideaID}/edit`) {
       await route.fulfill({ contentType: "text/html", body: `<li class="item-row is-editing" id="item-${ideaID}">
         <form><input name="title" value="Unresolved idea"><input name="cost" value="25">
@@ -45,6 +55,10 @@ export async function verifyCalendarRegionUpdates(browser) {
     } else if (path === "/") {
       await route.fulfill({ contentType: "text/html", body: `<!doctype html>
         <html lang="en"><body>
+        <div id="background-status" data-unavailable-short="Status unavailable" data-unavailable="Background status could not be loaded."
+             hx-get="/background-status" hx-trigger="load, refresh" hx-swap="innerHTML">
+          <div data-state="checking">Checking status</div>
+        </div>
         <div data-tabs>
           <button type="button" data-tab="overview" class="tabs__tab">Overview</button>
           <button type="button" data-tab="tagesplan" class="tabs__tab is-active">Day plan</button>
@@ -154,8 +168,24 @@ export async function verifyCalendarRegionUpdates(browser) {
     assert.equal(await page.locator('[data-tab-panel="ideen"]').evaluate(element => element.classList.contains("is-active")), true);
     assert.equal(await page.locator(`#item-${ideaID} [name="location"]`).inputValue(), "Choose this location");
     assert.ok(page.url().endsWith(`#idea-location-${ideaID}`));
+    await page.locator('#background-status [data-state="idle"]').waitFor();
+    backgroundActive = true;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator("#background-status progress").waitFor();
+    backgroundActive = false;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator('#background-status [data-state="idle"]').waitFor();
+    assert.equal(await page.locator("#background-status progress").count(), 0);
+    assert.ok((await page.locator("#background-status").boundingBox()).height > 0, "Idle status must remain visible");
+    backgroundFailed = true;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator('#background-status [data-state="unavailable"]').waitFor();
+    assert.ok((await page.locator("#background-status").innerText()).includes("Status unavailable"));
+    backgroundFailed = false;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator('#background-status [data-state="idle"]').waitFor();
     assert.deepEqual(errors, []);
-    console.log("Validated live calendar region updates, retained planner state, and explicit error handling.");
+    console.log("Validated live calendar updates, direct editing and persistent active/idle/unavailable background status.");
   } finally {
     await context.close();
   }

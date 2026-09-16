@@ -1,11 +1,21 @@
 {{define "background_status"}}
 {{if .Error}}
-<span class="background-status__error" role="status" title="{{t "background.unavailable"}}">{{t "background.unavailable_short"}}</span>
+<div class="background-status__content" data-state="unavailable" role="status" title="{{t "background.unavailable"}}">
+  <span class="background-status__error">{{t "background.unavailable_short"}}</span>
+  <span class="background-status__idle-dot background-status__idle-dot--error" aria-hidden="true"></span>
+  <span class="background-status__detail">{{t "background.unavailable"}}</span>
+</div>
 {{else if .Active}}
-<div class="background-status__content" role="status" title="{{.Detail}}">
+<div class="background-status__content" data-state="active" role="status" title="{{.Detail}}">
   <span class="background-status__label">{{t "background.loading"}}</span>
   <progress class="background-status__bar"{{if .Determinate}} value="{{.Completed}}" max="{{.Total}}"{{end}} aria-label="{{.Detail}}"></progress>
   <span class="background-status__detail">{{.Detail}}</span>
+</div>
+{{else}}
+<div class="background-status__content" data-state="{{if .Checking}}checking{{else}}idle{{end}}" role="status">
+  <span class="background-status__label">{{if .Checking}}{{t "background.checking"}}{{else}}{{t "background.idle"}}{{end}}</span>
+  <span class="background-status__idle-dot" aria-hidden="true"></span>
+  <span class="background-status__detail">{{if .Checking}}{{t "background.checking_detail"}}{{else}}{{t "background.idle_detail"}}{{end}}</span>
 </div>
 {{end}}
 {{end}}

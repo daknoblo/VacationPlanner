@@ -81,7 +81,8 @@ each section. Keep items small and actionable; move done items to **Done**.
 - [x] Shared-address lodging lookup — prefer the name-confirmed accommodation over
       restaurants or other POIs at the same address, without hiding intermediate stays.
 - [x] Background progress — top-right activity indicator with live geographic batch
-      progress and pending translation/discovery status, hidden when idle.
+      progress and pending translation/discovery status, persistent idle state and
+      visible status-fetch failures.
 - [x] Roomier overview map — automatic framing reserves 15% per edge (minimum
       30 pixels), limits initial zoom to 13 and preserves manual view changes.
 - [x] Manual vacation archive — dashboard sections for planned and archived trips;
