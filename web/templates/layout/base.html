@@ -52,5 +52,6 @@
   <script src="/static/vendor/htmx/htmx.min.js"></script>
   <script src="/static/vendor/leaflet/leaflet.js"></script>
   <script src="/static/js/app.js?v={{.AssetVer}}"></script>
+  {{if eq .Page "vacation"}}<script src="/static/js/ideas-map.js?v={{.AssetVer}}"></script>{{end}}
 </body>
 </html>{{end}}

@@ -8,6 +8,7 @@ import { once } from "node:events";
 import { chromium } from "playwright";
 import { verifyCalendarRegionUpdates } from "./calendar-regions.mjs";
 import { verifyAISearchCenters } from "./ai-centers.mjs";
+import { verifyIdeasMap } from "./ideas-map.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -165,6 +166,7 @@ try {
   await verifyLinks(page, "docs.html");
   await verifyCalendarRegionUpdates(browser);
   await verifyAISearchCenters(browser);
+  await verifyIdeasMap(browser);
   assert.deepEqual(failures, [], "The demo must work without failed requests or external services");
   await writeFile(join(output, "manifest.json"), JSON.stringify({
     version: metadata.version,
@@ -183,8 +185,8 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("script[src*='htmx'], script[src*='/js/app.js']").count(), 0);
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
-    "input:not([type=hidden]), textarea, select:not([data-ideas-region-filter]), " +
-    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print])",
+    "input:not([type=hidden]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]), " +
+    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-map-retry]):not(.ideas-map-link)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
   );
@@ -257,6 +259,16 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#foundry-settings-panel input[type=checkbox]").count(), 0);
   }
   if (shot.name === "ideas") {
+    await page.locator("#ideas-map.leaflet-container").waitFor();
+    assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 3);
+    assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 14);
+    assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
+    assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
+    assert.ok(await page.locator("[data-ideas-map-status]").innerText());
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      "Ideas map and route table must fit the mobile viewport");
+    await page.setViewportSize(desktop);
     assert.equal(await page.locator("#ai-center").inputValue(), "destination");
     assert.equal(await page.locator("#ai-center option").count(), 4, "Destination, two accommodation regions and custom point");
     const labels = await page.locator("#ai-center option").allTextContents();

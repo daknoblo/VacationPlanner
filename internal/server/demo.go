@@ -31,10 +31,11 @@ import (
 // Fragments are keyed by their original same-origin GET URL, including queries.
 // The builder must remove live scripts, disable writes and rewrite navigation.
 type DemoSnapshot struct {
-	Pages     map[string][]byte
-	Fragments map[string][]byte
-	MapData   []byte
-	TripID    string
+	Pages        map[string][]byte
+	Fragments    map[string][]byte
+	MapData      []byte
+	IdeasMapData []byte
+	TripID       string
 }
 
 // RenderDemo renders synthetic data without configuration discovery, credentials,
@@ -69,6 +70,10 @@ func RenderDemo(ctx context.Context, language, buildVersion string) (*DemoSnapsh
 		out.Pages[page.file] = body
 	}
 	out.MapData, err = demoGET(ctx, s, base+"/api/overview-map")
+	if err != nil {
+		return nil, err
+	}
+	out.IdeasMapData, err = demoGET(ctx, s, base+"/api/ideas-map")
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +205,7 @@ func newDemoServer(ctx context.Context, lang i18n.Lang, buildVersion string) (*S
 		r.Get("/export", s.handleExport)
 		r.Get("/cheatsheet", s.handleCheatsheet)
 		r.Get("/api/overview-map", s.handleOverviewMap)
+		r.Get("/api/ideas-map", s.handleIdeasMap)
 		r.Get("/api/daycounts", s.handleDayCounts)
 		r.Get("/api/budget", s.handleBudgetFragment)
 		r.Get("/api/overview", s.handleOverviewFragment)

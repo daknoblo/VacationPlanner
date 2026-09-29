@@ -91,8 +91,8 @@ type orsResponse struct {
 			Duration float64 `json:"duration"`
 		} `json:"summary"`
 		Segments []struct {
-			Distance float64 `json:"distance"`
-			Duration float64 `json:"duration"`
+			Distance *float64 `json:"distance"`
+			Duration *float64 `json:"duration"`
 		} `json:"segments"`
 	} `json:"routes"`
 }
@@ -164,11 +164,18 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 		Legs:           make([]Leg, 0, len(r0.Segments)),
 	}
 	for _, seg := range r0.Segments {
-		res.Legs = append(res.Legs, Leg{DistanceM: seg.Distance, DurationS: seg.Duration})
+		if seg.Distance == nil || seg.Duration == nil || !validMetric(*seg.Distance) || !validMetric(*seg.Duration) {
+			return Result{}, fmt.Errorf("route: missing or invalid segment metrics")
+		}
+		res.Legs = append(res.Legs, Leg{DistanceM: *seg.Distance, DurationS: *seg.Duration})
 	}
 
 	c.store(key, res)
 	return res, nil
+}
+
+func validMetric(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0
 }
 
 // Haversine returns the great-circle distance in metres between two points.

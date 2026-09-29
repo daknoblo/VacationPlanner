@@ -159,6 +159,24 @@ published together as a Pages artifact, not checked into the repository.
 
 ### Map
 
+- **Ideas map** – at the top of **Ideas**, a separate map marks every saved idea
+  (including scheduled activities) and all located accommodation records. Orange beds
+  are accommodations; numbered blue markers match the comparison table. Select a
+  starting accommodation in the dropdown or click its marker. The selected start is
+  outlined, and accommodation labels include the booked dates.
+- **Driving comparison** – one-way driving distance and time from that accommodation
+  appear in each idea's popup and the table, using the configured OpenRouteService
+  provider (`ROUTER_API_KEY`, base URL in Settings). These are not live-traffic estimates
+  or a combined itinerary. Missing coordinates, disabled routing and failed routes stay
+  explicit; no invented driving values or bookings are created. Unlocated ideas link
+  to their original location editor.
+- Routes load sequentially only while the Ideas tab is visible, with at least 1.6 seconds
+  between requests and shared 30-minute provider caching. Changing accommodation
+  cancels obsolete requests. **Refresh map and retry routes** retries failures; successful
+  cached routes are reused. Saved-data refreshes preserve the selection and manual map
+  view unless marker positions change. The static demo uses clearly labeled illustrative
+  values and never contacts a routing provider.
+
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel
   endpoints are excluded. The general item-data API remains available separately.

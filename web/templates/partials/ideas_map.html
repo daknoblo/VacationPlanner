@@ -1,0 +1,29 @@
+{{define "ideas_map"}}
+<section class="panel ideas-map-panel" data-ideas-map-panel
+         data-map-url="/vacations/{{.ID}}/api/ideas-map" data-route-url="/vacations/{{.ID}}/api/ideas-route"
+         data-loading="{{t "ideas.map.loading"}}" data-error="{{t "ideas.map.error"}}"
+         data-missing="{{t "ideas.map.missing"}}" data-no-origin="{{t "ideas.map.no_origin"}}"
+         data-pending="{{t "ideas.map.pending"}}" data-unavailable="{{t "ideas.map.unavailable"}}"
+         data-disabled="{{t "ideas.map.disabled"}}" data-ready="{{t "ideas.map.ready"}}"
+         data-demo="{{t "ideas.map.demo"}}" data-choose="{{t "ideas.map.choose"}}"
+         data-removed="{{t "ideas.map.removed"}}" data-no-ideas="{{t "ideas.map.empty"}}">
+  <h2>{{t "ideas.map.title"}}</h2>
+  <p class="muted small">{{t "ideas.map.hint"}}</p>
+  <div class="row ideas-map-controls">
+    <div class="field">
+      <label for="ideas-map-origin">{{t "ideas.map.origin"}}</label>
+      <select id="ideas-map-origin" data-ideas-map-origin disabled><option value="">{{t "ideas.map.choose"}}</option></select>
+    </div>
+    <button class="btn btn--sm" type="button" data-ideas-map-retry>{{t "ideas.map.refresh"}}</button>
+  </div>
+  <p class="muted small">{{t "ideas.map.legend"}}</p>
+  <div id="ideas-map" class="ideas-map" aria-label="{{t "ideas.map.title"}}"></div>
+  <p class="muted small" role="status" data-ideas-map-status>{{t "ideas.map.loading"}}</p>
+  <div class="ideas-map-table">
+    <table>
+      <thead><tr><th scope="col">{{t "ideas.map.idea"}}</th><th scope="col">{{t "ideas.map.distance"}}</th><th scope="col">{{t "ideas.map.duration"}}</th><th scope="col">{{t "ideas.map.status"}}</th></tr></thead>
+      <tbody data-ideas-map-rows></tbody>
+    </table>
+  </div>
+</section>
+{{end}}

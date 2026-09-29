@@ -108,6 +108,12 @@ a reverse proxy.
   Participant changes do not regenerate vocabulary; matching custom introductions are
   reused without deleting custom data. Failed frame jobs require attempt-bound retries.
 - `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
+- `GET /vacations/{id}/api/ideas-map` – read-only markers for all accommodation and
+  saved ideas, including scheduled items and explicit unlocated records.
+- `GET /vacations/{id}/api/ideas-route?lodging=&item=` – one directed driving leg
+  between current same-trip records. The Ideas map selects its accommodation origin,
+  loads sequentially only while visible and reuses cached routes. Never invent driving
+  values when routing is disabled, unavailable or coordinates are missing.
 - `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/calendar-regions` – read-only saved accommodation regions

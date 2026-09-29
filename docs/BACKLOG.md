@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Ideas map and driving comparison — all accommodation and saved idea markers,
+      including scheduled activities; selectable accommodation origin, dated lodging
+      labels, numbered idea popups/table and explicit missing/unavailable route states.
+      Lazy sequential routing, cancellation, shared caching and bilingual static demo.
+
 - [x] Background idea geocoding — resolve missing coordinates/regions from saved
       place names and addresses, with exact Wikipedia-coordinate fallback for omitted
       landmarks. Keep ambiguous plans unlocated, preserve concurrent edits and expose

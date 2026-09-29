@@ -1381,3 +1381,16 @@ textarea { resize: vertical; }
 .lang-options { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
 .lang-option { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
 .lang-option input { width: auto; }
+.ideas-map { height: 420px; border-radius: .5rem; }
+.ideas-map-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; }
+.ideas-map-controls .field { flex: 1; min-width: min(100%, 18rem); }
+.ideas-map-controls select { width: 100%; }
+.idea-map-marker { border-radius: 50%; background: #2563eb; border: 2px solid white; color: white; text-align: center; font-weight: bold; line-height: 22px; }
+.ideas-map-origin { outline: 3px solid #2563eb; outline-offset: 3px; }
+.ideas-map-table { overflow-x: auto; max-height: 340px; margin-top: 1rem; }
+.ideas-map-table table { width: 100%; text-align: left; }
+.ideas-map-table th, .ideas-map-table td { padding: .5rem; vertical-align: top; }
+.ideas-map-link { background: none; border: 0; color: var(--accent); text-align: left; cursor: pointer; font: inherit; padding: 0; }
+.ideas-map-link:disabled { color: inherit; cursor: default; }
+.ideas-map-table td a { display: block; }
+@media (max-width: 600px) { .ideas-map { height: 320px; } }

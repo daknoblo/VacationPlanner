@@ -76,9 +76,17 @@ func Build(ctx context.Context, options Options) error {
 			return err
 		}
 		files["demo/"+language+"/map-data.js"] = append(append([]byte("window.VP_DEMO_MAP = "), encoded...), []byte(";\n")...)
+		if err := json.Unmarshal(snapshot.IdeasMapData, &mapData); err != nil {
+			return fmt.Errorf("invalid %s demo ideas map data: %w", language, err)
+		}
+		encoded, err = json.Marshal(mapData)
+		if err != nil {
+			return err
+		}
+		files["demo/"+language+"/map-data.js"] = append(files["demo/"+language+"/map-data.js"], []byte("window.VP_DEMO_IDEAS = "+string(encoded)+";\n")...)
 	}
 	if err := copyAssets(files, web.Static, "static", "static", func(name string) bool {
-		return !strings.HasPrefix(name, "static/js/") && !strings.HasPrefix(name, "static/vendor/htmx/")
+		return name == "static/js/ideas-map.js" || (!strings.HasPrefix(name, "static/js/") && !strings.HasPrefix(name, "static/vendor/htmx/"))
 	}); err != nil {
 		return err
 	}
