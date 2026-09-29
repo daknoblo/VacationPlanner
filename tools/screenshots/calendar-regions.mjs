@@ -68,7 +68,7 @@ export async function verifyCalendarRegionUpdates(browser) {
             <div data-tagesplan data-calendar-regions-url="/regions">
               <input id="draft" value="Unchanged draft">
               <div id="item-error" role="alert" data-edit-error="Cannot open editor"></div>
-              <a href="#idea-location-${ideaID}" data-idea-location-edit="${ideaID}" draggable="false">Check location</a>
+              <a class="idea-location-warning" href="#idea-location-${ideaID}" data-idea-location-edit="${ideaID}" aria-label="Location missing — open editor" draggable="false"><span aria-hidden="true">!</span></a>
               <details id="week-visibility"><summary>Week</summary>
                 <div data-region-week="${week}"><span>Unknown</span></div>
               </details>
@@ -85,7 +85,7 @@ export async function verifyCalendarRegionUpdates(browser) {
                 <input type="hidden" name="latitude" data-geo-lite-lat>
                 <input type="hidden" name="longitude" data-geo-lite-lng>
               </form>
-              <p data-planner-geography-status data-error="Lookup failed" data-pending="Resolving" hidden></p>
+              <p id="map-status" data-error="Lookup failed" data-pending="Resolving" hidden></p>
             </div>
           </section>
           <section data-tab-panel="ideen" class="tab-panel"><ul id="ideen-list"><li class="item-row" id="item-${ideaID}">Unresolved idea</li></ul></section>
@@ -141,7 +141,7 @@ export async function verifyCalendarRegionUpdates(browser) {
     await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("htmx:afterRequest", {
       detail: { elt: document.querySelector("[data-geography-refresh]"), successful: false },
     })));
-    assert.equal(await page.locator("[data-planner-geography-status]").innerText(), "Lookup failed");
+    assert.equal(await page.locator("#map-status").innerText(), "Lookup failed");
     await page.locator('#idea-editor [name="location"]').fill("Ribe");
     await page.locator("#idea-editor .suggest__item").click();
     assert.equal(await page.locator('#idea-editor [name="location"]').inputValue(), "Ribe, Southern Denmark");

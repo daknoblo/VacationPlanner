@@ -6,7 +6,7 @@
      title="{{$it.Title}}{{if $it.Description}} — {{$it.Description}}{{end}}">
   <div class="planner-block__inner">
     <span class="planner-block__time">{{$it.StartLabel}}–{{$it.EndLabel}}</span>
-    <span class="planner-block__title">{{$it.Title}}</span>
+    <span class="planner-block__title">{{$it.Title}} {{if not $it.HasCoords}}{{template "idea_location_warning" $it}}{{end}}</span>
     <button class="planner-block__del" type="button" title="{{t "action.delete"}}"
             hx-delete="/items/{{$it.ID}}"
             hx-target="closest .planner-block"

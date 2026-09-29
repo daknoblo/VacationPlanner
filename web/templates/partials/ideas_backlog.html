@@ -19,9 +19,9 @@
       {{range .Items}}
       <div class="idea-chip" draggable="true" data-id="{{.ID}}" data-title="{{.Title}}">
         <span class="idea-chip__grip" aria-hidden="true">⠿</span>
-        <span class="idea-chip__title">{{.Title}}{{if and (not .Region) (not .HasCoords)}} <span class="muted small">{{t "ideas.region.needs_location"}}</span>{{end}}</span>
+        <span class="idea-chip__title">{{.Title}} {{if not .HasCoords}}{{template "idea_location_warning" .}}{{end}}</span>
         {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
-        {{if or (not .HasCoords) (not .Region)}}
+        {{if and .HasCoords (not .Region)}}
         <a class="idea-chip__location" href="#idea-location-{{.ID}}" data-idea-location-edit="{{.ID}}" draggable="false">{{t "ideas.region.edit_location"}}</a>
         {{end}}
       </div>

@@ -223,10 +223,19 @@
         });
       } else {
         title.disabled = true;
-        if (!demo) {
-          var edit = text("a", root.dataset.missing);
-          edit.href = "#idea-location-" + idea.id;
-          edit.setAttribute("data-idea-location-edit", "");
+        {
+          var edit = document.createElement(demo ? "span" : "a");
+          edit.className = "idea-location-warning";
+          edit.title = root.dataset.locationWarning;
+          edit.setAttribute("aria-label", root.dataset.locationWarning);
+          var warning = text("span", "!");
+          warning.setAttribute("aria-hidden", "true");
+          edit.appendChild(warning);
+          if (demo) edit.setAttribute("role", "img");
+          else {
+            edit.href = "#idea-location-" + idea.id;
+            edit.setAttribute("data-idea-location-edit", idea.id);
+          }
           name.appendChild(edit);
         }
       }

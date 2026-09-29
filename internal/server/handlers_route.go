@@ -63,19 +63,28 @@ func (s *Server) handleRetryRouteSettings(w http.ResponseWriter, r *http.Request
 		}
 		return
 	}
-	if s.routing == nil || !s.routing.Enabled() {
-		s.formError(w, r, "#route-retry-status", loc.T("ideas.map.disabled"))
-		return
+	routing := s.routing != nil && s.routing.Enabled()
+	if routing {
+		if err := s.store.RetryIdeaRoutes(r.Context(), id); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 	}
-	if err := s.store.RetryIdeaRoutes(r.Context(), id); err != nil {
-		s.serverError(w, r, err)
+	s.retryGeography(id, loc.Code())
+	if status := s.geographyStatus(id); !status.Pending && status.Error {
+		s.log.Error("settings location refresh could not be queued", "vacation_id", id)
+		http.Error(w, loc.T("planner.regions.lookup_error"), http.StatusServiceUnavailable)
 		return
 	}
 	if !isHTMX(r) {
 		http.Redirect(w, r, "/settings#settings-route-retry", http.StatusSeeOther)
 		return
 	}
-	s.fragment(w, r, "route_retry_result", loc.T("settings.route.retry_queued", vacation.Title))
+	message := "settings.route.retry_queued"
+	if !routing {
+		message = "settings.route.retry_locations_only"
+	}
+	s.fragment(w, r, "route_retry_result", loc.T(message, vacation.Title))
 }
 
 // categoryIcons maps lower-cased category names to their emoji icon.

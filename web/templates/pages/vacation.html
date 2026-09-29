@@ -118,21 +118,7 @@
     {{if $v.Days}}
     <div class="tagesplan" data-tagesplan data-day-counts-url="/vacations/{{$v.ID}}/api/daycounts"
          data-calendar-regions-url="/vacations/{{$v.ID}}/api/calendar-regions">
-      <p class="muted small">{{t "planner.count_hint"}}</p>
       <p class="form-error" role="status" data-day-counts-error data-error="{{t "planner.count_error"}}" hidden></p>
-      <div class="planner-region-tools">
-        <form method="post" action="/vacations/{{$v.ID}}/geography/refresh" data-geography-refresh
-              hx-post="/vacations/{{$v.ID}}/geography/refresh" hx-swap="none" hx-disabled-elt="button">
-          <input type="hidden" name="csrf_token" value="{{$csrf}}">
-          <button class="btn btn--sm" type="submit">{{t "geography.retry"}}</button>
-        </form>
-        <p class="muted small">{{t "ideas.region.refresh_hint"}}</p>
-        <p class="muted small" role="status" data-planner-geography-status
-           data-pending="{{t "geography.pending"}}" data-error="{{t "planner.regions.lookup_error"}}"
-           data-limited="{{t "geography.limited"}}" data-done="{{t "planner.regions.updated"}}"
-           data-ideas-unresolved="{{t "ideas.region.unresolved"}}" hidden></p>
-      </div>
-      <p class="muted small">{{t "planner.regions.hint"}}</p>
       <p class="form-error" role="status" data-calendar-regions-error data-error="{{t "planner.regions.load_error"}}" hidden></p>
       <div class="viewtoggle" data-viewtoggle>
         <button type="button" class="viewtoggle__btn" data-view="day">{{t "tagesplan.view.day"}}</button>

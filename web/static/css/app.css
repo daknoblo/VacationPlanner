@@ -818,15 +818,15 @@ code {
 
 /* Week calendar — calendar weeks (Mon–Sun rows) */
 .weekcal { display: flex; flex-direction: column; gap: 1.25rem; width: 100%; }
-.planner-region-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin-block: 0.75rem; }
-.planner-region-tools p { flex: 1 1 22rem; margin: 0; }
-.planner-region-tools [role="status"] { flex-basis: 100%; }
 .calendar-region-week { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); margin-bottom: 0.3rem; padding-inline: 1px; }
 .calendar-region-day { display: flex; margin-bottom: 0.75rem; }
 .calendar-region-band { min-width: 0; border: 1px solid #a7c4b5; border-left: 3px solid #3e8061; border-radius: 5px; background: #e8f3ec; color: #245239; padding: 0.35rem 0.45rem; font-size: 0.75rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .calendar-region-week .calendar-region-band { grid-row: 1; margin-right: 2px; }
 .calendar-region-day .calendar-region-band { flex: 1; }
 .idea-chip__location { flex: 0 0 auto; font-size: 0.7rem; text-decoration: underline; padding: 0.15rem 0.3rem; }
+.idea-location-warning { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 1.2rem; height: 1.2rem; margin-inline-start: 0.25rem; border: 1px solid #ca8a04; border-radius: 50%; background: #fef08a; color: #713f12; font-size: 0.8rem; font-weight: 800; line-height: 1; vertical-align: middle; text-decoration: none; }
+.idea-location-warning:hover { background: #fde047; color: #713f12; text-decoration: none; }
+.idea-location-warning:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .weekcal__wk { width: 100%; }
 .weekcal__wk-sum {
   list-style: none; cursor: pointer; user-select: none;
@@ -902,7 +902,8 @@ code {
 }
 .weekcal-lodging__icon { font-size: 0.68rem; line-height: 1; padding-top: 2px; }
 .weekcal-block__time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.6rem; display: block; }
-.weekcal-block__title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.weekcal-block__title { display: flex; align-items: center; }
+.weekcal-block__title > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .weekcal-block--travel { background: #0ea5e9; }
 .weekcal-block--move { cursor: grab; touch-action: none; }
 .weekcal-block--move.is-dragging { cursor: grabbing; opacity: 0.85; z-index: 5; box-shadow: 0 3px 10px rgba(2, 6, 23, 0.35); }
@@ -1393,6 +1394,7 @@ textarea { resize: vertical; }
 .ideas-map-link { background: none; border: 0; color: var(--accent); text-align: left; cursor: pointer; font: inherit; padding: 0; }
 .ideas-map-link:disabled { color: inherit; cursor: default; }
 .ideas-map-table td a { display: block; }
+.ideas-map-table td a.idea-location-warning { display: inline-flex; }
 .ideas-map-table tr.is-route-active td { background: #eff6ff; }
 .idea-route-distance { padding: 2px 5px; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; background: #fff; font-size: 11px; font-weight: 600; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15); pointer-events: none; }
 .idea-route-distance::before { display: none; }

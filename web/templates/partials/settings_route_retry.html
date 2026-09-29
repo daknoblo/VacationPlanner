@@ -16,7 +16,7 @@
       {{end}}
     </select>
   </div>
-  <div><button class="btn btn--sm" type="submit"{{if not .Data.RouteKeyConfigured}} disabled{{end}}>{{t "ideas.map.retry"}}</button></div>
+  <div><button class="btn btn--sm" type="submit">{{t "settings.route.refresh"}}</button></div>
   <div id="route-retry-status" role="status" aria-live="polite"></div>
 </form>
 {{else}}<p class="muted small">{{t "settings.vacations.empty"}}</p>{{end}}

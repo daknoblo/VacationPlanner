@@ -28,7 +28,7 @@
                {{if .ID}}data-id="{{.ID}}" data-start="{{.StartMin}}" data-end="{{.EndMin}}"{{end}}
                style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
             <span class="weekcal-block__time">{{.Label}}</span>
-            <span class="weekcal-block__title">{{if .Travel}}✈ {{end}}{{.Title}}</span>
+            <span class="weekcal-block__title"><span>{{if .Travel}}✈ {{end}}{{.Title}}</span>{{if .MissingLocation}}{{template "idea_location_warning" .}}{{end}}</span>
           </div>
           {{end}}{{end}}
         </div>

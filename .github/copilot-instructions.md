@@ -117,7 +117,14 @@ a reverse proxy.
   the destination within the table without scrolling the page. Preserve manual views
   on polling. The map has no refresh/retry buttons.
 - `POST /settings/route/retry` – Settings trip-selectable retry for missing idea routes,
-  with CSRF and trip validation; preserve complete results and other trips' caches.
+  with CSRF and trip validation; also queue missing location/region enrichment.
+  The Refresh action works without a routing key and then clearly reports location-only
+  work. Preserve complete results, manual locations and other trips' caches.
+  Before routing, queue a bounded initial geography attempt for trips with missing
+  coordinates; do not repeatedly retry ambiguous places. Edits/manual refresh can retry.
+  The planner has no introductory text/refresh block. Missing idea coordinates show
+  a yellow circled exclamation mark linking to the existing location editor, including
+  map tables and day/week blocks; a manually set region does not suppress this warning.
 - `POST /vacations/{id}/ideas-routes/retry` – explicitly retry failed or incomplete
   cached routes. A lifecycle worker prepares every located accommodation/idea pair
   without page visits, one at a time with pacing. SQLite results survive restart;

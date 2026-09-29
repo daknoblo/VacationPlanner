@@ -64,7 +64,7 @@ export async function verifyIdeasMap(browser) {
         data-loading="Loading" data-error="Map failed" data-missing="Missing location" data-no-origin="Choose origin"
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
-        data-no-geometry="Road geometry missing" data-no-ideas="Empty">
+        data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor">
         <select data-ideas-map-origin></select>
         <div id="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
@@ -100,6 +100,14 @@ export async function verifyIdeasMap(browser) {
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 2);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 2);
     assert.equal(await rows.locator("tr").count(), 3);
+    assert.equal(await rows.locator(".idea-location-warning").count(), 1);
+    assert.equal(await rows.locator(".idea-location-warning").getAttribute("data-idea-location-edit"), "three");
+    assert.equal(await rows.locator(".idea-location-warning").getAttribute("aria-label"), "Location missing - open editor");
+    assert.deepEqual(await rows.locator(".idea-location-warning").evaluate(el => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return [style.backgroundColor, style.borderRadius, Math.round(rect.width) === Math.round(rect.height)];
+    }), ["rgb(254, 240, 138)", "50%", true], "Missing location must be shown as a small yellow circle");
     assert.deepEqual(await lines(), [], "Overview must not guess an origin");
     assert.equal(await rows.locator("script, em").count(), 0);
     assert.equal(await select.locator('option[value="c"]').isDisabled(), true);

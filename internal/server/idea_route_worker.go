@@ -46,6 +46,9 @@ func (s *Server) prepareNextIdeaRoute(parent context.Context) error {
 	}
 	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
+	if err := s.queueUnlocatedRouteGeography(ctx); err != nil {
+		return err
+	}
 	settings, err := s.store.GetSettings(ctx)
 	if err != nil {
 		return err
@@ -84,4 +87,26 @@ func (s *Server) prepareNextIdeaRoute(parent context.Context) error {
 		return err
 	}
 	return routeErr
+}
+
+func (s *Server) queueUnlocatedRouteGeography(ctx context.Context) error {
+	if s.geography == nil || s.geo == nil {
+		return nil
+	}
+	ids, err := s.store.UnlocatedRouteVacations(ctx)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		s.geography.mu.Lock()
+		state := s.geography.states[id]
+		// Do not turn unresolved/ambiguous places into repeated provider calls.
+		// Edits and the Settings refresh explicitly request another attempt.
+		attempted := state != nil && (state.status.Pending || !state.finished.IsZero())
+		s.geography.mu.Unlock()
+		if !attempted {
+			s.queueGeography(id, "en")
+		}
+	}
+	return nil
 }

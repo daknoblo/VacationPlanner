@@ -187,8 +187,9 @@ published together as a Pages artifact, not checked into the repository.
   after restart. Coordinates and routing-base-URL comparisons reject stale results and
   automatically invalidate changed pairs; unrelated edits do not recalculate routes.
   There is no automatic expiry or retry of completed failures. In **Settings → Routing →
-  Saved idea routes**, select a trip and choose **Retry missing routes**.
-  This explicitly retries failures and incomplete geometry, leaving complete results
+  Locations and routes**, select a trip and choose **Refresh**.
+  This also queues missing location/region enrichment and explicitly retries failed
+  routes and incomplete geometry, leaving complete results
   intact. Missing geometry is never replaced by a made-up straight route.
 - Page and status polling only read saved results; they never enqueue jobs or contact
   providers. The visible map polls every three seconds and keeps the selected origin and
@@ -199,11 +200,21 @@ published together as a Pages artifact, not checked into the repository.
   not necessarily a successful route. The static demo uses clearly labeled
   illustrative values/lines and never contacts a routing provider.
 - **Upgrading from v2.8.0 with unavailable routes:** after updating, select the affected
-  trip under **Settings → Routing** and click **Retry missing routes** once.
+  trip under **Settings → Routing** and click **Refresh** once.
   OpenRouteService omits its `segments` list when turn instructions are
   disabled; the corrected parser uses the validated full-route `summary` for the single
   accommodation-to-idea leg. Multi-waypoint requests retain segment details. Previously
   stored failures need this explicit retry; successful cached routes are not discarded.
+
+- Before preparing routes, the background worker also queues a bounded initial location
+  lookup for trips with unlocated accommodations or ideas, without requiring a page visit.
+  Resolved coordinates become eligible for persistent routing automatically. Ambiguous
+  places are not guessed or continuously retried; relevant edits or **Refresh** request
+  another attempt. Location refresh works without a routing API key. The planner's old
+  explanatory/refresh block is removed; progress remains in the header.
+- A small yellow **!** circle after an unlocated idea opens its existing editor directly
+  at the location field. This is available in the Ideas list/map table, planner backlog,
+  and scheduled day/week blocks, including ideas that already have a manual region.
 
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel

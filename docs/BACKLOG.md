@@ -54,6 +54,13 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Combined location/route refresh — Settings updates missing locations and regions
+      alongside failed/incomplete routes for the selected trip, even without a routing
+      key. Remove the planner's old hint/refresh block. Routing queues bounded initial
+      geocoding before preparing missing pairs, without repeatedly retrying ambiguous
+      places. Yellow accessible location warnings open the original idea location editor
+      from lists, map tables and day/week planners.
+
 - [x] Ideas map interaction improvements — move missing-route retries to Settings with
       an explicit trip selector, remove both map buttons, and reload cached data on
       accommodation selection. Fit the selected stay, ideas and actual road detours;

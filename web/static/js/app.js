@@ -104,7 +104,7 @@
   document.body.addEventListener("htmx:afterRequest", function (event) {
     var form = event.detail && event.detail.elt;
     if (!form || !form.matches || !form.matches("[data-geography-refresh]")) return;
-    var status = document.querySelector("[data-planner-geography-status]");
+    var status = document.getElementById("map-status");
     if (!status) return;
     status.textContent = event.detail.successful ? status.dataset.pending : status.dataset.error;
     status.hidden = false;
@@ -289,17 +289,6 @@
         }
         markerSignature = signature;
         var geography = data.geography || {};
-        var plannerStatus = document.querySelector("[data-planner-geography-status]");
-        if (plannerStatus) {
-          var plannerMessage = geography.pending ? plannerStatus.dataset.pending :
-            geography.error ? plannerStatus.dataset.error : plannerStatus.dataset.done;
-          if (!geography.pending && geography.unresolved_ideas && geography.unresolved_ideas.length) {
-            plannerMessage += " " + plannerStatus.dataset.ideasUnresolved + " (" + geography.unresolved_ideas.length + ")";
-          }
-          if (geography.limited) plannerMessage += " " + plannerStatus.dataset.limited;
-          plannerStatus.textContent = plannerMessage;
-          plannerStatus.hidden = false;
-        }
         if (status) {
           var message = bounds.length ? "" : status.dataset.empty;
           if (geography.pending) {
@@ -326,11 +315,6 @@
         if (status) {
           status.textContent = status.dataset.error;
           status.hidden = false;
-        }
-        var plannerStatus = document.querySelector("[data-planner-geography-status]");
-        if (plannerStatus) {
-          plannerStatus.textContent = plannerStatus.dataset.error;
-          plannerStatus.hidden = false;
         }
       });
   }

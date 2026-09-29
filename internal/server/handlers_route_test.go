@@ -78,11 +78,6 @@ func TestSettingsRouteRetryIsScopedAndPreservesCompleteCache(t *testing.T) {
 			t.Fatal("invalid or deleted trips need a visible validation error", id, got.Code)
 		}
 	}
-	s.routing = route.New("")
-	if got := postAISettings(s, path, values, true); got.Code != http.StatusUnprocessableEntity {
-		t.Fatal("disabled routing must not report queued work", got.Code)
-	}
-	s.routing = route.New("test")
 	before, err := s.store.ListIdeaRoutes(t.Context(), provider.URL, v.ID, lodging.ID)
 	if err != nil || len(before) != 3 {
 		t.Fatal("rejected requests modified the cache", before, err)
@@ -92,10 +87,14 @@ func TestSettingsRouteRetryIsScopedAndPreservesCompleteCache(t *testing.T) {
 		if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "will be prepared in the background") {
 			t.Fatal("missing queued confirmation", got.Code, got.Body.String())
 		}
+		if !s.geographyStatus(v.ID).Pending || s.geographyStatus(other.ID).Pending {
+			t.Fatal("refresh must queue geography only for the selected trip")
+		}
 		saved, err := s.store.ListIdeaRoutes(t.Context(), provider.URL, v.ID, lodging.ID)
 		if err != nil || len(saved) != 1 || saved[0].ItemID != complete.ID || saved[0].DistanceM != 1234 || len(saved[0].Geometry) != 2 {
 			t.Fatal("complete cache must remain unchanged", saved, err)
 		}
+
 		untouched, err := s.store.ListIdeaRoutes(t.Context(), provider.URL, other.ID, otherLodging.ID)
 		if err != nil || len(untouched) != 1 || untouched[0].Status != "unavailable" {
 			t.Fatal("another trip was retried", untouched, err)
@@ -111,5 +110,22 @@ func TestSettingsRouteRetryIsScopedAndPreservesCompleteCache(t *testing.T) {
 	}
 	if calls.Load() != 0 {
 		t.Fatal("Settings requests must not call the provider", calls.Load())
+	}
+}
+
+func TestSettingsRefreshLocationsWithoutRoutingAndQueueFailure(t *testing.T) {
+	s := newIntegrationServer(t)
+	v, _, _ := seedIdeaRoute(t, s)
+	s.routing = route.New("")
+	values := url.Values{"vacation_id": {v.ID.String()}}
+	got := postAISettings(s, "/settings/route/retry", values, true)
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Driving routes are disabled") || !s.geographyStatus(v.ID).Pending {
+		t.Fatal("location refresh must work without a routing key", got.Code, got.Body.String())
+	}
+	s.geography = newGeographyWorker(s)
+	s.geography.stopped = true
+	got = postAISettings(s, "/settings/route/retry", values, true)
+	if got.Code != http.StatusServiceUnavailable {
+		t.Fatal("failed geography scheduling must not report success", got.Code)
 	}
 }

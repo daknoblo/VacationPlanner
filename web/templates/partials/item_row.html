@@ -5,6 +5,7 @@
       <div class="item-row__title">
         {{if .Timed}}<span class="item-row__time">{{.StartLabel}}–{{.EndLabel}}</span>{{end}}
         <strong>{{.Title}}</strong>
+        {{if not .HasCoords}}{{template "idea_location_warning" .}}{{end}}
         {{if .Category}}<span class="badge">{{.Category}}</span>{{end}}
         {{if .Visited}}<span class="badge badge--ok">{{t "sight.visited"}}</span>{{end}}
       </div>
@@ -38,6 +39,11 @@
             hx-confirm="{{t "item.confirm_delete"}}">✕</button>
   </div>
 </li>
+{{end}}
+
+{{define "idea_location_warning"}}
+<a class="idea-location-warning" href="#idea-location-{{.ID}}" data-idea-location-edit="{{.ID}}"
+   title="{{t "ideas.location.warning"}}" aria-label="{{t "ideas.location.warning"}}" draggable="false"><span aria-hidden="true">!</span></a>
 {{end}}
 
 {{define "item_links"}}

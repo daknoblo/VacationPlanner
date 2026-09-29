@@ -261,6 +261,7 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
+    assert.ok(await page.locator(".idea-location-warning").count() > 0, "Unlocated ideas show a location warning");
     await page.locator("#ideas-map.leaflet-container").waitFor();
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 3);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 14);
@@ -282,6 +283,10 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#ai-center option").count(), 4, "Destination, two accommodation regions and custom point");
     const labels = await page.locator("#ai-center option").allTextContents();
     assert.ok(labels.includes("Toscana") && labels.includes("Lazio"), "Each accommodation region appears once");
+  }
+  if (shot.name === "day-planner" || shot.name === "week-planner") {
+    assert.equal(await page.locator('[data-tab-panel="tagesplan"] [data-geography-refresh], [data-planner-geography-status], .planner-region-tools').count(), 0,
+      "The planner must not retain the moved refresh control or old hint block");
   }
   if (shot.mobile) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

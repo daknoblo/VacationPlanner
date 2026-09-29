@@ -22,6 +22,28 @@ const ideaRouteSources = `
 	WHERE l.latitude BETWEEN -90 AND 90 AND l.longitude BETWEEN -180 AND 180
 		AND i.latitude BETWEEN -90 AND 90 AND i.longitude BETWEEN -180 AND 180`
 
+func (s *SQLite) UnlocatedRouteVacations(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT v.id FROM vacations v
+		WHERE EXISTS (SELECT 1 FROM lodging l WHERE l.vacation_id = v.id)
+		AND EXISTS (SELECT 1 FROM items i WHERE i.vacation_id = v.id)
+		AND (EXISTS (SELECT 1 FROM lodging l WHERE l.vacation_id = v.id AND (l.latitude IS NULL OR l.longitude IS NULL))
+			OR EXISTS (SELECT 1 FROM items i WHERE i.vacation_id = v.id AND (i.latitude IS NULL OR i.longitude IS NULL)))
+		ORDER BY v.created_at, v.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *SQLite) NextIdeaRoute(ctx context.Context, provider string) (*models.IdeaRoute, error) {
 	job := &models.IdeaRoute{Provider: provider}
 	err := s.db.QueryRowContext(ctx, `SELECT l.vacation_id, l.id, i.id,
