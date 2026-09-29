@@ -92,19 +92,28 @@ published together as a Pages artifact, not checked into the repository.
   and offers a shared region filter. Region metadata is resolved from located items;
   unlocated ideas stay visible in the unknown group. Override or clear the region in
   an item's editor when a different area grouping is more useful.
-- **Refresh regions** – **Refresh locations and regions** is available directly above
-  the day/week planner as well as under the overview map. It queues a bounded background
+- **Refresh locations and regions** – the refresh action under **Settings → Routing** queues a bounded background
   retry and reports progress in the header. Ideas without coordinates are searched by
   their saved name/address with trip-location context. When the geocoder omits a named
   landmark, exact Wikipedia article titles and redirects provide a second coordinate
-  source; disambiguation pages, non-Earth coordinates, fuzzy names and distant matches
+  source; disambiguation pages, non-Earth coordinates and distant matches
   are rejected. No arbitrary reference URLs or article descriptions are downloaded.
-  Only unambiguous results populate missing coordinates/address/region; generic plans
-  such as beachcombing still need a concrete location.
+  Results for unlocated ideas are saved as **proposals**, never applied automatically.
+  Small spelling differences can produce a local, unambiguous proposal; they are not
+  asserted to be a correction. Generic plans such as beachcombing still need a concrete location.
   **Check location** beside an unresolved planner idea opens its existing editor and
   focuses the location field directly.
-  The inline editor now has a separate **Place / address** field: choosing a suggestion
-  saves coordinates without replacing the idea title, links, notes or payer assignment.
+  New and edited ideas have a separate **Place / address** field. An empty field uses
+  the idea title for an asynchronous lookup; a circular indicator shows pending requests.
+  A preview leaves the original input intact. **Green check** selects its address and
+  coordinates; **Save** persists them without changing the title or reference links.
+  **Red X** rejects a proposal without changing the input. Rejected saved background
+  proposals are remembered across restarts until their geographic source changes.
+  Explicit town names at the beginning/end of a search constrain POIs to that town's
+  surroundings, rather than showing namesakes overseas. Recognized restaurant, cafe,
+  museum, hotel and park categories use matching OSM types; other categories remain
+  unrestricted. Results still depend on the configured Photon/Nominatim provider and
+  OpenStreetMap coverage: a missing or differently named business cannot be invented.
   Manual region assignments are not overwritten. A failed or ambiguous geocoder lookup
   is not replaced with a guessed region; large batches can be continued with another refresh.
   Each background batch remains limited to 40 lookups and 90 seconds, with paced,
@@ -248,7 +257,7 @@ published together as a Pages artifact, not checked into the repository.
 
 - Before preparing routes, the background worker also queues a bounded initial location
   lookup for trips with unlocated accommodations or ideas, without requiring a page visit.
-  Resolved coordinates become eligible for persistent routing automatically. Ambiguous
+  Confirmed and saved idea coordinates become eligible for persistent routing automatically. Ambiguous
   places are not guessed or continuously retried; relevant edits or **Refresh** request
   another attempt. Location refresh works without a routing API key. The planner's old
   explanatory/refresh block is removed; progress remains in the header.

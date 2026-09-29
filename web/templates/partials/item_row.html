@@ -82,13 +82,18 @@
   </div>
   <div class="field field--wide">
     <label>{{t "field.title"}}</label>
+    <input name="title" required maxlength="200" autocomplete="off"
+           placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}{{t "placeholder.sight.name"}}{{end}}">
+  </div>
+  <div class="field field--wide">
+    <label>{{t "item.location"}}</label>
     <div class="location-picker__field">
-      <input name="title" required maxlength="200" autocomplete="off"
-             data-geo-lite data-geo-near-lat="{{coord .V.Latitude}}" data-geo-near-lng="{{coord .V.Longitude}}"
-             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}{{t "placeholder.sight.name"}}{{end}}">
+      <input name="location" maxlength="200" autocomplete="off" data-geo-places data-geo-suggest-title
+             data-geo-lite data-geo-near-lat="{{coord .V.Latitude}}" data-geo-near-lng="{{coord .V.Longitude}}">
       <div class="suggest" data-geo-lite-list hidden></div>
       <p class="muted small" role="status" data-geo-lite-status
          data-error="{{t "item.location_error"}}" data-empty="{{t "item.location_empty"}}" hidden></p>
+      {{template "location_suggestion_controls" (dict)}}
     </div>
     <input type="hidden" name="latitude" data-geo-lite-lat>
     <input type="hidden" name="longitude" data-geo-lite-lng>
@@ -155,11 +160,12 @@
       <label for="item-location-{{.Item.ID}}">{{t "item.location"}}</label>
       <div class="location-picker__field">
         <input id="item-location-{{.Item.ID}}" name="location" maxlength="200" autocomplete="off"
-               data-geo-lite {{with .Vacation}}data-geo-near-lat="{{coord .Latitude}}" data-geo-near-lng="{{coord .Longitude}}"{{end}}
+               data-geo-lite data-geo-places data-geo-suggest-title {{with .Vacation}}data-geo-near-lat="{{coord .Latitude}}" data-geo-near-lng="{{coord .Longitude}}"{{end}}
                value="{{.Item.Location}}" placeholder="{{.Item.Title}}">
         <div class="suggest" data-geo-lite-list hidden></div>
         <p class="muted small" role="status" data-geo-lite-status
            data-error="{{t "item.location_error"}}" data-empty="{{t "item.location_empty"}}" hidden></p>
+        {{template "location_suggestion_controls" (dict "Suggestion" .LocationSuggestion "Item" .Item)}}
       </div>
       <input type="hidden" name="latitude" data-geo-lite-lat value="{{coord .Item.Latitude}}">
       <input type="hidden" name="longitude" data-geo-lite-lng value="{{coord .Item.Longitude}}">
@@ -200,4 +206,21 @@
     </div>
   </form>
 </li>
+{{end}}
+
+{{define "location_suggestion_controls"}}
+<div class="location-proposal" data-location-proposal hidden
+     data-accepted="{{t "item.location_accepted"}}" data-rejected="{{t "item.location_rejected"}}"
+     data-reject-error="{{t "item.location_reject_error"}}"
+     {{with .Suggestion}}{{if .Label}}data-suggestion-id="{{.ID}}" data-label="{{.Label}}"
+     data-lat="{{.Latitude}}" data-lng="{{.Longitude}}" data-rejected-saved="{{.Rejected}}"{{end}}{{end}}
+     {{with .Item}}data-item-id="{{.ID}}"{{end}}>
+  <label class="small">{{t "item.location_proposal"}}
+    <input type="text" readonly data-location-preview tabindex="-1">
+  </label>
+  <button type="button" class="location-proposal__accept" data-location-accept
+          title="{{t "item.location_accept"}}" aria-label="{{t "item.location_accept"}}">✓</button>
+  <button type="button" class="location-proposal__reject" data-location-reject
+          title="{{t "item.location_reject"}}" aria-label="{{t "item.location_reject"}}">✕</button>
+</div>
 {{end}}

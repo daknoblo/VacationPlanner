@@ -14,8 +14,12 @@ import (
 
 func TestRoutingEnrichesMissingLocationsBeforePreparingSavedRoutes(t *testing.T) {
 	var lookups, routes atomic.Int32
-	s, st, v := newGeographyTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+	s, st, v := newGeographyTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		lookups.Add(1)
+		if r.URL.Path == "/reverse" {
+			_, _ = w.Write([]byte(`{"name":"Blue Museum","lat":"55.1","lon":"9.1","address":{"state":"Region","country":"Norway"}}`))
+			return
+		}
 		_, _ = w.Write([]byte(`[{"name":"Blue Museum","type":"museum","lat":"55.1","lon":"9.1","address":{"state":"Region","country":"Norway"}}]`))
 	})
 	v.Latitude, v.Longitude = fptr(55), fptr(9)
@@ -50,13 +54,23 @@ func TestRoutingEnrichesMissingLocationsBeforePreparingSavedRoutes(t *testing.T)
 	}
 	s.geography.run(t.Context(), <-s.geography.queue)
 	got, err := st.GetItem(t.Context(), item.ID)
-	if err != nil || !got.HasCoords() || got.Title != item.Title || got.Notes != item.Notes || got.Cost == nil || *got.Cost != 25 {
+	if err != nil || got.HasCoords() || got.Title != item.Title || got.Notes != item.Notes || got.Cost == nil || *got.Cost != 25 {
 		t.Fatal("background lookup must safely preserve the idea", got, err)
 	}
 	unlocated, err := st.GetItem(t.Context(), ambiguous.ID)
 	if err != nil || unlocated.HasCoords() {
 		t.Fatal("ambiguous place was guessed", unlocated, err)
 	}
+	if err := s.prepareNextIdeaRoute(t.Context()); err != nil || routes.Load() != 0 {
+		t.Fatal("unconfirmed proposal was routed", err, routes.Load())
+	}
+	// Model the confirmed editor save; HTTP confirmation is covered separately.
+	got.Latitude, got.Longitude, got.Location = fptr(55.1), fptr(9.1), "Blue Museum, Norway"
+	if err := st.UpdateItem(t.Context(), got); err != nil {
+		t.Fatal(err)
+	}
+	s.retryGeography(v.ID, "en")
+	s.geography.run(t.Context(), <-s.geography.queue)
 	s.geography.mu.Lock()
 	s.geography.states[v.ID].finished = time.Now().Add(-2 * geographyCooldown)
 	s.geography.mu.Unlock()
@@ -69,7 +83,7 @@ func TestRoutingEnrichesMissingLocationsBeforePreparingSavedRoutes(t *testing.T)
 	if err != nil || len(saved) != 1 || saved[0].Status != "ready" || saved[0].DistanceM != 1234 || len(saved[0].Geometry) != 2 {
 		t.Fatal("enriched idea did not become a persisted route", saved, err)
 	}
-	if routes.Load() != 1 || lookups.Load() != 2 || s.geographyStatus(v.ID).Pending {
+	if routes.Load() != 1 || lookups.Load() != 3 || s.geographyStatus(v.ID).Pending {
 		t.Fatal("completed routes or ambiguous places were retried automatically", routes.Load(), lookups.Load())
 	}
 	s.retryGeography(v.ID, "en")

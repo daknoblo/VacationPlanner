@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ const settingGeoBaseURL = "geo.base_url"
 // queryFloat reads a float query parameter, returning 0 when absent or invalid.
 func queryFloat(r *http.Request, key string) float64 {
 	f, err := strconv.ParseFloat(strings.TrimSpace(r.URL.Query().Get(key)), 64)
-	if err != nil {
+	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
 		return 0
 	}
 	return f
@@ -45,7 +46,18 @@ func (s *Server) handleGeocode(w http.ResponseWriter, r *http.Request) {
 	results := []geo.Result{}
 	if len([]rune(q)) >= 2 {
 		loc := i18n.FromContext(r.Context())
-		found, err := s.geo.Search(r.Context(), s.geoBaseURL(r.Context()), q, loc.Code(), 5, queryFloat(r, "lat"), queryFloat(r, "lon"))
+		lat, lng := queryFloat(r, "lat"), queryFloat(r, "lon")
+		if math.Abs(lat) > 90 || math.Abs(lng) > 180 {
+			http.Error(w, "invalid location bias", http.StatusBadRequest)
+			return
+		}
+		var found []geo.Result
+		var err error
+		if r.URL.Query().Get("places") == "1" {
+			found, err = s.geo.SearchPlaces(r.Context(), s.geoBaseURL(r.Context()), q, loc.Code(), 10, lat, lng, r.URL.Query().Get("category"))
+		} else {
+			found, err = s.geo.Search(r.Context(), s.geoBaseURL(r.Context()), q, loc.Code(), 5, lat, lng)
+		}
 		if err != nil {
 			s.log.Warn("geocode failed", "err", err)
 			w.Header().Set("Content-Type", "application/json")

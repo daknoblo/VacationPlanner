@@ -1117,12 +1117,46 @@
     for (var i = 0; i < inputs.length; i++) { initGeoLite(inputs[i]); }
   }
 
+  function locationFeedback(input, wrap) {
+    var spinner = document.createElement("span");
+    spinner.className = "location-search__spinner";
+    spinner.hidden = true;
+    spinner.setAttribute("role", "status");
+    spinner.setAttribute("aria-label", document.body.dataset.locationLoading || "");
+    wrap.classList.add("has-location-feedback");
+    wrap.appendChild(spinner);
+    var status = wrap.querySelector("[data-geo-lite-status]");
+    if (!status) {
+      status = document.createElement("p");
+      status.className = "muted small";
+      status.setAttribute("role", "status");
+      status.hidden = true;
+      status.dataset.error = document.body.dataset.locationError || "";
+      status.dataset.empty = document.body.dataset.locationEmpty || "";
+      wrap.appendChild(status);
+    }
+    return { status: status, busy: function (active) {
+      spinner.hidden = !active;
+      input.setAttribute("aria-busy", active ? "true" : "false");
+    } };
+  }
+
+  document.body.addEventListener("htmx:beforeCleanupElement", function (event) {
+    var root = event.detail.elt;
+    if (root._cancelLocationSearch) root._cancelLocationSearch();
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll("[data-geo-lite]").forEach(function (input) {
+      if (input._cancelLocationSearch) input._cancelLocationSearch();
+    });
+  });
+
   function initGeoLite(input) {
     if (input.dataset.geoBound) return;
     input.dataset.geoBound = "1";
     var wrap = input.closest(".location-picker__field") || input.parentNode;
     var list = wrap.querySelector("[data-geo-lite-list]");
-    var status = wrap.querySelector("[data-geo-lite-status]");
+    var feedback = locationFeedback(input, wrap);
+    var status = feedback.status;
     var form = input.closest("form");
     var latName = input.getAttribute("data-geo-lat");
     var lngName = input.getAttribute("data-geo-lng");
@@ -1130,33 +1164,74 @@
     var lngIn = form ? (lngName ? form.querySelector('[name="' + lngName + '"]') : form.querySelector("[data-geo-lite-lng]")) : null;
     var timer = null;
     var searchVersion = 0;
+    var controller = null;
+    var proposal = wrap.querySelector("[data-location-proposal]");
+    var titleInput = form && input.hasAttribute("data-geo-suggest-title") ? form.querySelector('[name="title"]') : null;
+    var candidate = null, suggestionID = "", rejectedQuery = "";
+    var rejectPending = false;
 
     function clearCoords() { if (latIn) latIn.value = ""; if (lngIn) lngIn.value = ""; }
     function hide() { if (list) { list.hidden = true; list.innerHTML = ""; } }
 
-    function choose(it) {
+    function cancel() {
       searchVersion++;
-      if (status) status.hidden = true;
+      if (timer) window.clearTimeout(timer);
+      if (controller) controller.abort();
+      feedback.busy(false);
+      hide();
+    }
+    input._cancelLocationSearch = cancel;
+
+    function message(text, outcome) {
+      status.textContent = text;
+      status.hidden = false;
+      status.classList.toggle("is-location-accepted", outcome === "accepted");
+      status.classList.toggle("is-location-rejected", outcome === "rejected");
+    }
+
+    function offer(it, id, focus) {
+      candidate = it;
+      suggestionID = id || "";
+      proposal.querySelector("[data-location-preview]").value = it.display_name;
+      proposal.hidden = false;
+      hide();
+      if (focus) proposal.querySelector("[data-location-accept]").focus();
+    }
+
+    function choose(it) {
+      cancel();
+      status.hidden = true;
       input.value = it.display_name || input.value;
       if (latIn) latIn.value = it.lat;
       if (lngIn) lngIn.value = it.lng;
-      hide();
+      if (proposal) {
+        proposal.hidden = true;
+        message(proposal.dataset.accepted, "accepted");
+      }
       input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
     }
 
-    input.addEventListener("input", function () {
-      var version = ++searchVersion;
-      if (status) status.hidden = true;
-      clearCoords();
-      var q = input.value.trim();
-      if (timer) window.clearTimeout(timer);
+    function search(q, automatic) {
+      cancel();
+      var version = searchVersion;
+      status.hidden = true;
+      if (proposal) proposal.hidden = true;
       if (q.length < 3) { hide(); return; }
+      if (automatic && q === rejectedQuery) return;
       timer = window.setTimeout(function () {
+        controller = new AbortController();
+        feedback.busy(true);
         var url = "/api/geocode?q=" + encodeURIComponent(q);
+        if (input.hasAttribute("data-geo-places")) {
+          url += "&places=1";
+          var category = form.querySelector('[name="category"]');
+          if (category) url += "&category=" + encodeURIComponent(category.value);
+        }
         var nlat = input.getAttribute("data-geo-near-lat");
         var nlng = input.getAttribute("data-geo-near-lng");
         if (nlat && nlng) { url += "&lat=" + encodeURIComponent(nlat) + "&lon=" + encodeURIComponent(nlng); }
-        fetch(url, { headers: { "Accept": "application/json" } })
+        fetch(url, { headers: { "Accept": "application/json" }, signal: controller.signal })
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
           .then(function (data) {
             if (version !== searchVersion || !input.isConnected) return;
@@ -1164,28 +1239,101 @@
             var results = (data && data.results) || [];
             if (!results.length) {
               hide();
-              if (status) { status.textContent = status.dataset.empty; status.hidden = false; }
+              message(status.dataset.empty);
               return;
             }
             list.innerHTML = "";
-            results.slice(0, 6).forEach(function (it) {
+            results.slice(0, 10).forEach(function (it) {
               var b = document.createElement("button");
               b.type = "button";
               b.className = "suggest__item";
               b.textContent = it.display_name;
-              b.addEventListener("click", function () { choose(it); });
+              b.addEventListener("click", function () { if (proposal) offer(it, "", true); else choose(it); });
               list.appendChild(b);
             });
             list.hidden = false;
+            if (automatic && proposal) offer(results[0]);
           })
-          .catch(function () {
+          .catch(function (error) {
             if (version !== searchVersion || !input.isConnected) return;
+            if (error.name === "AbortError") return;
             hide();
-            if (status) { status.textContent = status.dataset.error; status.hidden = false; }
+            message(status.dataset.error);
+          }).finally(function () {
+            if (version === searchVersion) feedback.busy(false);
           });
       }, 300);
+    }
+
+    input.addEventListener("input", function () {
+      clearCoords();
+      rejectedQuery = "";
+      search(input.value.trim(), false);
     });
 
+    if (proposal) {
+      proposal.querySelector("[data-location-accept]").addEventListener("click", function () {
+        if (candidate && !rejectPending) choose(candidate);
+      });
+      proposal.querySelector("[data-location-reject]").addEventListener("click", function () {
+        if (!candidate || rejectPending) return;
+        input.focus();
+        var version = searchVersion;
+        var q = input.value.trim() || (titleInput ? titleInput.value.trim() : "");
+        function rejected() {
+          if (version !== searchVersion || !input.isConnected) return;
+          cancel();
+          rejectedQuery = q;
+          proposal.hidden = true;
+          candidate = null;
+          message(proposal.dataset.rejected, "rejected");
+        }
+        if (!suggestionID) { rejected(); return; }
+        rejectPending = true;
+        proposal.querySelectorAll("button").forEach(function (button) { button.disabled = true; });
+        fetch("/items/" + encodeURIComponent(proposal.dataset.itemId) + "/location-suggestion/reject", {
+          method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "X-CSRF-Token": getCookie("csrf_token") },
+          body: new URLSearchParams({ suggestion_id: suggestionID }).toString()
+        }).then(function (response) {
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          rejected();
+        }).catch(function () {
+          if (version === searchVersion && input.isConnected) message(proposal.dataset.rejectError);
+        }).finally(function () {
+          rejectPending = false;
+          proposal.querySelectorAll("button").forEach(function (button) { button.disabled = false; });
+        });
+      });
+    }
+    function suggestMissing() {
+      if (titleInput && (!latIn || !latIn.value) && (!lngIn || !lngIn.value)) {
+        search(input.value.trim() || titleInput.value.trim(), true);
+      }
+    }
+    if (titleInput) titleInput.addEventListener("input", suggestMissing);
+    if (titleInput) {
+      var categoryInput = form.querySelector('[name="category"]');
+      if (categoryInput) categoryInput.addEventListener("change", suggestMissing);
+    }
+    if (proposal && proposal.dataset.label) {
+      if (proposal.dataset.rejectedSaved === "true") {
+        rejectedQuery = input.value.trim() || (titleInput ? titleInput.value.trim() : "");
+        message(proposal.dataset.rejected, "rejected");
+      } else {
+        offer({ display_name: proposal.dataset.label, lat: Number(proposal.dataset.lat), lng: Number(proposal.dataset.lng) }, proposal.dataset.suggestionId);
+      }
+    } else {
+      suggestMissing();
+    }
+    if (form) {
+      form.addEventListener("submit", cancel);
+      form.addEventListener("reset", function () {
+        cancel();
+        if (proposal) proposal.hidden = true;
+        status.hidden = true;
+        rejectedQuery = "";
+      });
+    }
     input.addEventListener("blur", function () { window.setTimeout(hide, 200); });
   }
 

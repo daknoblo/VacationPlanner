@@ -174,6 +174,18 @@ code {
 
 /* Location picker (destination autocomplete + map) */
 .location-picker__field { position: relative; }
+.location-picker__field.has-location-feedback > input { padding-right: 2.75rem; }
+.location-search__spinner { position: absolute; top: .7rem; right: .75rem; width: 1rem; height: 1rem; border: 2px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; pointer-events: none; }
+.location-search__spinner[hidden], .location-proposal[hidden] { display: none; }
+.location-proposal { display: flex; align-items: end; gap: .4rem; margin-top: .4rem; }
+.location-proposal > label { min-width: 0; flex: 1; }
+.location-proposal button { flex: none; width: 2.5rem; height: 2.5rem; border-radius: .4rem; border: 1px solid var(--line); cursor: pointer; font-weight: 700; }
+.location-proposal__accept { color: #166534; background: #dcfce7; }
+.location-proposal__reject { color: #b91c1c; background: #fee2e2; }
+.location-proposal button:disabled { opacity: .55; cursor: wait; }
+.is-location-accepted::before { content: "\2713  "; color: #166534; font-weight: 700; }
+.is-location-rejected::before { content: "\2715  "; color: #b91c1c; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .location-search__spinner { animation: none; } }
 .location-map {
   height: 240px;
   margin-top: 0.6rem;

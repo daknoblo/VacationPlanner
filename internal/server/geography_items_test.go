@@ -89,19 +89,23 @@ func TestIdeaGeographyWikipediaFallbackAndRegion(t *testing.T) {
 	s.queueGeography(v.ID, "de")
 	s.geography.run(t.Context(), <-s.geography.queue)
 	got, err := st.GetItem(t.Context(), item.ID)
-	if err != nil || !got.HasCoords() || *got.Latitude != 55.48778 || got.Region != "Southern Denmark, Denmark" ||
-		got.Location != "Der Mensch am Meer" || got.Title != item.Title || got.Notes != item.Notes || *got.Cost != 25 {
-		t.Fatalf("idea not safely enriched: %+v %v", got, err)
+	if err != nil || got.HasCoords() || got.Region != "" || got.Location != "" ||
+		got.Title != item.Title || got.Notes != item.Notes || *got.Cost != 25 {
+		t.Fatalf("unconfirmed suggestion changed the idea: %+v %v", got, err)
+	}
+	suggestions, err := st.ListLocationSuggestions(t.Context(), v.ID)
+	if err != nil || suggestions[item.ID].Label != "Der Mensch am Meer" || suggestions[item.ID].Latitude != 55.48778 {
+		t.Fatal("Wikipedia suggestion missing", suggestions, err)
 	}
 	status := s.geographyStatus(v.ID)
-	if status.Error || status.Pending || status.Limited || status.Completed != 3 || status.Total != 3 ||
-		status.UnknownRegions != 0 || len(status.UnresolvedIdeas) != 0 || wikiCalls.Load() != 1 || geoCalls.Load() != 2 {
+	if status.Error || status.Pending || status.Limited || status.Completed != 2 || status.Total != 2 ||
+		status.UnknownRegions != 1 || len(status.UnresolvedIdeas) != 1 || wikiCalls.Load() != 1 || geoCalls.Load() != 1 {
 		t.Fatalf("incorrect fallback budget/status: %+v geo=%d wiki=%d", status, geoCalls.Load(), wikiCalls.Load())
 	}
 	s.retryGeography(v.ID, "de")
 	s.geography.run(t.Context(), <-s.geography.queue)
-	if wikiCalls.Load() != 1 || geoCalls.Load() != 2 {
-		t.Fatal("already located item triggered another provider call")
+	if wikiCalls.Load() != 1 || geoCalls.Load() != 1 {
+		t.Fatal("saved proposal triggered another provider call")
 	}
 }
 
@@ -153,13 +157,17 @@ func TestIdeaGeographyBudgetRemainsBounded(t *testing.T) {
 	s.queueGeography(v.ID, "de")
 	s.geography.run(t.Context(), <-s.geography.queue)
 	status := s.geographyStatus(v.ID)
-	if status.Completed != 40 || status.Total != 40 || !status.Limited || len(status.UnresolvedIdeas) != 1 {
+	if status.Completed != 40 || status.Total != 40 || !status.Limited || len(status.UnresolvedIdeas) != 41 {
 		t.Fatalf("batch budget changed: %+v", status)
 	}
 	s.retryGeography(v.ID, "de")
 	s.geography.run(t.Context(), <-s.geography.queue)
-	if status := s.geographyStatus(v.ID); status.Limited || len(status.UnresolvedIdeas) != 0 || status.Completed != 1 {
+	if status := s.geographyStatus(v.ID); status.Limited || len(status.UnresolvedIdeas) != 41 || status.Completed != 1 {
 		t.Fatalf("next batch lost source priority or failed to finish: %+v", status)
+	}
+	suggestions, err := st.ListLocationSuggestions(t.Context(), v.ID)
+	if err != nil || len(suggestions) != 41 {
+		t.Fatal("bounded batches did not persist every proposal", len(suggestions), err)
 	}
 }
 

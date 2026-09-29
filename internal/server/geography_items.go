@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/url"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -14,6 +15,82 @@ import (
 
 type wikipediaLookup interface {
 	Lookup(context.Context, string, []string) ([]geo.Result, error)
+}
+
+// Fuzzy matches are proposals only. Retain the same locality/ambiguity checks
+// as exact matching, and require a small spelling difference in a distinctive name.
+func suggestIdeaPlace(item *models.Item, vacation *models.Vacation, anchors []route.Point, results []geo.Result) (geo.Result, bool, bool) {
+	if len(results) >= 10 {
+		return geo.Result{}, false, false
+	}
+	var candidates []geo.Result
+	for _, result := range results {
+		for _, name := range append(ideaPlaceNames(item), item.Location) {
+			if !similarPlaceName(name, result.Name, result.City) {
+				continue
+			}
+			probe := *item
+			probe.Title = result.Name
+			probe.Links = nil
+			if match, ok, _ := matchIdeaPlace(&probe, vacation, anchors, []geo.Result{result}); ok {
+				candidates = append(candidates, match)
+			}
+			break
+		}
+	}
+	if len(candidates) != 1 {
+		return geo.Result{}, false, len(candidates) > 1
+	}
+	return candidates[0], true, false
+}
+
+func similarPlaceName(query, name, city string) bool {
+	canonical := func(value string) string {
+		words := strings.Fields(normalizeGeography(value))
+		var kept []string
+		for _, word := range words {
+			if containsGeography(normalizeGeography(city), word) {
+				continue
+			}
+			switch word {
+			case "the", "der", "die", "das", "restaurant", "restaurants", "cafe", "café", "museum", "hotel":
+				continue
+			}
+			kept = append(kept, word)
+		}
+		sort.Strings(kept)
+		return strings.Join(kept, " ")
+	}
+	a, b := []rune(canonical(query)), []rune(canonical(name))
+	if len(a) < 4 || len(b) < 4 || len(a) > 200 || len(b) > 200 {
+		return false
+	}
+	previous := make([]int, len(b)+1)
+	var beforePrevious []int
+	for j := range previous {
+		previous[j] = j
+	}
+	for i, left := range a {
+		current := make([]int, len(b)+1)
+		current[0] = i + 1
+		for j, right := range b {
+			cost := 0
+			if left != right {
+				cost = 1
+			}
+			current[j+1] = min(current[j]+1, previous[j+1]+1, previous[j]+cost)
+			if i > 0 && j > 0 && left == b[j-1] && a[i-1] == right {
+				current[j+1] = min(current[j+1], beforePrevious[j-1]+1)
+			}
+		}
+		beforePrevious = previous
+		previous = current
+	}
+	limit := 1
+	if len(a) >= 8 && len(b) >= 8 {
+		limit = 2
+	}
+	return previous[len(b)] <= limit
 }
 
 func ideaWikipediaNames(item *models.Item) []string {

@@ -198,8 +198,15 @@ a reverse proxy.
   payers or manual regions, or invent hotel locations from destination centers.
 - Existing ideas can select a location in their inline editor to persist coordinates
   for background region lookup, without changing their title or reference links.
-  Unlocated ideas also receive bounded background name/address geocoding with exact-name
-  and trip-locality checks. Exact Wikipedia titles/redirects can provide coordinates
+  Unlocated ideas also receive bounded background name/address geocoding with name
+  and trip-locality checks. Persisted proposals, including conservative spelling
+  alternatives, must be confirmed in the editor and saved before changing coordinates
+  or starting routes. Rejections persist against the unchanged geographic source.
+  Empty location fields can search using the idea title; pending searches show a
+  spinner, and stale responses must not overwrite newer edits or accepted values.
+  Explicit leading/trailing towns bound POI searches; recognized place categories
+  filter matching OSM types. Missing provider coverage remains explicit.
+  Exact Wikipedia titles/redirects can propose coordinates
   for omitted landmarks; only fixed Wikipedia API hosts are used, never arbitrary
   reference URLs. Ambiguous/generic/distant matches stay unlocated. CAS updates protect
   source names, links, manual regions, coordinates and destination edits, while leaving

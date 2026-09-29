@@ -10,6 +10,7 @@ import { verifyCalendarRegionUpdates } from "./calendar-regions.mjs";
 import { verifyAISearchCenters } from "./ai-centers.mjs";
 import { verifyIdeasMap } from "./ideas-map.mjs";
 import { verifyWeekResize } from "./week-resize.mjs";
+import { verifyLocationSearch } from "./location-search.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -169,6 +170,7 @@ try {
   await verifyAISearchCenters(browser);
   await verifyIdeasMap(browser);
   await verifyWeekResize(browser);
+  await verifyLocationSearch(browser);
   assert.deepEqual(failures, [], "The demo must work without failed requests or external services");
   await writeFile(join(output, "manifest.json"), JSON.stringify({
     version: metadata.version,

@@ -298,13 +298,41 @@ func (s *Server) handleEditItemForm(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	suggestions, err := s.store.ListLocationSuggestions(r.Context(), item.VacationID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.fragment(w, r, "item_edit", map[string]any{
-		"Item":         item,
-		"Vacation":     vacation,
-		"Cats":         categories,
-		"Participants": participants,
-		"CSRF":         s.ensureCSRFToken(w, r),
+		"Item":               item,
+		"LocationSuggestion": suggestions[item.ID],
+		"Vacation":           vacation,
+		"Cats":               categories,
+		"Participants":       participants,
+		"CSRF":               s.ensureCSRFToken(w, r),
 	})
+}
+
+func (s *Server) handleRejectLocationSuggestion(w http.ResponseWriter, r *http.Request) {
+	itemID, err := urlUUID(r, "itemID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	suggestionID, err := uuid.Parse(formStr(r, "suggestion_id"))
+	if err != nil || suggestionID == uuid.Nil {
+		http.Error(w, "invalid location suggestion", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.RejectLocationSuggestion(r.Context(), itemID, suggestionID); err != nil {
+		if isNotFound(err) {
+			http.Error(w, "location suggestion changed", http.StatusConflict)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleEditItem applies inline edits (title, category, schedule, cost,
@@ -422,7 +450,7 @@ func (s *Server) handleEditItem(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if existing.Region == "" && !existing.RegionManual {
+	if !existing.HasCoords() || (existing.Region == "" && !existing.RegionManual) {
 		s.retryGeography(existing.VacationID, loc.Code())
 	}
 	hxTrigger(w, "itemsChanged")

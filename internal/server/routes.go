@@ -124,6 +124,7 @@ func (s *Server) routes() {
 		r.Post("/", s.handleUpdateItem)
 		r.Post("/edit", s.handleEditItem)
 		r.Post("/schedule", s.handleScheduleItem)
+		r.Post("/location-suggestion/reject", s.handleRejectLocationSuggestion)
 		r.Post("/origin", s.handleSetItemOrigin)
 		r.Post("/visited", s.handleToggleVisited)
 		r.Delete("/", s.handleDeleteItem)

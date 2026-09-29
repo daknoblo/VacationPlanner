@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Local POI search and reviewed location proposals** — restaurant/POI filters,
+      explicit-town bounds, circular search progress, spelling/location previews with
+      accept/reject controls, title-based lookup for empty fields, and persisted
+      confirmation-only background proposals with source-safe rejection.
+
 - [x] **Weekly activity resizing** — top/bottom drag handles and keyboard adjustments,
       automatic time persistence and day-view synchronization, cancel/failure rollback,
       and atomic scheduling that preserves source booking details.

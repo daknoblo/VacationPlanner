@@ -104,6 +104,10 @@ type nominatimResult struct {
 // biasLat/biasLon prioritizes results near that point (Photon location bias),
 // so activity searches favour the current destination.
 func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit int, biasLat, biasLon float64) ([]Result, error) {
+	return c.search(ctx, baseURL, query, lang, limit, biasLat, biasLon, "", "")
+}
+
+func (c *Client) search(ctx context.Context, baseURL, query, lang string, limit int, biasLat, biasLon float64, bounds, kind string) ([]Result, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, nil
@@ -121,7 +125,7 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	if biasLat != 0 || biasLon != 0 {
 		bias = strconv.FormatFloat(biasLat, 'f', 5, 64) + "," + strconv.FormatFloat(biasLon, 'f', 5, 64)
 	}
-	key := baseURL + "|" + lang + "|" + strconv.Itoa(limit) + "|" + bias + "|" + strings.ToLower(query)
+	key := baseURL + "|" + lang + "|" + strconv.Itoa(limit) + "|" + bias + "|" + bounds + "|" + kind + "|" + strings.ToLower(query)
 	if cached, ok := c.cachedResults(key); ok {
 		return cached, nil
 	}
@@ -145,6 +149,18 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	if photon && (biasLat != 0 || biasLon != 0) {
 		q.Set("lat", strconv.FormatFloat(biasLat, 'f', 6, 64))
 		q.Set("lon", strconv.FormatFloat(biasLon, 'f', 6, 64))
+	}
+	if bounds != "" {
+		if photon {
+			q.Set("bbox", bounds)
+			q.Set("location_bias_scale", "0.1")
+		} else {
+			q.Set("viewbox", bounds)
+			q.Set("bounded", "1")
+		}
+		if photon && kind != "" {
+			q.Set("osm_tag", placeTag(kind))
+		}
 	}
 	if c.apiKey != "" {
 		q.Set("key", c.apiKey)
@@ -177,7 +193,7 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 			// protocol once, keeping it under the same request pace and timeout.
 			_ = resp.Body.Close()
 			c.store("provider|"+baseURL, []Result{{Type: "photon"}})
-			return c.Search(ctx, baseURL, query, lang, limit, biasLat, biasLon)
+			return c.search(ctx, baseURL, query, lang, limit, biasLat, biasLon, bounds, kind)
 		}
 		return nil, fmt.Errorf("geo: unexpected status %d", resp.StatusCode)
 	}
@@ -191,6 +207,22 @@ func (c *Client) Search(ctx context.Context, baseURL, query, lang string, limit 
 	}
 
 	results := parseResults(body)
+	if kind != "" || bounds != "" {
+		minLng, minLat, maxLng, maxLat := -180.0, -90.0, 180.0, 90.0
+		if bounds != "" {
+			if _, err := fmt.Sscanf(bounds, "%f,%f,%f,%f", &minLng, &minLat, &maxLng, &maxLat); err != nil {
+				return nil, errors.New("geo: invalid search bounds")
+			}
+		}
+		filtered := make([]Result, 0, len(results))
+		for _, result := range results {
+			if (kind == "" || result.Type == kind || result.OSMValue == kind) &&
+				result.Lat >= minLat && result.Lat <= maxLat && result.Lng >= minLng && result.Lng <= maxLng {
+				filtered = append(filtered, result)
+			}
+		}
+		results = filtered
+	}
 	c.store(key, results)
 	return results, nil
 }

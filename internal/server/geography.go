@@ -241,6 +241,12 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 		return
 	}
 	anchors := ideaGeographyAnchors(vacation, lodgings)
+	suggestions, err := s.store.ListLocationSuggestions(ctx, job.id)
+	if err != nil {
+		s.log.Error("loading location suggestions failed", "err", err)
+		status.Error = true
+		return
+	}
 	type lookup struct {
 		lodging   *models.Lodging
 		item      *models.Item
@@ -268,6 +274,9 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 			status.UnknownRegions++
 		}
 		if item.Latitude == nil && item.Longitude == nil {
+			if _, exists := suggestions[item.ID]; exists {
+				continue
+			}
 			for _, query := range ideaGeographyQueries(item, vacation) {
 				work = append(work, lookup{item: item, query: query})
 			}
@@ -321,6 +330,16 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 				results, lookupErr = s.wikipedia.Lookup(lookupCtx, entry.wikipedia, ideaWikipediaNames(item))
 			} else {
 				results, lookupErr = s.geo.Search(lookupCtx, baseURL, entry.query, "en", 10, biasLat, biasLng)
+				kind := geo.PlaceSearchKind(entry.query, item.Category)
+				if kind != "" {
+					filtered := make([]geo.Result, 0, len(results))
+					for _, result := range results {
+						if result.Type == kind || result.OSMValue == kind {
+							filtered = append(filtered, result)
+						}
+					}
+					results = filtered
+				}
 			}
 			if lookupErr != nil {
 				status.Error = true
@@ -328,31 +347,21 @@ func (w *geographyWorker) run(parent context.Context, job geographyJob) {
 				ambiguousItems[item] = true
 			} else {
 				result, matched, ambiguous := matchIdeaPlace(item, vacation, anchors, results)
+				if !matched && !ambiguous {
+					result, matched, ambiguous = suggestIdeaPlace(item, vacation, anchors, results)
+				}
 				ambiguousItems[item] = ambiguous
 				if matched {
-					changed, updateErr := s.store.UpdateItemGeography(ctx, item, vacation, result.Lat, result.Lng, result.DisplayName, result.Region)
+					changed, updateErr := s.store.SaveLocationSuggestion(ctx, item, vacation, models.LocationSuggestion{
+						Label: result.DisplayName, Name: result.Name, Latitude: result.Lat, Longitude: result.Lng,
+					})
+					ambiguousItems[item] = true
 					if updateErr != nil {
+						s.log.Error("saving location suggestion failed", "err", updateErr)
 						status.Error = true
-						ambiguousItems[item] = true
 					}
 					if changed {
 						status.UpdatedCount++
-						item.Latitude, item.Longitude = &result.Lat, &result.Lng
-						if item.Location == "" {
-							item.Location = result.DisplayName
-						}
-						if item.Region == "" && !item.RegionManual {
-							if result.Region != "" {
-								item.Region = result.Region
-								status.UnknownRegions--
-							} else {
-								work = append(work, lookup{item: item})
-								status.Total = min(len(work), geographyLookupLimit)
-								followUp = true
-							}
-						}
-					} else {
-						ambiguousItems[item] = true
 					}
 				}
 			}

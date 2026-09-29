@@ -9,7 +9,9 @@
   <link rel="stylesheet" href="/static/css/app.css?v={{.AssetVer}}">
   {{if eq .Page "vacation"}}<link rel="stylesheet" href="/static/css/dayroute.css?v={{.AssetVer}}">{{end}}
 </head>
-<body class="page-{{.Page}}" data-week-start="{{.WeekStart}}">
+<body class="page-{{.Page}}" data-week-start="{{.WeekStart}}"
+      data-location-loading="{{t "item.location_loading"}}" data-location-error="{{t "item.location_error"}}"
+      data-location-empty="{{t "item.location_empty"}}">
   <header class="topbar">
     <div class="topbar__inner">
       <a class="brand" href="/"><span aria-hidden="true">🌴</span> <span>{{t "app.brand"}}</span></a>
