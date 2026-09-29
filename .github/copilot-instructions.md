@@ -168,7 +168,11 @@ a reverse proxy.
   calls from status polling.
 - The header's background status remains visible while idle, using a neutral
   "No active requests" state rather than claiming all data is resolved. Initial loads
-  and status-fetch failures are explicit; only genuinely active work animates.
+  and status-fetch failures are explicit; only genuinely active work animates, with
+  a circular spinner respecting reduced-motion preferences. All app pages and the
+  header share a centered 75% desktop width and responsive smaller-screen widths.
+  The brand is left-aligned, status right-aligned, and navigation has 1–2 cm spacing
+  before the status. Browser titles start with "Vacationplanner".
 
 ### Behavior
 

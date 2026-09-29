@@ -35,7 +35,7 @@ func TestDemoSnapshots(t *testing.T) {
 			base := "/vacations/" + snapshot.TripID
 			for _, name := range []string{"index", "vacation", "settings", "about", "export"} {
 				body := snapshot.Pages[name+".html"]
-				for _, want := range []string{"<!DOCTYPE html>", `lang="` + language + `"`} {
+				for _, want := range []string{"<!DOCTYPE html>", `lang="` + language + `"`, "<title>Vacationplanner · ", "<span>Vacation Planner</span>"} {
 					if !bytes.Contains(body, []byte(want)) {
 						t.Errorf("%s missing %q", name, want)
 					}
@@ -49,7 +49,7 @@ func TestDemoSnapshots(t *testing.T) {
 			if len(deployment) != 2 || bytes.Count(deployment[1], []byte("<option")) < 2 {
 				t.Error("Foundry dropdown must contain a prompt and a discovered deployment")
 			}
-			requireDemoContains(t, snapshot.Fragments["/api/background-status"], `value="3"`, `max="5"`)
+			requireDemoContains(t, snapshot.Fragments["/api/background-status"], `value="3"`, `max="5"`, `class="background-status__spinner"`)
 			requireDemoContains(t, snapshot.Fragments[base+"/api/ideas"], "Toscana", "Lazio", "San Gimignano", "Villa Borghese")
 			requireDemoContains(t, snapshot.Pages["vacation.html"], "https://en.wikipedia.org/wiki/San_Gimignano", "https://www.tripadvisor.com/Attraction_Review-")
 			requireDemoContains(t, snapshot.Fragments[base+"/api/budget"], "1781", "819", "450", "Casa delle Colline", demoID(21).String())

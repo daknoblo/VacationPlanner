@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Consistent page/header width and branding — center all app pages and the header
+      at 75% desktop width, keep responsive mobile widths, align the brand left and
+      background status right with separated navigation, prefix browser titles with
+      the app name, and show a reduced-motion-aware circular spinner only for active work.
+
 - [x] Two-column idea cards and accommodation search markers — display two saved
       places per desktop row, one on mobile, with full-width inline editors.
       Add current-trip accommodation presets and clickable/keyboard-accessible bed

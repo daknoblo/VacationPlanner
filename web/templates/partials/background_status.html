@@ -9,6 +9,7 @@
 <div class="background-status__content" data-state="active" role="status" title="{{.Detail}}">
   <span class="background-status__label">{{t "background.loading"}}</span>
   <progress class="background-status__bar"{{if .Determinate}} value="{{.Completed}}" max="{{.Total}}"{{end}} aria-label="{{.Detail}}"></progress>
+  <span class="background-status__spinner" aria-hidden="true"></span>
   <span class="background-status__detail">{{.Detail}}</span>
 </div>
 {{else}}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{.Title}} · VacationPlanner</title>
+  <title>{{t "app.tab_name"}} · {{.Title}}</title>
   <meta name="csrf-token" content="{{.CSRFToken}}">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/css/app.css?v={{.AssetVer}}">
@@ -12,7 +12,7 @@
 <body class="page-{{.Page}}" data-week-start="{{.WeekStart}}">
   <header class="topbar">
     <div class="topbar__inner">
-      <a class="brand" href="/">🌴 <span>VacationPlanner</span></a>
+      <a class="brand" href="/"><span aria-hidden="true">🌴</span> <span>{{t "app.brand"}}</span></a>
       <nav class="topbar__nav">
         <a href="/"{{if eq .Page "index"}} class="is-active"{{end}}>{{t "nav.dashboard"}}</a>
         {{if .CurrentID}}<a href="/vacations/{{.CurrentID}}"{{if eq .Page "vacation"}} class="is-active"{{end}}>{{t "nav.planning"}}</a>{{else}}<span class="is-disabled">{{t "nav.planning"}}</span>{{end}}

@@ -68,7 +68,8 @@ func TestBackgroundStatusEndpointOnlyReadsLocalState(t *testing.T) {
 	for range 2 {
 		rec := httptest.NewRecorder()
 		s.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/background-status", nil))
-		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<progress") || rec.Header().Get("Cache-Control") != "no-store" {
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<progress") ||
+			!strings.Contains(rec.Body.String(), `class="background-status__spinner"`) || rec.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("status not rendered: %d %s", rec.Code, rec.Body.String())
 		}
 	}
@@ -78,7 +79,7 @@ func TestBackgroundStatusEndpointOnlyReadsLocalState(t *testing.T) {
 	s.aiDiscoveries.Add(-1)
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/background-status", nil))
-	if strings.Contains(rec.Body.String(), "<progress") {
+	if strings.Contains(rec.Body.String(), "<progress") || strings.Contains(rec.Body.String(), "background-status__spinner") {
 		t.Fatal("idle status must not pretend to be loading")
 	}
 	if !strings.Contains(rec.Body.String(), `data-state="idle"`) || !strings.Contains(rec.Body.String(), "No active requests") {
@@ -108,7 +109,7 @@ func TestBackgroundIdleAndInitialStatusAreLocalized(t *testing.T) {
 		rec = httptest.NewRecorder()
 		s.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `data-state="checking"`) ||
-			!strings.Contains(rec.Body.String(), initial) {
+			!strings.Contains(rec.Body.String(), initial) || strings.Contains(rec.Body.String(), "background-status__spinner") {
 			t.Fatalf("initial page has an empty status area: %s", rec.Body.String())
 		}
 	}
@@ -125,7 +126,8 @@ func TestBackgroundStatusReadFailureIsVisible(t *testing.T) {
 	s.store = brokenBackgroundStore{Store: s.store}
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/background-status", nil))
-	if !strings.Contains(rec.Body.String(), "Status unavailable") || strings.Contains(rec.Body.String(), "<progress") {
+	if !strings.Contains(rec.Body.String(), "Status unavailable") || strings.Contains(rec.Body.String(), "<progress") ||
+		strings.Contains(rec.Body.String(), "background-status__spinner") {
 		t.Fatal("status failure was hidden or shown as active work")
 	}
 }

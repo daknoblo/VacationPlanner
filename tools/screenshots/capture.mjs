@@ -182,6 +182,7 @@ try {
 }
 
 async function verifyView(page, shot) {
+  await verifyHeader(page);
   assert.equal(await page.locator("script[src*='htmx'], script[src*='/js/app.js']").count(), 0);
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
@@ -203,6 +204,7 @@ async function verifyView(page, shot) {
       "The accommodation popup contains the same date range");
     await page.locator(".leaflet-popup-close-button").click();
   }
+
   if (shot.name === "cheatsheet") {
     assert.equal(await page.locator(".cheatsheet-table").count(), 1);
     assert.equal(await page.locator("#cheatsheet-rows tr").count(), 26, "22 standard, two participant and two custom phrases");
@@ -355,9 +357,59 @@ async function verifyView(page, shot) {
   }
 }
 
+async function verifyHeader(page) {
+  assert.match(await page.title(), /^Vacationplanner · /);
+  assert.equal(await page.locator(".brand span").last().textContent(), "Vacation Planner");
+  const layout = await page.evaluate(() => {
+    const rect = selector => document.querySelector(selector).getBoundingClientRect();
+    const inner = rect(".topbar__inner"), main = rect("main.container");
+    const brand = rect(".brand"), status = rect("#background-status"), nav = rect(".topbar__nav");
+    const header = document.querySelector(".topbar");
+    return {
+      width: innerWidth, inner: { x: inner.x, width: inner.width },
+      main: { x: main.x, width: main.width },
+      left: brand.left - inner.left, right: inner.right - status.right,
+      gap: status.left - nav.right,
+      overflow: header.scrollWidth - header.clientWidth,
+      overlap: brand.right > status.left && brand.top < status.bottom && brand.bottom > status.top,
+    };
+  });
+  assert.deepEqual(layout.inner, layout.main, "Every page and its header share the same centered width");
+  assert.ok(Math.abs(layout.inner.width - layout.width * (layout.width >= 1000 ? 0.75 : 1)) < 1);
+  assert.ok(Math.abs(layout.left - 20) < 1 && Math.abs(layout.right - 20) < 1,
+    "Brand and background status align with the left and right content edges");
+  assert.ok(layout.overflow <= 1 && !layout.overlap,
+    `Header must neither overflow nor overlap at ${layout.width}px on ${page.url()}`);
+  if (layout.width >= 1440) {
+    assert.ok(layout.gap >= 37.8 && layout.gap <= 75.6, "Menu/status gap stays within roughly 1–2 CSS centimeters");
+  }
+  const spinner = page.locator(".background-status__spinner");
+  if (await spinner.count()) {
+    assert.equal(await spinner.getAttribute("aria-hidden"), "true");
+    assert.equal(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    assert.ok(await spinner.evaluate(el => {
+      const style = getComputedStyle(el);
+      return style.width === style.height && style.borderRadius === "50%" &&
+        style.animationName === "background-status-spin" &&
+        el.getAnimations().some(animation => animation.playState === "running");
+    }), "Active jobs have a running circular animation");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal(await spinner.evaluate(el => getComputedStyle(el).animationName), "none",
+      "Reduced-motion preferences disable spinning without hiding progress");
+  }
+}
+
 async function verifyLinks(page, path) {
   const response = await page.goto(base + path, { waitUntil: "networkidle" });
   assert.equal(response.status(), 200, path);
+  if (path.startsWith("demo/")) {
+    for (const width of [390, 768, 1000, 1101, 1280, 1440, 1920, 2560]) {
+      await page.setViewportSize({ width, height: 900 });
+      await verifyHeader(page);
+    }
+    await page.setViewportSize(desktop);
+  }
   const links = await page.locator("a[href], img[src], script[src], link[href]").evaluateAll(
     elements => elements.map(element => element.href || element.src),
   );

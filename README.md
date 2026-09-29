@@ -339,10 +339,16 @@ published together as a Pages artifact, not checked into the repository.
 - **Custom categories** – manage the pick-list (with an icon picker) used on item/activity forms.
 - **Diagnostics** – runtime **log level** switch and an auto-refreshing **log viewer**;
   **statistics** including a document count.
+- **Consistent page layout** – every app page and its header share a centered 75%
+  desktop width, expanding to the available width on smaller screens. The palm logo
+  and **Vacation Planner** sit at the left edge, navigation precedes the right-aligned
+  background status with about 1–2 cm spacing, and browser titles start with
+  **Vacationplanner** so the app remains identifiable in narrow tabs.
 - **Background indicator** – a compact top-right status shows active location/region
   lookups, translation jobs and AI deployment discovery. Geography batches report
   attempted lookups completed/total; mixed or unknown-size work uses an indeterminate
-  bar. The indicator stays visible when jobs finish and reads **No active requests**,
+  bar. Active work also has a circular spinner, disabled for reduced-motion preferences.
+  The indicator stays visible when jobs finish and reads **No active requests**,
   even if some regions remain unknown; idle is not a claim that every lookup succeeded.
   The first page render shows **Checking status**, and failed status requests show
   **Status unavailable** instead of leaving a stale loading bar on screen.

@@ -4,6 +4,8 @@ package i18n
 // complete; other locales may omit keys and will fall back to English.
 var messages = map[Lang]map[string]string{
 	LangEN: {
+		"app.brand":                         "Vacation Planner",
+		"app.tab_name":                      "Vacationplanner",
 		"ideas.map.title":                   "Ideas on the map",
 		"ideas.map.focus_route":             "Show the entire route",
 		"ideas.map.hint":                    "Select an accommodation for driving distances and times. Click a number or route to show the entire route.",
@@ -584,6 +586,8 @@ var messages = map[Lang]map[string]string{
 	},
 
 	LangDE: {
+		"app.brand":                         "Vacation Planner",
+		"app.tab_name":                      "Vacationplanner",
 		"ideas.map.title":                   "Ideen auf der Karte",
 		"ideas.map.focus_route":             "Gesamte Route anzeigen",
 		"ideas.map.hint":                    "Wähle eine Unterkunft für Entfernungen und Fahrzeiten. Ein Klick auf Nummer oder Strecke zeigt die gesamte Route.",
