@@ -7,17 +7,22 @@
   var status = root.querySelector("[data-ideas-map-status]");
   var cacheStatus = root.querySelector("[data-ideas-map-cache-status]");
   var rows = root.querySelector("[data-ideas-map-rows]");
-  var retry = root.querySelector("[data-ideas-map-retry]");
+  var table = root.querySelector(".ideas-map-table");
   var demo = window.VP_DEMO_IDEAS;
   var map, layer, roads, data, request, timer, overlay;
   var version = 0;
   var selected = "";
   var viewKey = null;
   var positions = null;
+  var viewPoints = null;
   var rendered = null;
   var pending = false;
   var failed = false;
   var popupIdea = null;
+  var userAdjusted = false;
+  var fitting = false;
+  var activeRow = null;
+  var activeRoad = null;
 
   function located(point) {
     return Number.isFinite(point.lat) && Number.isFinite(point.lng) &&
@@ -35,12 +40,37 @@
     return node;
   }
   function fit(points) {
-    if (!points.length) { map.setView([48, 10], 4); return; }
+    fitting = true;
+    if (!points.length) { map.setView([48, 10], 4, { animate: false }); fitting = false; return; }
     var size = map.getSize();
     map.fitBounds(points, {
       padding: [Math.max(30, Math.ceil(size.x * 0.15)), Math.max(30, Math.ceil(size.y * 0.15))],
       maxZoom: 13, animate: false
     });
+    fitting = false;
+  }
+  function clearHighlight(road) {
+    if (road && road !== activeRoad) return;
+    if (activeRow) activeRow.classList.remove("is-route-active");
+    if (activeRoad) activeRoad.setStyle({ color: "#2563eb", weight: 3, opacity: 0.65 });
+    activeRow = null;
+    activeRoad = null;
+  }
+  function highlight(row, road, reveal) {
+    clearHighlight();
+    activeRow = row;
+    activeRoad = road;
+    row.classList.add("is-route-active");
+    road.setStyle({ color: "#1d4ed8", weight: 5, opacity: 1 });
+    road.bringToFront();
+    if (road.getTooltip()) road.getTooltip().bringToFront();
+    if (reveal) {
+      // Scroll only the comparison table; keep the hovered map under the pointer.
+      var bounds = table.getBoundingClientRect();
+      var target = row.getBoundingClientRect();
+      if (target.top < bounds.top) table.scrollTop += target.top - bounds.top;
+      else if (target.bottom > bounds.bottom) table.scrollTop += target.bottom - bounds.bottom;
+    }
   }
   function initialize() {
     if (map) return;
@@ -53,9 +83,12 @@
     }
     roads = L.layerGroup().addTo(map);
     layer = L.layerGroup().addTo(map);
+    map.on("movestart", function () { if (!fitting) userAdjusted = true; });
   }
   function choose(value) {
     selected = value;
+    userAdjusted = false;
+    viewKey = null;
     rendered = null;
     if (data) { data.routes = {}; render(); }
     load();
@@ -94,12 +127,14 @@
     select.value = selected;
     select.disabled = false;
     rows.replaceChildren();
+    clearHighlight();
     var reopen = popupIdea;
     layer.clearLayers();
     roads.clearLayers();
     pending = false;
     failed = false;
     var points = [];
+    var routeBounds = origin ? L.latLngBounds([[origin.lat, origin.lng]]) : null;
     data.lodgings.forEach(function (lodging) {
       if (!located(lodging)) return;
       var label = text("div", lodging.title + " · " + lodging.date_range);
@@ -140,8 +175,36 @@
       popup.appendChild(text("p", (origin ? origin.title + ": " : "") +
         [result.distance, result.duration, label].filter(Boolean).join(" · ")));
       if (origin && road) {
-        L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
+        var line = L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
           .bindPopup(popup.cloneNode(true)).addTo(roads);
+        routeBounds.extend(line.getBounds());
+        if (result.distance) {
+          line.bindTooltip(text("span", (index + 1) + " · " + result.distance), {
+            permanent: true, direction: "center", className: "idea-route-distance", opacity: 0.95
+          });
+        }
+        line.on("mouseover", function () { highlight(row, line, true); });
+        line.on("mouseout", function () { clearHighlight(line); });
+        line.on("click", function () { highlight(row, line, true); });
+        row.addEventListener("mouseenter", function () { highlight(row, line, false); });
+        row.addEventListener("mouseleave", function () { clearHighlight(line); });
+        title.addEventListener("focus", function () { highlight(row, line, false); });
+        title.addEventListener("blur", function () { clearHighlight(line); });
+        var path = line.getElement();
+        if (path) {
+          path.dataset.ideaId = idea.id;
+          path.setAttribute("tabindex", "0");
+          path.setAttribute("role", "button");
+          path.setAttribute("aria-label", idea.title + " · " + (result.distance || ""));
+          path.addEventListener("focus", function () { highlight(row, line, true); });
+          path.addEventListener("blur", function () { clearHighlight(line); });
+          path.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              line.openPopup();
+            }
+          });
+        }
       }
       if (located(idea)) {
         var marker = L.marker([idea.lat, idea.lng], {
@@ -152,8 +215,9 @@
         marker.on("popupclose", function () { popupIdea = null; });
         if (reopen === idea.id) marker.openPopup();
         points.push([idea.lat, idea.lng]);
+        if (routeBounds) routeBounds.extend([idea.lat, idea.lng]);
         title.addEventListener("click", function () {
-          map.setView([idea.lat, idea.lng], Math.max(map.getZoom(), 12));
+          map.setView([idea.lat, idea.lng], Math.max(map.getZoom(), 12), { animate: false });
           marker.openPopup();
           el.scrollIntoView({ block: "nearest" });
         });
@@ -167,12 +231,12 @@
         }
       }
     });
-    var nextPositions = JSON.stringify(points);
+    var fitBounds = routeBounds || (points.length ? L.latLngBounds(points) : null);
+    var nextPositions = fitBounds ? fitBounds.toBBoxString() : "";
     var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);
-    if (origin && nextView !== viewKey) {
-      map.setView([origin.lat, origin.lng], 12, { animate: false });
-    } else if (!selected && (nextView !== viewKey || positions !== nextPositions)) {
-      fit(points);
+    viewPoints = (origin || !selected) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;
+    if (viewPoints && (nextView !== viewKey || (!userAdjusted && positions !== nextPositions))) {
+      fit(viewPoints);
     }
     if (demo && (nextView !== viewKey || positions !== nextPositions)) {
       if (overlay) overlay.setBounds(map.getBounds());
@@ -204,6 +268,7 @@
       if (run !== version) return;
       data = null;
       rows.replaceChildren();
+      clearHighlight();
       if (layer) layer.clearLayers();
       if (roads) roads.clearLayers();
       rendered = null;
@@ -213,32 +278,23 @@
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }
   select.addEventListener("change", function () { choose(select.value); });
-  root.querySelector("[data-ideas-map-refresh]").addEventListener("click", load);
-  retry.addEventListener("click", async function () {
-    if (demo) { load(); return; }
-    var csrf = document.querySelector('meta[name="csrf-token"]');
-    retry.disabled = true;
-    try {
-      var body = new URLSearchParams({ csrf_token: csrf ? csrf.content : "" });
-      var response = await fetch(root.dataset.retryUrl, { method: "POST", body: body });
-      if (!response.ok) throw new Error("Retry failed");
-      load();
-    } catch (error) {
-      status.textContent = root.dataset.retryError;
-    } finally {
-      retry.disabled = false;
-    }
-  });
   ["itemsChanged", "infoChanged", "geographyChanged"].forEach(function (event) {
     document.body.addEventListener(event, load);
   });
   var wasVisible = false;
+  function resizeMap() {
+    fitting = true;
+    map.invalidateSize();
+    fitting = false;
+    if (!userAdjusted && viewPoints) fit(viewPoints);
+    if (demo && overlay) overlay.setBounds(map.getBounds());
+  }
   new ResizeObserver(function () {
     var now = visible();
     if (now && !wasVisible) {
-      if (map) map.invalidateSize();
+      if (map) resizeMap();
       load();
-    } else if (now && map) map.invalidateSize();
+    } else if (now && map) resizeMap();
     else if (!now) stop();
     wasVisible = now;
   }).observe(el);

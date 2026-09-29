@@ -56,9 +56,22 @@
   });
 
   document.body.addEventListener("htmx:beforeSwap", function (evt) {
-    if (evt.detail.target && (evt.detail.target.id === "cheatsheet-rows" || evt.detail.target.id === "archive-error" || evt.detail.target.id === "item-error" || evt.detail.target.id === "ai-error") && evt.detail.xhr.status === 422) {
+    if (evt.detail.target && (evt.detail.target.id === "cheatsheet-rows" || evt.detail.target.id === "archive-error" || evt.detail.target.id === "item-error" || evt.detail.target.id === "ai-error" || evt.detail.target.id === "route-retry-status") && evt.detail.xhr.status === 422) {
       evt.detail.shouldSwap = true;
       evt.detail.isError = true;
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail && event.detail.elt;
+    if (!form || !form.matches || !form.matches("[data-route-retry-form]")) return;
+    form.querySelector("#route-retry-status").textContent = form.dataset.pending;
+  });
+  document.body.addEventListener("htmx:afterRequest", function (event) {
+    var form = event.detail && event.detail.elt;
+    if (!form || !form.matches || !form.matches("[data-route-retry-form]")) return;
+    if (!event.detail.successful && event.detail.xhr.status !== 422) {
+      form.querySelector("#route-retry-status").textContent = form.dataset.error;
     }
   });
 

@@ -98,7 +98,11 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	stats, _ := s.store.Stats(r.Context())
 	categories, _ := s.store.ListCategories(r.Context())
 	people, _ := s.store.ListPeople(r.Context())
-	vacations, _ := s.store.ListVacations(r.Context())
+	vacations, err := s.store.ListVacations(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	foundryView, err := s.foundrySettings(r.Context(), settings)
 	if err != nil {
 		s.serverError(w, r, err)

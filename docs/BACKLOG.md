@@ -54,6 +54,13 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Ideas map interaction improvements — move missing-route retries to Settings with
+      an explicit trip selector, remove both map buttons, and reload cached data on
+      accommodation selection. Fit the selected stay, ideas and actual road detours;
+      preserve manual view changes during polling. Numbered distance labels and
+      route hover/keyboard focus reveal and subtly highlight the matching table row
+      without scrolling the page. Preserve successful routes and other trips' caches.
+
 - [x] ORS summary-only response compatibility — use validated summary metrics for
       two-point directions without instruction segments; retain real multi-leg
       breakdowns. Cover failed-cache recovery and persistence without repeat calls.

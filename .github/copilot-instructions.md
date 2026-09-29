@@ -111,8 +111,13 @@ a reverse proxy.
 - `GET /vacations/{id}/api/ideas-map` – read-only markers for all accommodation and
   saved ideas, including scheduled items and explicit unlocated records.
 - `GET /vacations/{id}/api/ideas-route?lodging=&item=` – read-only cached driving leg
-  between current same-trip records. The Ideas map defaults to Overview, zooms to a
-  selected accommodation and draws all its saved provider road geometries.
+  between current same-trip records. The Ideas map defaults to Overview; selecting an
+  accommodation reloads cached data and fits its ideas and saved road geometries.
+  Distance labels match numbered table rows; route hover/focus highlights and reveals
+  the destination within the table without scrolling the page. Preserve manual views
+  on polling. The map has no refresh/retry buttons.
+- `POST /settings/route/retry` – Settings trip-selectable retry for missing idea routes,
+  with CSRF and trip validation; preserve complete results and other trips' caches.
 - `POST /vacations/{id}/ideas-routes/retry` – explicitly retry failed or incomplete
   cached routes. A lifecycle worker prepares every located accommodation/idea pair
   without page visits, one at a time with pacing. SQLite results survive restart;
@@ -120,8 +125,8 @@ a reverse proxy.
   New/geocoded pairs are discovered automatically. GET/status polling never dispatches
   routing calls. Missing geometry is explicit, never replaced with a straight line.
   Two-point ORS replies can legitimately omit segments with instructions disabled;
-  use validated provider summary metrics for the sole leg. Map refresh only reads
-  SQLite; retry missing routes is a separate CSRF-protected action and preserves
+  use validated provider summary metrics for the sole leg. Map reloads only read
+  SQLite; retry missing routes in Settings is a separate CSRF-protected action and preserves
   successful results. Display saved, failed and pending route counts separately.
 - `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
@@ -43,6 +45,37 @@ func (s *Server) handleUpdateRouteSettings(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.settingSaved(w, r)
+}
+
+func (s *Server) handleRetryRouteSettings(w http.ResponseWriter, r *http.Request) {
+	loc := i18n.FromContext(r.Context())
+	id, err := uuid.Parse(formStr(r, "vacation_id"))
+	if err != nil {
+		s.formError(w, r, "#route-retry-status", loc.T("settings.route.retry_choose"))
+		return
+	}
+	vacation, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			s.formError(w, r, "#route-retry-status", loc.T("settings.route.retry_choose"))
+		} else {
+			s.serverError(w, r, err)
+		}
+		return
+	}
+	if s.routing == nil || !s.routing.Enabled() {
+		s.formError(w, r, "#route-retry-status", loc.T("ideas.map.disabled"))
+		return
+	}
+	if err := s.store.RetryIdeaRoutes(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if !isHTMX(r) {
+		http.Redirect(w, r, "/settings#settings-route-retry", http.StatusSeeOther)
+		return
+	}
+	s.fragment(w, r, "route_retry_result", loc.T("settings.route.retry_queued", vacation.Title))
 }
 
 // categoryIcons maps lower-cased category names to their emoji icon.

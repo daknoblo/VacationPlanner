@@ -1,0 +1,25 @@
+{{define "settings_route_retry"}}
+<h3 class="settings-subheading" id="settings-route-retry">{{t "settings.route.retry_heading"}}</h3>
+<p class="muted small">{{t "settings.route.retry_hint"}}</p>
+{{if .Data.Vacations}}
+<form class="form" method="post" action="/settings/route/retry"
+      hx-post="/settings/route/retry" hx-target="#route-retry-status" hx-swap="innerHTML"
+      hx-disabled-elt="find button" data-route-retry-form
+      data-pending="{{t "settings.route.retry_pending"}}" data-error="{{t "ideas.map.retry_error"}}">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <div class="field">
+    <label for="route-retry-vacation">{{t "settings.route.retry_vacation"}}</label>
+    <select id="route-retry-vacation" name="vacation_id" required>
+      <option value="">{{t "settings.route.retry_choose"}}</option>
+      {{range .Data.Vacations}}
+      <option value="{{.ID}}">{{.Title}} · {{fmtDate .StartDate}} – {{fmtDate .EndDate}}</option>
+      {{end}}
+    </select>
+  </div>
+  <div><button class="btn btn--sm" type="submit"{{if not .Data.RouteKeyConfigured}} disabled{{end}}>{{t "ideas.map.retry"}}</button></div>
+  <div id="route-retry-status" role="status" aria-live="polite"></div>
+</form>
+{{else}}<p class="muted small">{{t "settings.vacations.empty"}}</p>{{end}}
+{{end}}
+
+{{define "route_retry_result"}}<p class="muted small">{{.}}</p>{{end}}

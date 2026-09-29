@@ -48,6 +48,7 @@ func (s *Server) routes() {
 	r.Post("/settings/ai/probe", s.handleFoundryProbe)
 	r.Post("/settings/geo", s.handleUpdateGeoSettings)
 	r.Post("/settings/route", s.handleUpdateRouteSettings)
+	r.Post("/settings/route/retry", s.handleRetryRouteSettings)
 	r.Post("/settings/home", s.handleUpdateHomeSettings)
 	r.Post("/settings/log", s.handleUpdateLogSettings)
 	r.Get("/settings/logs", s.handleLogs)

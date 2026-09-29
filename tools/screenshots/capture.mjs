@@ -186,7 +186,7 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
     "input:not([type=hidden]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]), " +
-    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-map-retry]):not([data-ideas-map-refresh]):not(.ideas-map-link)",
+    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not(.ideas-map-link)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
   );
@@ -257,6 +257,8 @@ async function verifyView(page, shot) {
     assert.ok(await page.locator("#ai-deployment option").count() >= 2,
       "The current Foundry deployment chooser is rendered");
     assert.equal(await page.locator("#foundry-settings-panel input[type=checkbox]").count(), 0);
+    assert.ok(await page.locator("#route-retry-vacation option").count() > 1);
+    assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
     await page.locator("#ideas-map.leaflet-container").waitFor();
@@ -265,11 +267,13 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
     assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
     assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
+    assert.equal(await page.locator("[data-ideas-map-refresh], [data-ideas-map-retry]").count(), 0, "Map controls must not contain refresh or retry buttons");
     assert.ok(await page.locator("[data-ideas-map-status]").innerText());
     const origin = await page.locator("[data-ideas-map-origin] option").nth(1).getAttribute("value");
     await page.locator("[data-ideas-map-origin]").selectOption(origin);
     assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,
       "Selected accommodation displays every illustrative route in the offline demo");
+    assert.equal(await page.locator("#ideas-map .idea-route-distance").count(), 14, "Every saved road has a distance label");
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       "Ideas map and route table must fit the mobile viewport");
