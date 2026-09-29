@@ -1412,7 +1412,7 @@ textarea { resize: vertical; }
 .ideas-map-table th, .ideas-map-table td { padding: .5rem; vertical-align: top; }
 .ideas-map-table th:not(:first-child), .ideas-map-table td:not(:first-child) { text-align: center; white-space: nowrap; vertical-align: middle; }
 .ideas-map-table td:first-child { width: 100%; min-width: 12rem; }
-.ideas-map-table select { width: 10rem; }
+.ideas-map-table select { width: clamp(16rem, 26vw, 24rem); }
 .ideas-map-description { display: block; margin-top: .2rem; }
 .ideas-map-start { display: block; margin-top: .2rem; }
 .ideas-map-sort { display: inline-flex; align-items: center; gap: .3rem; border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }

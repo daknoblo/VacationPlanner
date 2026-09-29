@@ -189,6 +189,10 @@ published together as a Pages artifact, not checked into the repository.
   instead of repeated route-status text. Small header arrows sort distance or duration
   numerically in either direction, keeping missing values last and marker numbers stable.
   Sorting survives cache refreshes and accommodation changes without moving the map.
+  Day choices show the booked accommodation region before the date; transfer days
+  include both regions. They reuse the calendar's local-date rules and explicit
+  unknown-region/no-accommodation labels. Background updates refresh the labels without
+  changing the selected date or requesting provider data.
   Choosing a trip day updates the original idea, not a copy, and refreshes the day planner,
   including moving an existing time block immediately without reloading the page.
   New day assignments remain untimed; existing times, costs, payers, coordinates and links

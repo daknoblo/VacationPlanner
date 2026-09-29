@@ -15,7 +15,10 @@ export async function verifyIdeasMap(browser) {
   let gate, release;
   const data = {
     routing: true, progress: { total: 4, completed: 4 }, progress_label: "4 saved / 0 failed / 0 pending",
-    days: [{ value: "2027-05-01", label: "01.05.2027" }, { value: "2027-05-02", label: "02.05.2027" }],
+    days: [
+      { value: "2027-05-01", label: "Southern Denmark · 01.05.2027" },
+      { value: "2027-05-02", label: "Southern Denmark · Zealand · 02.05.2027" },
+    ],
     lodgings: [
       { id: "a", title: "House <em>A</em>", date_range: "01.05.2027 – 03.05.2027", lat: 55, lng: 8 },
       { id: "b", title: "Campsite B", date_range: "03.05.2027 – 05.05.2027", lat: 56, lng: 9 },
@@ -83,7 +86,7 @@ export async function verifyIdeasMap(browser) {
       if (scheduleGate) await scheduleGate;
       if (failSchedule) return route.fulfill({ status: 500, body: "Save failed" });
       data.ideas[0].scheduled_day = values.get("day");
-      data.ideas[0].day = data.days.find(day => day.value === values.get("day")).label;
+      data.ideas[0].day = values.get("day").split("-").reverse().join(".");
       return route.fulfill({ status: 200, contentType: "text/html",
         body: '<div class="planner-block" data-id="one">10:00 — Saved idea</div>' });
     }
@@ -435,6 +438,12 @@ export async function verifyIdeasMap(browser) {
     assert.equal(await firstRow.locator(".ideas-map-description b").count(), 0, "Descriptions must be plain text");
     assert.equal(await rows.locator('[data-idea-schedule="two"]').inputValue(), "2027-05-02");
     const picker = firstRow.locator("[data-idea-schedule]");
+    assert.equal(await picker.locator("option:checked").textContent(), "Southern Denmark · Zealand · 02.05.2027");
+    data.days[1].label = "Zealand · 02.05.2027";
+    await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("geographyChanged")));
+    await page.waitForFunction(() =>
+      document.querySelector('[data-idea-schedule="one"] option:checked')?.textContent === "Zealand · 02.05.2027");
+    assert.equal(await picker.inputValue(), "2027-05-02", "Refreshing a region must not change the scheduled date");
     await picker.focus();
     await page.evaluate(() => { window.preservedPicker = document.activeElement; });
     const beforeEditing = requests;

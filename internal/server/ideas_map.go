@@ -66,7 +66,7 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	_, tz := s.regionSettings(r.Context())
+	weekStart, tz := s.regionSettings(r.Context())
 	settings, err := s.store.GetSettings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
@@ -78,13 +78,16 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	loc := i18n.FromContext(r.Context())
+	vacation.Lodgings = lodgings
+	regions := calendarRegions(loc, tz, weekStart != "sunday", vacation)
 	payload := ideasMapPayload{
 		Lodgings: make([]ideasMapPoint, 0, len(lodgings)), Ideas: make([]ideasMapPoint, 0, len(items)),
 		Routing: s.routing != nil && s.routing.Enabled(),
 		Days:    make([]ideasMapDay, 0),
 	}
 	for _, day := range vacation.Days() {
-		payload.Days = append(payload.Days, ideasMapDay{Value: day.Format("2006-01-02"), Label: fmtDate(day)})
+		value := day.Format("2006-01-02")
+		payload.Days = append(payload.Days, ideasMapDay{Value: value, Label: regions.Days[value].Label + " · " + fmtDate(day)})
 	}
 	for _, lodging := range lodgings {
 		payload.Lodgings = append(payload.Lodgings, ideasMapPoint{

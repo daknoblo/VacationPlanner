@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Region-prefixed planning dates — show accommodation regions before each date
+      in the Ideas day dropdown, sharing calendar timezone/transfer-day rules and
+      localized missing-data labels. Keep submitted dates unchanged and refresh
+      labels from saved data only.
+
 - [x] Cached driving values in the Ideas overview — show the shortest saved road
       distance per idea with the paired duration and named origin before selecting a
       stay. Add accessible numeric sorting, centered metrics/day selectors and

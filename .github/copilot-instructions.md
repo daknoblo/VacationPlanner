@@ -132,6 +132,9 @@ a reverse proxy.
   keep missing values last and preserve marker numbering, selection and viewport on refresh.
   Date-only scheduling reuses the original item without inventing or changing times;
   preserve source fields atomically and refresh the planner through itemsChanged.
+  Day dropdown labels prefix the date with saved accommodation regions, using the
+  calendar's timezone, inclusive transfer days and explicit missing-region/stay states.
+  Label refreshes must preserve the ISO date value and never start provider work.
   A bounded lifecycle worker generates missing descriptions once per identifying source,
   in English/German in one call, with durable reservation and attempt-bound completion.
   Existing descriptions take precedence. Never send notes or participants for descriptions,

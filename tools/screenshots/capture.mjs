@@ -317,6 +317,14 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("[data-ideas-map-rows] tr").first().locator("td").count(), 4);
     assert.ok(await page.locator(".ideas-map-description").count() > 0);
     assert.equal(await page.locator("[data-idea-schedule]").count(), 15);
+    const dayChoices = await page.locator("[data-idea-schedule]").first().locator("option").evaluateAll(options =>
+      options.filter(option => option.value).map(option => ({ value: option.value, label: option.textContent })));
+    assert.equal(dayChoices.length, 7);
+    for (let i = 0; i < dayChoices.length; i++) {
+      const region = i < 5 ? "Toscana" : i === 5 ? "Toscana · Lazio" : "Lazio";
+      assert.equal(dayChoices[i].label, `${region} · ${dayChoices[i].value.split("-").reverse().join(".")}`,
+        "Day options prefix dates with the same inclusive accommodation regions as the calendar");
+    }
     assert.ok(await page.locator("[data-idea-schedule]").evaluateAll(elements => elements.every(el => el.disabled)),
       "The static demo must never schedule activities");
     assert.ok(await page.locator(".ideas-map-controls").evaluate(el => {

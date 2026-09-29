@@ -7,9 +7,74 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
+
+func TestIdeasMapDayChoicesIncludeCurrentLocalAccommodationRegions(t *testing.T) {
+	s := newIntegrationServer(t)
+	ctx := t.Context()
+	if err := s.store.PutSetting(ctx, settingTimezone, "Europe/Copenhagen"); err != nil {
+		t.Fatal(err)
+	}
+	start := regionDate(t, "2026-10-24T00:00:00Z")
+	v := &models.Vacation{Title: "Regions", StartDate: start, EndDate: start.AddDate(0, 0, 4)}
+	if err := s.store.CreateVacation(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	lodgings := []models.Lodging{
+		{VacationID: v.ID, Name: "Late arrival", Region: "Zealand", CheckIn: regionDate(t, "2026-10-24T22:30:00Z"), CheckOut: regionDate(t, "2026-10-25T23:00:00Z")},
+		{VacationID: v.ID, Name: "Same region", Region: " zealand ", CheckIn: regionDate(t, "2026-10-25T15:00:00Z"), CheckOut: regionDate(t, "2026-10-26T09:00:00Z")},
+		{VacationID: v.ID, Name: "Unresolved region", Latitude: fptr(55), Longitude: fptr(8),
+			CheckIn: regionDate(t, "2026-10-26T10:00:00Z"), CheckOut: regionDate(t, "2026-10-27T09:00:00Z")},
+	}
+	for n := range lodgings {
+		if err := s.store.CreateLodging(ctx, &lodgings[n]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := "/vacations/" + v.ID.String() + "/api/ideas-map"
+	for _, lang := range []i18n.Lang{i18n.LangEN, i18n.LangDE} {
+		loc := i18n.NewLocalizer(lang)
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "lang", Value: string(lang)})
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		var data ideasMapPayload
+		if rec.Code != http.StatusOK {
+			t.Fatalf("day choices failed: %d %s", rec.Code, rec.Body.String())
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &data); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{
+			loc.T("planner.regions.no_lodging"), "Zealand",
+			"Zealand · " + loc.T("planner.regions.unknown"),
+			loc.T("planner.regions.unknown"), loc.T("planner.regions.no_lodging"),
+		}
+		if len(data.Days) != len(want) {
+			t.Fatalf("missing trip days: %+v", data.Days)
+		}
+		for n, region := range want {
+			day := start.AddDate(0, 0, n)
+			if data.Days[n].Value != day.Format("2006-01-02") || data.Days[n].Label != region+" · "+fmtDate(day) {
+				t.Fatalf("wrong local region, transfer day, fallback or date value: %+v", data.Days[n])
+			}
+		}
+	}
+	if updated, err := s.store.UpdateLodgingRegion(ctx, &lodgings[2], "Jutland"); err != nil || !updated {
+		t.Fatal("could not enrich the saved accommodation region", updated, err)
+	}
+	var refreshed ideasMapPayload
+	readTripJSON(t, s, path, &refreshed)
+	if refreshed.Days[2].Label != "Zealand · Jutland · 26.10.2026" || refreshed.Days[3].Label != "Jutland · 27.10.2026" {
+		t.Fatalf("day labels retained stale accommodation regions: %+v", refreshed.Days)
+	}
+	if len(s.geography.queue) != 0 || len(s.geography.states) != 0 {
+		t.Fatal("reading day choices started geography work")
+	}
+}
 
 func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing.T) {
 	s := newIntegrationServer(t)
