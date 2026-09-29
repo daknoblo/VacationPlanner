@@ -5,8 +5,92 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
+
+func TestOverviewIdeaRoutesUseCurrentShortestSavedPairs(t *testing.T) {
+	st := newTestStore(t)
+	ctx := t.Context()
+	lat, lng := 55.0, 8.0
+	v := &models.Vacation{Title: "Trip", Destination: "Test", StartDate: time.Now(), EndDate: time.Now().Add(72 * time.Hour)}
+	if err := st.CreateVacation(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	items := make([]models.Item, 2)
+	for n := range items {
+		items[n] = models.Item{VacationID: v.ID, Title: "Idea", Latitude: &lat, Longitude: &lng}
+		if err := st.CreateItem(ctx, &items[n]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lodgings := make([]models.Lodging, 3)
+	for n := range lodgings {
+		lodgings[n] = models.Lodging{VacationID: v.ID, Name: "Stay", Latitude: &lat, Longitude: &lng,
+			CheckIn: v.StartDate.Add(time.Duration(n) * 24 * time.Hour), CheckOut: v.EndDate}
+		if err := st.CreateLodging(ctx, &lodgings[n]); err != nil {
+			t.Fatal(err)
+		}
+		for j, item := range items {
+			distance, duration, status := 9000.0, 800.0, "ready"
+			if n == 0 {
+				duration = 900
+			}
+			if j == 1 {
+				distance = float64(n+1) * 5000
+				if n == 2 {
+					distance, status = 0, "unavailable"
+				}
+			}
+			job := &models.IdeaRoute{VacationID: v.ID, LodgingID: lodgings[n].ID, ItemID: item.ID,
+				FromLat: lat, FromLng: lng, ToLat: lat, ToLng: lng,
+				Status: status, DistanceM: distance, DurationS: duration, Geometry: [][2]float64{{lat, lng}, {lat, lng}}}
+			if saved, err := st.PutIdeaRoute(ctx, job); err != nil || !saved {
+				t.Fatal(saved, err)
+			}
+		}
+	}
+	check := func(first uuid.UUID) {
+		t.Helper()
+		result, err := st.ListIdeaRoutes(ctx, "", v.ID, uuid.Nil)
+		if err != nil || len(result) != 2 {
+			t.Fatal(result, err)
+		}
+		for _, value := range result {
+			want := lodgings[0].ID
+			if value.ItemID == items[0].ID {
+				want = first
+			}
+			if value.Status != "ready" || value.LodgingID != want || len(value.Geometry) != 0 {
+				t.Fatalf("incorrect shortest route or unnecessary geometry: %+v", value)
+			}
+		}
+	}
+	check(lodgings[1].ID)
+	lodgings[2].CheckIn = lodgings[1].CheckIn
+	if err := st.UpdateLodging(ctx, &lodgings[2]); err != nil {
+		t.Fatal(err)
+	}
+	want := lodgings[1].ID
+	if lodgings[2].ID.String() < want.String() {
+		want = lodgings[2].ID
+	}
+	check(want)
+	newLat := 56.0
+	lodgings[1].Latitude = &newLat
+	if err := st.UpdateLodging(ctx, &lodgings[1]); err != nil {
+		t.Fatal(err)
+	}
+	check(lodgings[2].ID)
+	if err := st.DeleteLodging(ctx, lodgings[2].ID); err != nil {
+		t.Fatal(err)
+	}
+	check(lodgings[0].ID)
+	if result, err := st.ListIdeaRoutes(ctx, "changed-provider", v.ID, uuid.Nil); err != nil || len(result) != 0 {
+		t.Fatal("overview reused another provider's cache", result, err)
+	}
+}
 
 func TestIdeaRoutesDurableDerivedQueueAndCoordinateCAS(t *testing.T) {
 	st := newTestStore(t)

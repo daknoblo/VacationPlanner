@@ -187,7 +187,7 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
     "input:not([type=hidden]):not([data-ai-radius]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]):not([data-ai-center]), " +
-    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not(.ideas-map-link):not(.idea-route-label)",
+    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-sort]):not(.ideas-map-link):not(.idea-route-label)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
   );
@@ -263,6 +263,17 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
+    assert.ok(await page.locator("#ideen-list .item-row__thumb").evaluateAll(images => images.every(image => {
+      const bounds = image.getBoundingClientRect(), row = image.closest(".item-row").getBoundingClientRect();
+      return Math.abs(row.right - bounds.right - 1) < 1 &&
+        Math.abs((row.top + row.bottom) / 2 - (bounds.top + bounds.bottom) / 2) < 1 &&
+        bounds.width > 120 && Math.abs(bounds.width / bounds.height - 4 / 3) < 0.02;
+    })), "Images stay at the right edge, vertically centered and larger where space allows");
+    const thumbnailWidth = (await page.locator("#ideen-list .item-row__thumb").first().boundingBox()).width;
+    await page.setViewportSize({ width: 1920, height: desktop.height });
+    const wideThumbnail = (await page.locator("#ideen-list .item-row__thumb").first().boundingBox()).width;
+    assert.ok(wideThumbnail > thumbnailWidth && wideThumbnail <= 220, "Thumbnails grow with available space up to their cap");
+    await page.setViewportSize(desktop);
     assert.ok(await page.locator("#ideen-list").evaluate(list => {
       const rows = [...list.children].map(row => row.getBoundingClientRect());
       return rows.length >= 3 && rows[0].top === rows[1].top &&
@@ -280,6 +291,19 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
     assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
     assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
+    assert.equal(await page.locator(".ideas-map-start").count(), 14, "Overview includes a saved origin per located idea");
+    assert.ok(await page.locator("[data-ideas-map-rows] tr").first().locator("td").nth(1).textContent() !== "—");
+    assert.ok(await page.locator("[data-ideas-map-rows] tr").first().evaluate(row => {
+      const cells = [...row.cells].slice(1);
+      const picker = row.querySelector("select").getBoundingClientRect(), box = row.getBoundingClientRect();
+      return cells.every(cell => getComputedStyle(cell).textAlign === "center" &&
+        getComputedStyle(cell).verticalAlign === "middle") &&
+        Math.abs((picker.top + picker.bottom) / 2 - (box.top + box.bottom) / 2) < 1;
+    }), "Metrics and day selectors are centered horizontally and vertically");
+    await page.locator('[data-ideas-sort="distanceM"]').click();
+    await page.locator('[data-ideas-sort="distanceM"]').click();
+    assert.equal(await page.locator('[data-ideas-sort="distanceM"]').locator("..").getAttribute("aria-sort"), "descending");
+    await page.locator('[data-ideas-sort="distanceM"]').click();
     assert.equal(await page.locator("[data-ideas-map-refresh], [data-ideas-map-retry]").count(), 0, "Map controls must not contain refresh or retry buttons");
     assert.equal(await page.locator("[data-ideas-map-status]").isVisible(), false, "No redundant map success paragraph");
     assert.ok(await page.locator(".ideas-map-heading").evaluate(el => {

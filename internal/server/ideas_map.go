@@ -123,37 +123,42 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 			payload.Progress.Completed-payload.Progress.Failed, payload.Progress.Failed,
 			payload.Progress.Total-payload.Progress.Completed)
 	}
+	var lodgingID uuid.UUID
 	if raw := r.URL.Query().Get("lodging"); raw != "" {
-		lodgingID, err := uuid.Parse(raw)
-		if err != nil {
+		lodgingID, err = uuid.Parse(raw)
+		if err != nil || lodgingID == uuid.Nil {
 			s.notFound(w, r)
 			return
 		}
-		if payload.Routing {
-			routes, err := s.store.ListIdeaRoutes(r.Context(), settings[settingRouteBaseURL], id, lodgingID)
-			if err != nil {
-				s.serverError(w, r, err)
-				return
-			}
-			for _, value := range routes {
-				payload.Routes[value.ItemID.String()] = savedIdeaDrive(value)
-			}
+	}
+	if payload.Routing {
+		routes, err := s.store.ListIdeaRoutes(r.Context(), settings[settingRouteBaseURL], id, lodgingID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		for _, value := range routes {
+			payload.Routes[value.ItemID.String()] = savedIdeaDrive(value)
 		}
 	}
 	s.ideasMapJSON(w, payload)
 }
 
 type ideaDrive struct {
-	Status   string       `json:"status"`
-	Distance string       `json:"distance,omitempty"`
-	Duration string       `json:"duration,omitempty"`
-	Geometry [][2]float64 `json:"geometry,omitempty"`
+	Status    string       `json:"status"`
+	Distance  string       `json:"distance,omitempty"`
+	Duration  string       `json:"duration,omitempty"`
+	Geometry  [][2]float64 `json:"geometry,omitempty"`
+	DistanceM *float64     `json:"distance_m,omitempty"`
+	DurationS *float64     `json:"duration_s,omitempty"`
+	LodgingID string       `json:"lodging_id,omitempty"`
 }
 
 func savedIdeaDrive(value models.IdeaRoute) ideaDrive {
 	result := ideaDrive{Status: value.Status}
 	if value.Status == "ready" {
 		result.Distance, result.Duration, result.Geometry = formatDistance(value.DistanceM), formatDuration(value.DurationS), value.Geometry
+		result.DistanceM, result.DurationS, result.LodgingID = &value.DistanceM, &value.DurationS, value.LodgingID.String()
 	}
 	return result
 }

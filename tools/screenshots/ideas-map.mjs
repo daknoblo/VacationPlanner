@@ -33,9 +33,11 @@ export async function verifyIdeasMap(browser) {
     routes[origin.id] = {};
     for (const idea of data.ideas.slice(0, 2)) routes[origin.id][idea.id] = {
       status: "ready", distance: origin.id === "a" ? "12.3 km" : "24.6 km", duration: "1 h 16 min",
+      distance_m: origin.id === "a" ? 12300 : 24600, duration_s: 4560, lodging_id: origin.id,
       geometry: [[origin.lat, origin.lng], [55.05, 8.3], [idea.lat, idea.lng]],
     };
   }
+  Object.assign(routes.b.two, { distance: "9.0 km", distance_m: 9000, duration: "1 h 30 min", duration_s: 5400 });
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/*", async route => {
     const url = new URL(route.request().url());
@@ -60,7 +62,14 @@ export async function verifyIdeasMap(browser) {
     if (url.pathname === "/map") {
       assert.equal(route.request().method(), "GET", "Map interactions must only read the saved cache");
       requests++;
-      const json = JSON.stringify({ ...data, routes: routes[url.searchParams.get("lodging")] || {} });
+      const overview = {};
+      for (const idea of data.ideas) {
+        const candidates = Object.values(routes).map(saved => saved[idea.id]).filter(value => value?.status === "ready")
+          .sort((a, b) => a.distance_m - b.distance_m || a.duration_s - b.duration_s);
+        if (candidates.length) overview[idea.id] = { ...candidates[0], geometry: undefined };
+      }
+      const origin = url.searchParams.get("lodging");
+      const json = JSON.stringify({ ...data, routes: origin ? routes[origin] || {} : overview });
       if (gate && url.searchParams.get("lodging") === "a") await gate;
       return route.fulfill({ status: failMap ? 503 : 200, contentType: "application/json", body: json });
     }
@@ -85,12 +94,15 @@ export async function verifyIdeasMap(browser) {
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
-        data-focus-route="Show the entire route" data-schedule="Plan for day" data-unscheduled="Choose day"
+        data-focus-route="Show the entire route" data-route-from="From:" data-schedule="Plan for day" data-unscheduled="Choose day"
         data-schedule-error="Could not save the day" data-saving="Saving">
         <select data-ideas-map-origin></select>
         <div id="ideas-map" class="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
-        <div class="ideas-map-table" style="height:65px"><table><tbody data-ideas-map-rows></tbody></table></div>
+        <div class="ideas-map-table" style="height:65px"><table><thead><tr>
+          <th>Idea</th><th aria-sort="none"><button data-ideas-sort="distanceM">Distance <span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button data-ideas-sort="durationS">Time <span aria-hidden="true">↕</span></button></th><th>Plan</th>
+        </tr></thead><tbody data-ideas-map-rows></tbody></table></div>
       </section></section>
       <div hidden>
         <div data-planner-grid data-day="2027-05-01"></div>
@@ -167,7 +179,38 @@ export async function verifyIdeasMap(browser) {
       const rect = el.getBoundingClientRect();
       return [style.backgroundColor, style.borderRadius, Math.round(rect.width) === Math.round(rect.height)];
     }), ["rgb(254, 240, 138)", "50%", true], "Missing location must be shown as a small yellow circle");
-    assert.deepEqual(await lines(), [], "Overview must not guess an origin");
+    assert.deepEqual(await lines(), [], "Overview keeps the full map without drawing mixed-origin roads");
+    assert.equal(await rows.locator('[data-idea-id="one"] td').nth(1).textContent(), "12.3 km");
+    assert.equal(await rows.locator('[data-idea-id="two"] td').nth(1).textContent(), "9.0 km");
+    assert.equal(await rows.locator('[data-idea-id="two"] .ideas-map-start').textContent(), "From: Campsite B");
+    assert.equal(await rows.locator('[data-idea-id="one"] .ideas-map-start').textContent(), "From: House <em>A</em>");
+    const distanceSort = page.locator('[data-ideas-sort="distanceM"]');
+    const durationSort = page.locator('[data-ideas-sort="durationS"]');
+    const order = () => rows.locator("tr").evaluateAll(elements => elements.map(el => el.dataset.ideaId));
+    const view = await page.evaluate(() => [testMap.getCenter(), testMap.getZoom()]);
+    await distanceSort.click();
+    assert.deepEqual(await order(), ["two", "one", "three"], "Sort numeric meters, not the formatted label");
+    assert.equal(await distanceSort.locator("..").getAttribute("aria-sort"), "ascending");
+    await distanceSort.press("Enter");
+    assert.deepEqual(await order(), ["one", "two", "three"], "Descending sort still keeps missing values last");
+    await durationSort.click();
+    assert.deepEqual(await order(), ["one", "two", "three"]);
+    await durationSort.press("Space");
+    assert.deepEqual(await order(), ["two", "one", "three"]);
+    assert.equal(await distanceSort.locator("..").getAttribute("aria-sort"), "none");
+    assert.equal(await rows.locator("tr").first().locator(".ideas-map-link").textContent(), "2. Scheduled idea");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter(), testMap.getZoom()]), view,
+      "Table sorting must not move the map or renumber markers");
+    const original = { ...routes.a.one };
+    Object.assign(routes.a.one, { distance: "0 m", distance_m: 0, duration: "0 min", duration_s: 0 });
+    await refresh();
+    await waitText(rows, "0 m");
+    assert.deepEqual(await order(), ["two", "one", "three"], "Background refresh retains the current sort");
+    await durationSort.click();
+    assert.deepEqual(await order(), ["one", "two", "three"], "Zero duration is valid, not missing");
+    Object.assign(routes.a.one, original);
+    await refresh();
+    await waitText(rows, "12.3 km");
     assert.equal(await rows.locator("script, em").count(), 0);
     assert.equal(await select.locator('option[value="c"]').isDisabled(), true);
     assert.ok(await page.evaluate(() => testMap.getBounds().contains([55, 8]) && testMap.getBounds().contains([56, 9])));

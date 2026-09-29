@@ -136,6 +136,15 @@ func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 	if calls.Load() != 2 {
 		t.Fatal("background results were not persisted for both accommodations")
 	}
+	var overview ideasMapPayload
+	overviewPath := "/vacations/" + v.ID.String() + "/api/ideas-map"
+	readTripJSON(t, s, overviewPath, &overview)
+	nearest := overview.Routes[item.ID.String()]
+	if nearest.LodgingID != lodging.ID.String() || nearest.Distance != "12.3 km" ||
+		nearest.Duration != "1 h 16 min" || nearest.DistanceM == nil || *nearest.DistanceM != 12345 ||
+		nearest.DurationS == nil || *nearest.DurationS != 4567 || len(nearest.Geometry) != 0 || calls.Load() != 2 {
+		t.Fatalf("overview must pair the shortest saved road distance with its own duration and origin: %+v", nearest)
+	}
 	var selected ideaDrive
 	readTripJSON(t, s, "/vacations/"+v.ID.String()+"/api/ideas-route?lodging="+second.ID.String()+"&item="+item.ID.String(), &selected)
 	if selected.Distance != "24.7 km" || selected.Duration != "30 min" || calls.Load() != 2 {
@@ -144,6 +153,11 @@ func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 	other := sampleVacation()
 	if err := s.store.CreateVacation(t.Context(), other); err != nil {
 		t.Fatal(err)
+	}
+	var foreign ideasMapPayload
+	readTripJSON(t, s, "/vacations/"+other.ID.String()+"/api/ideas-map", &foreign)
+	if len(foreign.Routes) != 0 {
+		t.Fatal("overview included another trip's routes")
 	}
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/vacations/"+other.ID.String()+"/api/ideas-route?lodging="+lodging.ID.String()+"&item="+item.ID.String(), nil))
@@ -158,6 +172,10 @@ func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 	readTripJSON(t, s, path, &data)
 	if data.Status != "missing" || data.Distance != "" || data.Duration != "" || calls.Load() != 2 {
 		t.Fatalf("stale coordinates used: %+v", data)
+	}
+	readTripJSON(t, s, overviewPath, &overview)
+	if overview.Routes[item.ID.String()].LodgingID != second.ID.String() || calls.Load() != 2 {
+		t.Fatal("overview did not replace the now-unlocated starting accommodation")
 	}
 }
 

@@ -28,6 +28,31 @@
   var moving = false;
   var scheduling = false;
   var scheduleErrors = new Map();
+  var sortKey = "";
+  var sortDirection = 1;
+  var sortButtons = root.querySelectorAll("[data-ideas-sort]");
+
+  function sortRows() {
+    sortButtons.forEach(function (button) {
+      var active = button.dataset.ideasSort === sortKey;
+      button.closest("th").setAttribute("aria-sort", active ? (sortDirection === 1 ? "ascending" : "descending") : "none");
+      button.querySelector("span").textContent = active ? (sortDirection === 1 ? "\u25b4" : "\u25be") : "\u2195";
+    });
+    if (!sortKey) return;
+    Array.from(rows.children).sort(function (a, b) {
+      var first = Number(a.dataset[sortKey]), second = Number(b.dataset[sortKey]);
+      var hasFirst = Number.isFinite(first), hasSecond = Number.isFinite(second);
+      if (hasFirst !== hasSecond) return hasFirst ? -1 : 1;
+      return (hasFirst ? (first - second) * sortDirection : 0) || Number(a.dataset.order) - Number(b.dataset.order);
+    }).forEach(function (row) { rows.appendChild(row); });
+  }
+  sortButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      sortDirection = sortKey === button.dataset.ideasSort ? -sortDirection : 1;
+      sortKey = button.dataset.ideasSort;
+      sortRows();
+    });
+  });
 
   function choosingDay() {
     return scheduling || document.activeElement && document.activeElement.matches("[data-idea-schedule]");
@@ -325,6 +350,7 @@
     data.ideas.forEach(function (idea, index) {
       var row = document.createElement("tr");
       row.dataset.ideaId = idea.id;
+      row.dataset.order = index;
       var name = document.createElement("td");
       var title = text("button", (index + 1) + ". " + idea.title);
       title.type = "button";
@@ -343,16 +369,32 @@
       var popup = text("div", idea.title + (idea.day ? " · " + idea.day : ""));
       var result = { status: "pending" };
       if (!located(idea)) result = { status: "missing" };
-      else if (!origin) result = { status: "noOrigin" };
+      else if (selected && !origin) result = { status: "noOrigin" };
       else if (demo) {
-        var sample = (index + 1) * (data.lodgings.indexOf(origin) + 1);
-        result = { status: "demo", distance: (sample * 4.2).toFixed(1) + " km", duration: (sample * 6) + " min",
-          geometry: [[origin.lat, origin.lng], [(origin.lat + idea.lat) / 2 + 0.015, (origin.lng + idea.lng) / 2], [idea.lat, idea.lng]] };
+        var sampleOrigin = origin || data.lodgings.find(located);
+        if (sampleOrigin) {
+          var sample = (index + 1) * (data.lodgings.indexOf(sampleOrigin) + 1);
+          result = { status: "demo", distance: (sample * 4.2).toFixed(1) + " km", duration: (sample * 6) + " min",
+            distance_m: sample * 4200, duration_s: sample * 360, lodging_id: sampleOrigin.id,
+            geometry: [[sampleOrigin.lat, sampleOrigin.lng], [(sampleOrigin.lat + idea.lat) / 2 + 0.015, (sampleOrigin.lng + idea.lng) / 2], [idea.lat, idea.lng]] };
+        } else result = { status: "noOrigin" };
       } else if (!data.routing) result = { status: "disabled" };
       else if (data.routes && data.routes[idea.id]) result = data.routes[idea.id];
+      else if (!selected && !data.lodgings.some(located)) result = { status: "noOrigin" };
+      var routeOrigin = origin || data.lodgings.find(function (lodging) { return lodging.id === result.lodging_id; });
+      if (!selected && routeOrigin && result.distance) {
+        var from = text("span", root.dataset.routeFrom + " " + routeOrigin.title);
+        from.className = "ideas-map-start muted small";
+        from.title = routeOrigin.title + (routeOrigin.date_range ? " · " + routeOrigin.date_range : "");
+        name.appendChild(from);
+      }
+      if (result.status === "ready" || result.status === "demo") {
+        if (Number.isFinite(result.distance_m) && result.distance_m >= 0) row.dataset.distanceM = result.distance_m;
+        if (Number.isFinite(result.duration_s) && result.duration_s >= 0) row.dataset.durationS = result.duration_s;
+      }
       if (result.status === "unavailable") failed = true;
       var road = Array.isArray(result.geometry) && result.geometry.length >= 2;
-      var label = result.status === "ready" && !road ? root.dataset.noGeometry :
+      var label = result.status === "ready" && !road && selected ? root.dataset.noGeometry :
         root.dataset[result.status] || root.dataset.unavailable;
       var distance = text("td", result.distance || "\u2014");
       var duration = text("td", result.duration || "\u2014");
@@ -383,7 +425,7 @@
       schedule.append(picker, feedback);
       row.appendChild(schedule);
       rows.appendChild(row);
-      popup.appendChild(text("p", (origin ? origin.title + ": " : "") +
+      popup.appendChild(text("p", (routeOrigin ? routeOrigin.title + ": " : "") +
         [result.distance, result.duration, label].filter(Boolean).join(" · ")));
       if (origin && road) {
         var routeName = [root.dataset.focusRoute, (index + 1) + ". " + idea.title, result.distance, result.duration].filter(Boolean).join(" · ");
@@ -487,6 +529,7 @@
         }
       }
     });
+    sortRows();
     var fitBounds = routeBounds || (points.length ? L.latLngBounds(points) : null);
     var nextPositions = fitBounds ? fitBounds.toBBoxString() : "";
     var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);

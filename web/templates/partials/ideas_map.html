@@ -6,6 +6,7 @@
          data-missing="{{t "ideas.map.missing"}}" data-no-origin="{{t "ideas.map.no_origin"}}"
          data-location-warning="{{t "ideas.location.warning"}}"
          data-focus-route="{{t "ideas.map.focus_route"}}"
+         data-route-from="{{t "ideas.map.from"}}"
          data-schedule="{{t "ideas.map.schedule"}}" data-unscheduled="{{t "ideas.map.unscheduled"}}"
          data-schedule-error="{{t "ideas.map.schedule_error"}}" data-saving="{{t "ideas.map.saving"}}"
          data-description-pending="{{t "ideas.map.description_pending"}}"
@@ -29,7 +30,12 @@
   <div id="ideas-map" class="ideas-map" aria-label="{{t "ideas.map.title"}}"></div>
   <div class="ideas-map-table">
     <table>
-      <thead><tr><th scope="col">{{t "ideas.map.idea"}}</th><th scope="col">{{t "ideas.map.distance"}}</th><th scope="col">{{t "ideas.map.duration"}}</th><th scope="col">{{t "ideas.map.schedule"}}</th></tr></thead>
+      <thead><tr>
+        <th scope="col">{{t "ideas.map.idea"}}</th>
+        <th scope="col" aria-sort="none"><button type="button" class="ideas-map-sort" data-ideas-sort="distanceM">{{t "ideas.map.distance"}} <span aria-hidden="true">↕</span></button></th>
+        <th scope="col" aria-sort="none"><button type="button" class="ideas-map-sort" data-ideas-sort="durationS">{{t "ideas.map.duration"}} <span aria-hidden="true">↕</span></button></th>
+        <th scope="col">{{t "ideas.map.schedule"}}</th>
+      </tr></thead>
       <tbody data-ideas-map-rows></tbody>
     </table>
   </div>

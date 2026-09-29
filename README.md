@@ -177,11 +177,18 @@ published together as a Pages artifact, not checked into the repository.
   focused so they remain easy to activate. Without a saved route, numbered markers
   retain their location popup rather than inventing a route.
   **Overview** is the initial selection and restores the full accommodation/idea extent
-  without choosing an origin. The selected start is outlined, and accommodation labels
+  without selecting a single origin. Its table immediately shows the shortest cached
+  driving distance per idea, the duration of that same route and its starting accommodation.
+  Only current same-trip coordinates/provider results are eligible; missing results
+  remain explicit. Equal distances prefer shorter duration, earlier check-in, then ID.
+  Reading these values never requests a new route. The selected start is outlined, and accommodation labels
   include the booked dates.
 - The compact header shows the saved-route totals on the right; the accommodation
   label and selector share one line. The table contains the idea and a short description,
-  right-aligned distance/time, and a **Plan for day** selector instead of repeated route-status text.
+  centered distance/time, and a horizontally/vertically centered **Plan for day** selector
+  instead of repeated route-status text. Small header arrows sort distance or duration
+  numerically in either direction, keeping missing values last and marker numbers stable.
+  Sorting survives cache refreshes and accommodation changes without moving the map.
   Choosing a trip day updates the original idea, not a copy, and refreshes the day planner,
   including moving an existing time block immediately without reloading the page.
   New day assignments remain untimed; existing times, costs, payers, coordinates and links
@@ -302,6 +309,8 @@ published together as a Pages artifact, not checked into the repository.
   re-resolved from current trip bookings before inference, just like regional presets.
 - **Compact idea cards** – the saved places/ideas list displays two cards per row
   on wider screens and one on mobile. Inline editors span the list's full width.
+  Right-aligned thumbnails are vertically centered and grow with available card width,
+  up to 220 px, with a consistent 4:3 crop.
 - **Robust AI response parsing** – JSON extraction for chatty models and clear error
   surfacing in the log viewer. Recommendations are requested explicitly in the Ideas tab.
 - **Identity-only AI** – automatic account-scoped endpoint and

@@ -71,9 +71,20 @@ func (s *SQLite) IdeaRouteProgress(ctx context.Context, provider string, vacatio
 	return progress, err
 }
 
+// A nil lodging selects the shortest saved driving distance per idea, without
+// geometry. Duration, check-in and ID break ties deterministically.
 func (s *SQLite) ListIdeaRoutes(ctx context.Context, provider string, vacationID, lodgingID uuid.UUID) ([]models.IdeaRoute, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT i.id, r.status, r.distance_m, r.duration_s, r.geometry`+
-		ideaRouteSources+` AND l.vacation_id = ? AND l.id = ? AND r.item_id IS NOT NULL`, provider, vacationID, lodgingID)
+	query := `SELECT l.id, i.id, r.status, r.distance_m, r.duration_s, r.geometry` +
+		ideaRouteSources + ` AND l.vacation_id = ? AND l.id = ? AND r.item_id IS NOT NULL`
+	args := []any{provider, vacationID, lodgingID}
+	if lodgingID == uuid.Nil {
+		query = `SELECT lodging_id, item_id, status, distance_m, duration_s, '[]' FROM (
+			SELECT l.id AS lodging_id, i.id AS item_id, r.status, r.distance_m, r.duration_s,
+				ROW_NUMBER() OVER (PARTITION BY i.id ORDER BY r.distance_m, r.duration_s, l.check_in, l.id) AS route_rank` +
+			ideaRouteSources + ` AND l.vacation_id = ? AND r.status = 'ready') WHERE route_rank = 1`
+		args = []any{provider, vacationID}
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +93,7 @@ func (s *SQLite) ListIdeaRoutes(ctx context.Context, provider string, vacationID
 	for rows.Next() {
 		value := models.IdeaRoute{VacationID: vacationID, LodgingID: lodgingID, Provider: provider}
 		var geometry string
-		if err := rows.Scan(&value.ItemID, &value.Status, &value.DistanceM, &value.DurationS, &geometry); err != nil {
+		if err := rows.Scan(&value.LodgingID, &value.ItemID, &value.Status, &value.DistanceM, &value.DurationS, &geometry); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(geometry), &value.Geometry); err != nil {

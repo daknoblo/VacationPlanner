@@ -109,7 +109,10 @@ a reverse proxy.
   reused without deleting custom data. Failed frame jobs require attempt-bound retries.
 - `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
 - `GET /vacations/{id}/api/ideas-map` – read-only markers for all accommodation and
-  saved ideas, including scheduled items and explicit unlocated records.
+  saved ideas, including scheduled items and explicit unlocated records. Without a
+  selected accommodation, return the shortest current saved driving distance per idea,
+  its paired duration and origin ID, without route geometry or provider calls.
+  Distance ties prefer duration, check-in and ID; stale/failed results are excluded.
 - `GET /vacations/{id}/api/ideas-route?lodging=&item=` – read-only cached driving leg
   between current same-trip records. The Ideas map defaults to Overview; selecting an
   accommodation reloads cached data and fits its ideas and saved road geometries.
@@ -124,7 +127,9 @@ a reverse proxy.
   Preserve focused/manual views on polling. The map has no refresh/retry buttons.
   Keep its help concise, route totals small and right-aligned in the title row, and
   origin label/select on one line. The table has no route-status column; show a short
-  description under each title, right-aligned distance/time, then a trip-day selector.
+  description under each title, centered distance/time, then a centered trip-day selector.
+  Overview identifies each cached starting accommodation. Header arrows sort raw metrics,
+  keep missing values last and preserve marker numbering, selection and viewport on refresh.
   Date-only scheduling reuses the original item without inventing or changing times;
   preserve source fields atomically and refresh the planner through itemsChanged.
   A bounded lifecycle worker generates missing descriptions once per identifying source,

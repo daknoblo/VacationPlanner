@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Cached driving values in the Ideas overview — show the shortest saved road
+      distance per idea with the paired duration and named origin before selecting a
+      stay. Add accessible numeric sorting, centered metrics/day selectors and
+      responsive right-aligned, vertically centered card thumbnails. Preserve map
+      numbering, viewport, cache-only reads and explicit missing values.
+
 - [x] Consistent page/header width and branding — center all app pages and the header
       at 75% desktop width, keep responsive mobile widths, align the brand left and
       background status right with separated navigation, prefix browser titles with
