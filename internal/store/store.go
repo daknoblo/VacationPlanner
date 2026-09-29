@@ -32,6 +32,7 @@ type Store interface {
 	GetItem(ctx context.Context, id uuid.UUID) (*models.Item, error)
 	ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error)
 	UpdateItem(ctx context.Context, i *models.Item) error
+	ScheduleItemDay(ctx context.Context, id uuid.UUID, day time.Time) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 	NextIdeaRoute(ctx context.Context, provider string) (*models.IdeaRoute, error)
 	UnlocatedRouteVacations(ctx context.Context) ([]uuid.UUID, error)
@@ -39,6 +40,11 @@ type Store interface {
 	ListIdeaRoutes(ctx context.Context, provider string, vacationID, lodgingID uuid.UUID) ([]models.IdeaRoute, error)
 	PutIdeaRoute(ctx context.Context, job *models.IdeaRoute) (bool, error)
 	RetryIdeaRoutes(ctx context.Context, vacationID uuid.UUID) error
+	ClaimIdeaDescription(ctx context.Context) (*models.IdeaDescription, error)
+	FinishIdeaDescription(ctx context.Context, job *models.IdeaDescription) error
+	InterruptIdeaDescriptions(ctx context.Context) error
+	ListIdeaDescriptions(ctx context.Context, vacationID uuid.UUID) (map[uuid.UUID]models.IdeaDescription, error)
+	CountPendingIdeaDescriptions(ctx context.Context) (int, error)
 
 	CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error
 	UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error

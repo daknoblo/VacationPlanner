@@ -1384,14 +1384,23 @@ textarea { resize: vertical; }
 .lang-option input { width: auto; }
 .ideas-map { height: 420px; border-radius: .5rem; }
 .ideas-map.leaflet-container { overflow: clip; }
-.ideas-map-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; }
-.ideas-map-controls .field { flex: 1; min-width: min(100%, 18rem); }
-.ideas-map-controls select { width: 100%; }
+.ideas-map-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.ideas-map-heading h2 { flex: 0 0 auto; }
+.ideas-map-heading [data-ideas-map-cache-status] { text-align: right; }
+.ideas-map-controls { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+.ideas-map-controls label { white-space: nowrap; }
+.ideas-map-controls select { flex: 1; min-width: 0; }
 .idea-map-marker { border-radius: 50%; background: #2563eb; border: 2px solid white; color: white; text-align: center; font-weight: bold; line-height: 22px; }
 .ideas-map-origin { outline: 3px solid #2563eb; outline-offset: 3px; }
 .ideas-map-table { overflow-x: auto; max-height: 340px; margin-top: 1rem; }
 .ideas-map-table table { width: 100%; text-align: left; }
 .ideas-map-table th, .ideas-map-table td { padding: .5rem; vertical-align: top; }
+.ideas-map-table th:not(:first-child), .ideas-map-table td:not(:first-child) { text-align: right; white-space: nowrap; }
+.ideas-map-table td:first-child { width: 100%; min-width: 12rem; }
+.ideas-map-table select { width: 10rem; }
+.ideas-map-description { display: block; margin-top: .2rem; }
+.ideas-map-schedule-status { display: block; white-space: normal; max-width: 12rem; }
+.ideas-map-schedule-status[role="alert"] { color: #b91c1c; }
 .ideas-map-link { background: none; border: 0; color: var(--accent); text-align: left; cursor: pointer; font: inherit; padding: 0; }
 .ideas-map-link:disabled { color: inherit; cursor: default; }
 .ideas-map-table td a { display: block; }

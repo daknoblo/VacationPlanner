@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -74,6 +75,29 @@ func RenderDemo(ctx context.Context, language, buildVersion string) (*DemoSnapsh
 		return nil, err
 	}
 	out.IdeasMapData, err = demoGET(ctx, s, base+"/api/ideas-map")
+	if err != nil {
+		return nil, err
+	}
+	var ideas ideasMapPayload
+	if err := json.Unmarshal(out.IdeasMapData, &ideas); err != nil {
+		return nil, err
+	}
+	var stays, locatedIdeas int
+	for _, point := range ideas.Lodgings {
+		if point.Lat != nil && point.Lng != nil {
+			stays++
+		}
+	}
+	for _, point := range ideas.Ideas {
+		if point.Lat != nil && point.Lng != nil {
+			locatedIdeas++
+		}
+	}
+	// These totals describe the offline demo's illustrative routes, not provider data.
+	ideas.Progress.Total = stays * locatedIdeas
+	ideas.Progress.Completed = ideas.Progress.Total
+	ideas.ProgressLabel = i18n.FromContext(ctx).T("ideas.map.cache_status", ideas.Progress.Total, 0, 0)
+	out.IdeasMapData, err = json.Marshal(ideas)
 	if err != nil {
 		return nil, err
 	}

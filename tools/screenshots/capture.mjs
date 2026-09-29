@@ -269,7 +269,25 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
     assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
     assert.equal(await page.locator("[data-ideas-map-refresh], [data-ideas-map-retry]").count(), 0, "Map controls must not contain refresh or retry buttons");
-    assert.ok(await page.locator("[data-ideas-map-status]").innerText());
+    assert.equal(await page.locator("[data-ideas-map-status]").isVisible(), false, "No redundant map success paragraph");
+    assert.ok(await page.locator(".ideas-map-heading").evaluate(el => {
+      const heading = el.querySelector("h2");
+      const totals = el.querySelector("[data-ideas-map-cache-status]");
+      const a = heading.getBoundingClientRect(), b = totals.getBoundingClientRect();
+      return !!totals.textContent && a.right < b.left && b.top < a.bottom &&
+        getComputedStyle(totals).textAlign === "right" &&
+        parseFloat(getComputedStyle(totals).fontSize) < parseFloat(getComputedStyle(heading).fontSize);
+    }), "Small right-aligned route totals share the heading row");
+    assert.equal(await page.locator("[data-ideas-map-rows] tr").first().locator("td").count(), 4);
+    assert.ok(await page.locator(".ideas-map-description").count() > 0);
+    assert.equal(await page.locator("[data-idea-schedule]").count(), 15);
+    assert.ok(await page.locator("[data-idea-schedule]").evaluateAll(elements => elements.every(el => el.disabled)),
+      "The static demo must never schedule activities");
+    assert.ok(await page.locator(".ideas-map-controls").evaluate(el => {
+      const label = el.querySelector("label").getBoundingClientRect();
+      const select = el.querySelector("select").getBoundingClientRect();
+      return label.right <= select.left && label.top < select.bottom && label.bottom > select.top;
+    }), "Starting-accommodation label and dropdown share a line");
     const origin = await page.locator("[data-ideas-map-origin] option").nth(1).getAttribute("value");
     await page.locator("[data-ideas-map-origin]").selectOption(origin);
     assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,

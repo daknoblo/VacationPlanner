@@ -256,7 +256,7 @@ func TestRetryRepairsSavedFailureAndKeepsSuccessfulSummaryRoutes(t *testing.T) {
 		if drive.Status != "ready" || drive.Distance != "12.3 km" || drive.Duration != "1 h 16 min" || len(drive.Geometry) != 3 {
 			t.Fatalf("summary-only provider result did not reach the saved map/table: %+v", drive)
 		}
-		if data.Progress.Failed != 0 || !strings.Contains(data.ProgressLabel, "saved routes: 1") {
+		if data.Progress.Failed != 0 || !strings.Contains(data.ProgressLabel, "Saved routes: 1") {
 			t.Fatal(data.ProgressLabel)
 		}
 		if rec := postAISettings(s, retry, url.Values{}, true); rec.Code != http.StatusOK {

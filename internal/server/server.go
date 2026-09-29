@@ -41,6 +41,8 @@ type Server struct {
 	routing                      *route.Client
 	ideasRouteStart              sync.Once
 	ideasRouteStop               func()
+	ideaDescriptionStart         sync.Once
+	ideaDescriptionStop          func()
 	destImg                      *destimg.Client
 	render                       *renderer
 	limiter                      *ipRateLimiter

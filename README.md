@@ -179,6 +179,21 @@ published together as a Pages artifact, not checked into the repository.
   **Overview** is the initial selection and restores the full accommodation/idea extent
   without choosing an origin. The selected start is outlined, and accommodation labels
   include the booked dates.
+- The compact header shows the saved-route totals on the right; the accommodation
+  label and selector share one line. The table contains the idea and a short description,
+  right-aligned distance/time, and a **Plan for day** selector instead of repeated route-status text.
+  Choosing a trip day updates the original idea, not a copy, and refreshes the day planner.
+  New day assignments remain untimed; existing times, costs, payers, coordinates and links
+  are preserved. Polling pauses while choosing a day, and failed saves remain visible.
+- Existing descriptions are shortened to one sentence (at most 160 characters) for this
+  table without changing the original text. With AI configured, a lifecycle-bound worker
+  fills missing descriptions in English and German in one bounded call and caches them
+  in SQLite. Existing ideas are included; no page visit is required. The worker sends
+  only the idea title, category, location and destination, not notes or participant data.
+  Unchanged sources are attempted once, including across restarts; failed or uncertain
+  results stay explicitly unavailable rather than being retried on each poll.
+  Changes to the identifying fields invalidate the cache; manual descriptions always win.
+  Description progress appears in the global background indicator.
 - **Driving comparison** – one-way driving distance and time from that accommodation
   appear in each idea's popup and the table. All available road routes from the selected
   accommodation are drawn together, using the configured OpenRouteService

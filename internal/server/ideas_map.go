@@ -13,12 +13,20 @@ import (
 )
 
 type ideasMapPoint struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Lat       *float64 `json:"lat"`
-	Lng       *float64 `json:"lng"`
-	DateRange string   `json:"date_range,omitempty"`
-	Day       string   `json:"day,omitempty"`
+	ID                string   `json:"id"`
+	Title             string   `json:"title"`
+	Lat               *float64 `json:"lat"`
+	Lng               *float64 `json:"lng"`
+	DateRange         string   `json:"date_range,omitempty"`
+	Day               string   `json:"day,omitempty"`
+	ScheduledDay      string   `json:"scheduled_day,omitempty"`
+	Description       string   `json:"description,omitempty"`
+	DescriptionStatus string   `json:"description_status,omitempty"`
+}
+
+type ideasMapDay struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 type ideasMapPayload struct {
@@ -28,6 +36,7 @@ type ideasMapPayload struct {
 	Routes        map[string]ideaDrive     `json:"routes"`
 	Progress      models.IdeaRouteProgress `json:"progress"`
 	ProgressLabel string                   `json:"progress_label,omitempty"`
+	Days          []ideasMapDay            `json:"days"`
 }
 
 // The map reads all saved ideas, including scheduled and visited entries.
@@ -38,7 +47,8 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if _, err := s.store.GetVacation(r.Context(), id); err != nil {
+	vacation, err := s.store.GetVacation(r.Context(), id)
+	if err != nil {
 		if isNotFound(err) {
 			s.notFound(w, r)
 		} else {
@@ -57,9 +67,24 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, tz := s.regionSettings(r.Context())
+	settings, err := s.store.GetSettings(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	descriptions, err := s.store.ListIdeaDescriptions(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	loc := i18n.FromContext(r.Context())
 	payload := ideasMapPayload{
 		Lodgings: make([]ideasMapPoint, 0, len(lodgings)), Ideas: make([]ideasMapPoint, 0, len(items)),
 		Routing: s.routing != nil && s.routing.Enabled(),
+		Days:    make([]ideasMapDay, 0),
+	}
+	for _, day := range vacation.Days() {
+		payload.Days = append(payload.Days, ideasMapDay{Value: day.Format("2006-01-02"), Label: fmtDate(day)})
 	}
 	for _, lodging := range lodgings {
 		payload.Lodgings = append(payload.Lodgings, ideasMapPoint{
@@ -69,17 +94,25 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, item := range items {
 		point := ideasMapPoint{ID: item.ID.String(), Title: item.Title, Lat: item.Latitude, Lng: item.Longitude}
+		point.Description = models.ShortDescription(item.Description)
+		if point.Description == "" {
+			if saved, ok := descriptions[item.ID]; ok {
+				point.DescriptionStatus = saved.Status
+				point.Description = saved.English
+				if loc.Code() == "de" {
+					point.Description = saved.German
+				}
+			} else if s.ai.Enabled() && s.foundryDeployment(settings) != "" {
+				point.DescriptionStatus = "pending"
+			}
+		}
 		if item.Day != nil {
 			point.Day = fmtDate(*item.Day)
+			point.ScheduledDay = item.Day.Format("2006-01-02")
 		}
 		payload.Ideas = append(payload.Ideas, point)
 	}
 	payload.Routes = make(map[string]ideaDrive)
-	settings, err := s.store.GetSettings(r.Context())
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
 	if payload.Routing {
 		payload.Progress, err = s.store.IdeaRouteProgress(r.Context(), settings[settingRouteBaseURL], id)
 		if err != nil {

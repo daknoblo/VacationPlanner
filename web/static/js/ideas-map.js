@@ -16,7 +16,6 @@
   var positions = null;
   var viewPoints = null;
   var rendered = null;
-  var pending = false;
   var failed = false;
   var popupIdea = null;
   var userAdjusted = false;
@@ -27,6 +26,12 @@
   var labelFrame = null;
   var labelGuides = null;
   var moving = false;
+  var scheduling = false;
+  var scheduleErrors = new Map();
+
+  function choosingDay() {
+    return scheduling || document.activeElement && document.activeElement.matches("[data-idea-schedule]");
+  }
 
   function located(point) {
     return Number.isFinite(point.lat) && Number.isFinite(point.lng) &&
@@ -226,23 +231,58 @@
     load();
   }
   function summary() {
-    var progress = data.progress || {};
-    var remaining = progress.total > progress.completed;
     var value = !data.ideas.length ? root.dataset.noIdeas :
-      !selected ? root.dataset.overview :
+      !selected ? "" :
       !data.lodgings.some(function (l) { return l.id === selected && located(l); }) ? root.dataset.noOrigin :
-      demo ? root.dataset.demo :
+      demo ? "" :
       !data.routing ? root.dataset.disabled :
-      pending ? root.dataset.pending :
-      failed ? root.dataset.unavailable : root.dataset.ready;
-    if (remaining) value += " · " + root.dataset.pending + " (" + progress.completed + "/" + progress.total + ")";
+      failed ? root.dataset.unavailable : "";
     status.textContent = value;
+    status.hidden = !value;
     cacheStatus.textContent = data.progress_label || "";
+  }
+  async function scheduleIdea(idea, picker, feedback) {
+    var previous = idea.scheduled_day || "";
+    var day = picker.value;
+    if (!day || day === previous) return;
+    stop();
+    scheduling = true;
+    scheduleErrors.delete(idea.id);
+    picker.disabled = true;
+    select.disabled = true;
+    feedback.setAttribute("role", "status");
+    feedback.textContent = root.dataset.saving;
+    try {
+      var cookie = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+      var response = await fetch("/items/" + encodeURIComponent(idea.id) + "/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF-Token": cookie ? decodeURIComponent(cookie[1]) : "" },
+        body: new URLSearchParams({ day: day, day_only: "1" }).toString()
+      });
+      if (!response.ok) throw new Error("Scheduling failed");
+      idea.scheduled_day = day;
+      feedback.textContent = "";
+      picker.blur();
+      scheduling = false;
+      document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
+    } catch (error) {
+      scheduleErrors.set(idea.id, true);
+      picker.value = previous;
+      feedback.setAttribute("role", "alert");
+      feedback.textContent = root.dataset.scheduleError;
+    } finally {
+      scheduling = false;
+      picker.disabled = false;
+      select.disabled = false;
+      clearTimeout(timer);
+      timer = setTimeout(load, 3000);
+    }
   }
   function render() {
     if (!data || !visible()) return;
     initialize();
-    var signature = JSON.stringify([selected, data.lodgings, data.ideas, data.routes, data.routing]);
+    var signature = JSON.stringify([selected, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
     if (signature === rendered) { summary(); return; }
     rendered = signature;
     select.replaceChildren(new Option(root.dataset.choose, ""));
@@ -265,7 +305,6 @@
     routeLabels = [];
     layer.clearLayers();
     roads.clearLayers();
-    pending = false;
     failed = false;
     var points = [];
     var routeBounds = origin ? L.latLngBounds([[origin.lat, origin.lng]]) : null;
@@ -284,10 +323,19 @@
       var row = document.createElement("tr");
       row.dataset.ideaId = idea.id;
       var name = document.createElement("td");
-      var title = text("button", (index + 1) + ". " + idea.title + (idea.day ? " · " + idea.day : ""));
+      var title = text("button", (index + 1) + ". " + idea.title);
       title.type = "button";
       title.className = "ideas-map-link";
       name.appendChild(title);
+      var description = idea.description || (
+        idea.description_status === "unavailable" ? root.dataset.descriptionUnavailable :
+        idea.description_status === "pending" || idea.description_status === "running" ? root.dataset.descriptionPending : "");
+      if (description) {
+        var excerpt = text("span", description);
+        excerpt.className = "ideas-map-description muted small";
+        if (idea.description_status === "ready") excerpt.title = root.dataset.descriptionAi;
+        name.appendChild(excerpt);
+      }
       row.appendChild(name);
       var popup = text("div", idea.title + (idea.day ? " · " + idea.day : ""));
       var result = { status: "pending" };
@@ -299,12 +347,38 @@
           geometry: [[origin.lat, origin.lng], [(origin.lat + idea.lat) / 2 + 0.015, (origin.lng + idea.lng) / 2], [idea.lat, idea.lng]] };
       } else if (!data.routing) result = { status: "disabled" };
       else if (data.routes && data.routes[idea.id]) result = data.routes[idea.id];
-      if (result.status === "pending") pending = true;
       if (result.status === "unavailable") failed = true;
       var road = Array.isArray(result.geometry) && result.geometry.length >= 2;
       var label = result.status === "ready" && !road ? root.dataset.noGeometry :
         root.dataset[result.status] || root.dataset.unavailable;
-      row.append(text("td", result.distance || "\u2014"), text("td", result.duration || "\u2014"), text("td", label));
+      var distance = text("td", result.distance || "\u2014");
+      var duration = text("td", result.duration || "\u2014");
+      distance.title = duration.title = label;
+      row.append(distance, duration);
+      var schedule = document.createElement("td");
+      var picker = document.createElement("select");
+      picker.setAttribute("data-idea-schedule", idea.id);
+      picker.setAttribute("aria-label", root.dataset.schedule + " · " + idea.title);
+      var placeholder = new Option(root.dataset.unscheduled, "");
+      placeholder.disabled = true;
+      picker.add(placeholder);
+      (data.days || []).forEach(function (day) { picker.add(new Option(day.label, day.value)); });
+      if (idea.scheduled_day && !(data.days || []).some(function (day) { return day.value === idea.scheduled_day; })) {
+        var oldDay = new Option(idea.day || idea.scheduled_day, idea.scheduled_day);
+        oldDay.disabled = true;
+        picker.add(oldDay);
+      }
+      picker.value = idea.scheduled_day || "";
+      picker.disabled = !!demo || !(data.days || []).length;
+      var feedback = text("span", "");
+      feedback.className = "ideas-map-schedule-status small";
+      if (scheduleErrors.has(idea.id)) {
+        feedback.setAttribute("role", "alert");
+        feedback.textContent = root.dataset.scheduleError;
+      }
+      picker.addEventListener("change", function () { scheduleIdea(idea, picker, feedback); });
+      schedule.append(picker, feedback);
+      row.appendChild(schedule);
       rows.appendChild(row);
       popup.appendChild(text("p", (origin ? origin.title + ": " : "") +
         [result.distance, result.duration, label].filter(Boolean).join(" · ")));
@@ -406,7 +480,7 @@
             edit.href = "#idea-location-" + idea.id;
             edit.setAttribute("data-idea-location-edit", idea.id);
           }
-          name.appendChild(edit);
+          title.after(edit);
         }
       }
     });
@@ -428,9 +502,14 @@
   }
   async function load() {
     if (!visible()) return;
+    if (choosingDay()) {
+      clearTimeout(timer);
+      timer = setTimeout(load, 3000);
+      return;
+    }
     stop();
     var run = version;
-    if (!data) status.textContent = root.dataset.loading;
+    if (!data) { status.textContent = root.dataset.loading; status.hidden = false; }
     try {
       if (demo) data = demo;
       else {
@@ -441,6 +520,10 @@
         var nextData = await response.json();
         if (run !== version) return;
         if (!Array.isArray(nextData.lodgings) || !Array.isArray(nextData.ideas)) throw new Error("Invalid map");
+        if (choosingDay()) {
+          timer = setTimeout(load, 3000);
+          return;
+        }
         data = nextData;
       }
       render();
@@ -455,6 +538,7 @@
       if (roads) roads.clearLayers();
       rendered = null;
       status.textContent = root.dataset.error;
+      status.hidden = false;
       cacheStatus.textContent = "";
     }
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);

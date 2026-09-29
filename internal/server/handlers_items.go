@@ -448,6 +448,20 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "day required", http.StatusBadRequest)
 		return
 	}
+	if formStr(r, "day_only") == "1" {
+		err := s.store.ScheduleItemDay(r.Context(), id, *day)
+		if isNotFound(err) {
+			http.Error(w, i18n.FromContext(r.Context()).T("error.planned_invalid"), http.StatusConflict)
+			return
+		}
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		hxTrigger(w, "itemsChanged")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	item.Day = day
 	item.StartMin = parseMinutes(formStr(r, "start"), 540)
 	item.EndMin = parseMinutes(formStr(r, "end"), item.StartMin+60)

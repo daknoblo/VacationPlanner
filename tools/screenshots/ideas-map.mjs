@@ -9,17 +9,21 @@ export async function verifyIdeasMap(browser) {
   const errors = [];
   let requests = 0;
   let failMap = false;
+  let failSchedule = false;
+  let scheduleGate, finishSchedule;
+  const schedules = [];
   let gate, release;
   const data = {
     routing: true, progress: { total: 4, completed: 4 }, progress_label: "4 saved / 0 failed / 0 pending",
+    days: [{ value: "2027-05-01", label: "01.05.2027" }, { value: "2027-05-02", label: "02.05.2027" }],
     lodgings: [
       { id: "a", title: "House <em>A</em>", date_range: "01.05.2027 – 03.05.2027", lat: 55, lng: 8 },
       { id: "b", title: "Campsite B", date_range: "03.05.2027 – 05.05.2027", lat: 56, lng: 9 },
       { id: "c", title: "Unlocated stay", date_range: "", lat: null, lng: null },
     ],
     ideas: [
-      { id: "one", title: "Saved <script>unsafe()</script>", lat: 55.1, lng: 8.1 },
-      { id: "two", title: "Scheduled idea", day: "02.05.2027", lat: 55.2, lng: 8.2 },
+      { id: "one", title: "Saved <script>unsafe()</script>", description: "A museum with <b>historic boats</b>.", lat: 55.1, lng: 8.1 },
+      { id: "two", title: "Scheduled idea", day: "02.05.2027", scheduled_day: "2027-05-02", lat: 55.2, lng: 8.2 },
       { id: "three", title: "Unlocated idea", lat: null, lng: null },
     ],
   };
@@ -58,6 +62,19 @@ export async function verifyIdeasMap(browser) {
       if (gate && url.searchParams.get("lodging") === "a") await gate;
       return route.fulfill({ status: failMap ? 503 : 200, contentType: "application/json", body: json });
     }
+    if (url.pathname === "/items/one/schedule") {
+      assert.equal(route.request().method(), "POST");
+      assert.equal(route.request().headers()["x-csrf-token"], "test-csrf");
+      const values = new URLSearchParams(route.request().postData());
+      assert.equal(values.get("day_only"), "1");
+      assert.equal(values.has("start"), false, "Date-only scheduling must not invent times");
+      schedules.push(values.get("day"));
+      if (scheduleGate) await scheduleGate;
+      if (failSchedule) return route.fulfill({ status: 500, body: "Save failed" });
+      data.ideas[0].scheduled_day = values.get("day");
+      data.ideas[0].day = data.days.find(day => day.value === values.get("day")).label;
+      return route.fulfill({ status: 204 });
+    }
     if (url.pathname === "/") return route.fulfill({ contentType: "text/html", body: `<!doctype html>
       <html><head><meta charset="utf-8"><link rel="stylesheet" href="/leaflet.css"><link rel="stylesheet" href="/app.css"></head><body>
       <section id="tab" style="display:none"><section data-ideas-map-panel data-map-url="/map"
@@ -65,7 +82,8 @@ export async function verifyIdeasMap(browser) {
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
-        data-focus-route="Show the entire route">
+        data-focus-route="Show the entire route" data-schedule="Plan for day" data-unscheduled="Choose day"
+        data-schedule-error="Could not save the day" data-saving="Saving">
         <select data-ideas-map-origin></select>
         <div id="ideas-map" class="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
@@ -91,6 +109,9 @@ export async function verifyIdeasMap(browser) {
       testMap.eachLayer(layer => { if (layer instanceof L.Polyline) lines.push(layer.getLatLngs().map(p => [p.lat, p.lng])); });
       return lines;
     });
+  }
+  async function waitRoads(count) {
+    await page.waitForFunction(expected => document.querySelectorAll(".idea-driving-route").length === expected, count);
   }
   async function assertLabels(count) {
     await page.waitForFunction(expected => [...document.querySelectorAll(".idea-route-distance")]
@@ -121,10 +142,12 @@ export async function verifyIdeasMap(browser) {
     assert.equal(layout.overlaps, false, "Distance labels must never overlap");
   }
   try {
+    await context.addCookies([{ name: "csrf_token", value: "test-csrf", url: "http://127.0.0.1" }]);
     await page.goto("http://127.0.0.1/", { waitUntil: "networkidle" });
     assert.equal(requests, 0);
     await page.evaluate(() => { document.querySelector("#tab").style.display = "block"; });
-    await waitText(status, "All accommodations and ideas");
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 3);
+    assert.equal(await status.isVisible(), false, "No redundant success paragraph");
     assert.equal(await select.inputValue(), "", "Overview must be the default");
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 2);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 2);
@@ -148,7 +171,7 @@ export async function verifyIdeasMap(browser) {
     await page.evaluate(() => testMap.closePopup());
 
     await select.selectOption("a");
-    await waitText(status, "Ready");
+    await waitRoads(2);
     const nearZoom = await page.evaluate(() => testMap.getZoom());
     assert.ok(await page.evaluate(() => [[55, 8], [55.1, 8.1], [55.2, 8.2], [55.05, 8.3]].every(p => testMap.getBounds().contains(p))),
       "Selected view must contain the origin, ideas and provider detours");
@@ -290,7 +313,7 @@ export async function verifyIdeasMap(browser) {
     await page.locator(".leaflet-popup-content").waitFor();
     assert.ok((await page.locator(".leaflet-popup-content").innerText()).includes("Saved <script>unsafe()</script>"));
     await select.selectOption("b");
-    await waitText(status, "Ready");
+    await waitRoads(2);
     await waitText(rows, "24.6 km");
     const farZoom = await page.evaluate(() => testMap.getZoom());
     assert.ok(farZoom < nearZoom, `Distant accommodation must use a wider zoom than the near accommodation (${farZoom} vs ${nearZoom})`);
@@ -305,7 +328,7 @@ export async function verifyIdeasMap(browser) {
     const center = await page.evaluate(() => testMap.getCenter());
     assert.ok(Math.abs(center.lat - 40) < 0.01 && Math.abs(center.lng - 7) < 0.01, "Background refresh must preserve manual view");
     await select.selectOption("");
-    await waitText(status, "All accommodations and ideas");
+    await waitRoads(0);
     assert.deepEqual(await lines(), []);
     assert.ok(await page.evaluate(() => testMap.getBounds().contains([55, 8]) && testMap.getBounds().contains([56, 9])));
 
@@ -314,7 +337,7 @@ export async function verifyIdeasMap(browser) {
     await select.selectOption("a");
     await held;
     await select.selectOption("b");
-    await waitText(status, "Ready");
+    await waitRoads(2);
     release();
     gate = undefined;
     assert.equal(await select.inputValue(), "b");
@@ -324,11 +347,11 @@ export async function verifyIdeasMap(browser) {
     delete routes.b.one;
     data.progress.completed = 3;
     await refresh();
-    await waitText(status, "Pending");
+    await waitRoads(1);
     assert.equal((await lines()).length, 1);
     routes.b.one = saved;
     data.progress.completed = 4;
-    await waitText(status, "Ready"); // Read-only polling discovers completed background work.
+    await waitRoads(2); // Read-only polling discovers completed background work.
     assert.equal((await lines()).length, 2);
     routes.b.one = { status: "unavailable" };
     data.progress_label = "3 saved / 1 failed / 0 pending";
@@ -338,7 +361,7 @@ export async function verifyIdeasMap(browser) {
     assert.equal((await lines()).length, 1, "Failed route must never become a straight-line fallback");
     routes.b.one = saved;
     data.progress_label = "4 saved / 0 failed / 0 pending";
-    await waitText(status, "Ready");
+    await waitRoads(2);
     data.routing = false;
     await refresh();
     await waitText(status, "Routing disabled");
@@ -356,6 +379,33 @@ export async function verifyIdeasMap(browser) {
     failMap = false;
     await select.selectOption("a");
     await waitText(status, "Routing disabled");
+    const firstRow = rows.locator('tr[data-idea-id="one"]');
+    assert.equal(await firstRow.locator("td").count(), 4, "Replace the status column with scheduling");
+    assert.equal(await firstRow.locator(".ideas-map-description").innerText(), "A museum with <b>historic boats</b>.");
+    assert.equal(await firstRow.locator(".ideas-map-description b").count(), 0, "Descriptions must be plain text");
+    assert.equal(await rows.locator('[data-idea-schedule="two"]').inputValue(), "2027-05-02");
+    const picker = firstRow.locator("[data-idea-schedule]");
+    await picker.focus();
+    await page.evaluate(() => { window.preservedPicker = document.activeElement; });
+    const beforeEditing = requests;
+    await new Promise(resolve => setTimeout(resolve, 3200));
+    assert.equal(requests, beforeEditing, "Polling pauses while a day picker is focused");
+    scheduleGate = new Promise(resolve => { finishSchedule = resolve; });
+    await picker.selectOption("2027-05-01");
+    await firstRow.getByText("Saving", { exact: true }).waitFor();
+    assert.equal(await picker.isDisabled(), true);
+    assert.ok(await page.evaluate(() => window.preservedPicker.isConnected));
+    finishSchedule();
+    scheduleGate = undefined;
+    await page.waitForFunction(() => document.querySelector('[data-idea-schedule="one"]').value === "2027-05-01" &&
+      !document.querySelector('[data-idea-schedule="one"]').disabled);
+    assert.equal(await rows.locator("tr").count(), 3, "Scheduling reuses the original idea");
+    failSchedule = true;
+    await picker.selectOption("2027-05-02");
+    await firstRow.getByRole("alert").waitFor();
+    assert.equal(await picker.inputValue(), "2027-05-01", "Failed scheduling restores the saved day");
+    assert.deepEqual(schedules, ["2027-05-01", "2027-05-02"]);
+    await picker.blur();
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });
     await new Promise(resolve => setTimeout(resolve, 100));
     const before = requests;
@@ -366,6 +416,7 @@ export async function verifyIdeasMap(browser) {
     console.log("Validated circled labels with saved distance/time, marker/label/road route focus, collision handling and read-only polling.");
   } finally {
     if (release) release();
+    if (finishSchedule) finishSchedule();
     await context.close();
   }
 

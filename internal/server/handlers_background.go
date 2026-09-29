@@ -41,6 +41,19 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 		return view, err
 	}
 	discovery := s.aiDiscoveries.Load()
+	var descriptions int
+	if s.ai != nil && s.ai.Enabled() {
+		settings, err := s.settings(ctx)
+		if err != nil {
+			return view, err
+		}
+		if s.foundryDeployment(settings) != "" {
+			descriptions, err = s.store.CountPendingIdeaDescriptions(ctx)
+			if err != nil {
+				return view, err
+			}
+		}
+	}
 	var routePending, routeCompleted, routeTotal int
 	if s.routing != nil && s.routing.Enabled() {
 		settings, err := s.store.GetSettings(ctx)
@@ -69,12 +82,15 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 	if discovery > 0 {
 		tasks = append(tasks, loc.T("background.discovery"))
 	}
+	if descriptions > 0 {
+		tasks = append(tasks, loc.T("background.descriptions", descriptions))
+	}
 	if routePending > 0 {
 		tasks = append(tasks, loc.T("background.routes", routeCompleted, routeTotal))
 	}
 	view.Active = len(tasks) > 0
-	view.Determinate = geoJobs == 1 && view.Total > 0 && translations == 0 && discovery == 0 && routePending == 0
-	if routePending > 0 && geoJobs == 0 && translations == 0 && discovery == 0 {
+	view.Determinate = geoJobs == 1 && view.Total > 0 && translations == 0 && discovery == 0 && routePending == 0 && descriptions == 0
+	if routePending > 0 && geoJobs == 0 && translations == 0 && discovery == 0 && descriptions == 0 {
 		view.Determinate, view.Completed, view.Total = true, routeCompleted, routeTotal
 	}
 	view.Detail = strings.Join(tasks, " · ")

@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Compact Ideas map and direct planning — shorten help, align the origin selector
+      and header counters, replace repetitive route-status cells with trip-day selection,
+      and show short descriptions below idea titles. Preserve original items and times
+      when scheduling. Generate missing bilingual descriptions through a bounded durable
+      AI worker, reuse saved results, and expose background progress and failures.
+
 - [x] Route numbers and rich labels — blue idea markers and clickable route labels
       focus the same complete saved route as the road itself. Labels show a circled
       idea number, driving distance and duration, retain collision-free placement,

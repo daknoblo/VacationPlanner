@@ -122,6 +122,15 @@ a reverse proxy.
   saved-route fit (also via keyboard). Hover/focus must not move the activated label
   under the pointer. Markers without a saved road keep their location popup.
   Preserve focused/manual views on polling. The map has no refresh/retry buttons.
+  Keep its help concise, route totals small and right-aligned in the title row, and
+  origin label/select on one line. The table has no route-status column; show a short
+  description under each title, right-aligned distance/time, then a trip-day selector.
+  Date-only scheduling reuses the original item without inventing or changing times;
+  preserve source fields atomically and refresh the planner through itemsChanged.
+  A bounded lifecycle worker generates missing descriptions once per identifying source,
+  in English/German in one call, with durable reservation and attempt-bound completion.
+  Existing descriptions take precedence. Never send notes or participants for descriptions,
+  retry failed paid calls on polling/restart, or start AI work from GET/status handlers.
 - `POST /settings/route/retry` – Settings trip-selectable retry for missing idea routes,
   with CSRF and trip validation; also queue missing location/region enrichment.
   The Refresh action works without a routing key and then clearly reports location-only

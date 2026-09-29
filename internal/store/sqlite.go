@@ -293,6 +293,17 @@ func (s *SQLite) UpdateItem(ctx context.Context, i *models.Item) error {
 	return checkAffected(res)
 }
 
+func (s *SQLite) ScheduleItemDay(ctx context.Context, id uuid.UUID, day time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE items SET day = ?, updated_at = ?
+		WHERE id = ? AND EXISTS (SELECT 1 FROM vacations v WHERE v.id = items.vacation_id
+		AND ? BETWEEN v.start_date AND v.end_date)`,
+		dbDate(day), dbTime(time.Now().UTC()), id, dbDate(day))
+	if err != nil {
+		return err
+	}
+	return checkAffected(result)
+}
+
 func (s *SQLite) DeleteItem(ctx context.Context, id uuid.UUID) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, id)
 	if err != nil {
