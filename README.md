@@ -91,6 +91,10 @@ published together as a Pages artifact, not checked into the repository.
 - **Compact idea references** – source links use primary-color labels. Located ideas
   show a pin after the links instead of a coordinate row; it opens the saved coordinates
   in Google Maps in a separate tab. Unlocated ideas retain their location warning.
+- **Ideas-map layout** – a taller map (525px desktop, 400px mobile) sits directly
+  below the accommodation selector without explanatory paragraphs. The comparison
+  table fits up to ten complete idea rows, adapting to wrapped descriptions and
+  viewport changes; remaining ideas stay scrollable. Thin lines separate entries.
 - **Regional ideas** – the day/week backlog groups available ideas by geographic region
   and offers a shared region filter. Region metadata is resolved from located items;
   unlocated ideas stay visible in the unknown group. Override or clear the region in

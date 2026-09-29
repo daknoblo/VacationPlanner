@@ -54,6 +54,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Roomier Ideas map and table** — remove redundant guidance/legend text,
+      increase map height by 25%, size the table for ten complete rows and add
+      thin row separators while preserving scrolling, sorting and route highlighting.
+
 - [x] **Compact idea source labels** — primary-color source badges and a Google Maps
       pin beside the links, replacing visible GPS coordinates while retaining costs.
 

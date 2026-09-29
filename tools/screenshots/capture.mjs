@@ -8,7 +8,7 @@ import { once } from "node:events";
 import { chromium } from "playwright";
 import { verifyCalendarRegionUpdates } from "./calendar-regions.mjs";
 import { verifyAISearchCenters } from "./ai-centers.mjs";
-import { verifyIdeasMap } from "./ideas-map.mjs";
+import { verifyIdeasMap, verifyIdeasTableWindow } from "./ideas-map.mjs";
 import { verifyWeekResize } from "./week-resize.mjs";
 import { verifyLocationSearch } from "./location-search.mjs";
 
@@ -268,6 +268,10 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
+    assert.equal(await page.locator("#ideas-map").evaluate(map => map.getBoundingClientRect().height), 525);
+    assert.equal(await page.locator("[data-ideas-map-panel] > p:not([data-ideas-map-status]):not(.demo-map-note)").count(), 0,
+      "The explanatory and color-legend paragraphs must be absent");
+    await verifyIdeasTableWindow(page, 10);
     const mapPins = page.locator("#ideen-list .suggestion__link--map");
     assert.equal(await mapPins.count(), await page.locator("#ideen-list .item-row:not(:has(.idea-location-warning))").count(),
       "Every located idea tile has one coordinate pin");

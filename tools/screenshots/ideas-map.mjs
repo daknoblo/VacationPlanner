@@ -1,6 +1,26 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+export async function verifyIdeasTableWindow(page, count) {
+  await page.locator(".ideas-map-table").evaluate(table => { table.scrollTop = 0; });
+  await page.waitForFunction(expected => {
+    const table = document.querySelector(".ideas-map-table");
+    const rows = [...table.querySelectorAll("tbody tr")];
+    const top = table.getBoundingClientRect().top + table.clientTop;
+    const bottom = top + table.clientHeight;
+    const complete = rows.filter(row => {
+      const bounds = row.getBoundingClientRect();
+      return bounds.top >= top - 1 && bounds.bottom <= bottom + 1;
+    });
+    return complete.length === expected &&
+      (rows.length < 10 ? table.style.maxHeight === "none" : true) &&
+      (rows.length > 10 ? table.scrollHeight > table.clientHeight : table.scrollHeight <= table.clientHeight + 1);
+  }, count);
+  assert.ok(await page.locator(".ideas-map-table tbody tr + tr td").evaluateAll(cells =>
+    cells.every(cell => getComputedStyle(cell).borderTopWidth === "1px" &&
+      getComputedStyle(cell).borderTopStyle === "solid")), "A thin line separates successive ideas");
+}
+
 export async function verifyIdeasMap(browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -470,6 +490,49 @@ export async function verifyIdeasMap(browser) {
       "A failed save must not move the existing time block");
     assert.deepEqual(schedules, ["2027-05-01", "2027-05-02"]);
     await picker.blur();
+    await page.locator(".ideas-map-table").evaluate(table => table.style.removeProperty("height"));
+    await page.locator("#ideas-map").evaluate(map => {
+      map.style.removeProperty("height");
+      map.style.removeProperty("width");
+    });
+    await verifyIdeasTableWindow(page, 3);
+    for (let index = 0; index < 12; index++) {
+      data.ideas.push({ id: `window-${index}`, title: `Visible idea ${index}`,
+        description: "A description that wraps differently at each viewport width. ".repeat(index % 3 + 1),
+        lat: null, lng: null });
+    }
+    await refresh();
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 15);
+    for (const width of [1280, 800, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      assert.equal(await page.locator("#ideas-map").evaluate(map => map.getBoundingClientRect().height), width <= 600 ? 400 : 525,
+        "Map height must increase by exactly 25% at both breakpoints");
+      await verifyIdeasTableWindow(page, 10);
+      await page.locator('[data-ideas-sort="distanceM"]').click();
+      await verifyIdeasTableWindow(page, 10);
+      await page.locator(".ideas-map-table").evaluate(table => { table.scrollTop = table.scrollHeight; });
+      assert.ok(await page.locator(".ideas-map-table").evaluate(table => {
+        const last = table.querySelector("tbody tr:last-child").getBoundingClientRect();
+        const bottom = table.getBoundingClientRect().top + table.clientTop + table.clientHeight;
+        return Math.abs(last.bottom - bottom) <= 2;
+      }), "Ideas beyond the tenth remain reachable by scrolling");
+    }
+    data.ideas[0].description = "A newly loaded description with additional details. ".repeat(18);
+    await refresh();
+    await waitText(rows, "A newly loaded description");
+    await verifyIdeasTableWindow(page, 10);
+    data.ideas.splice(10);
+    await refresh();
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 10);
+    await verifyIdeasTableWindow(page, 10);
+    data.ideas.splice(3);
+    await refresh();
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 3);
+    await verifyIdeasTableWindow(page, 3);
+    data.ideas.length = 0;
+    await refresh();
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 0);
+    await verifyIdeasTableWindow(page, 0);
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });
     await new Promise(resolve => setTimeout(resolve, 100));
     const before = requests;

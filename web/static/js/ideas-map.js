@@ -31,6 +31,27 @@
   var sortKey = "";
   var sortDirection = 1;
   var sortButtons = root.querySelectorAll("[data-ideas-sort]");
+  var tableFrame = null;
+
+  function sizeTable() {
+    tableFrame = null;
+    if (!visible()) return;
+    var tenth = rows.children[9];
+    if (!tenth) {
+      table.style.maxHeight = "none";
+      return;
+    }
+    // Measure real wrapping, the header and any horizontal scrollbar, not an
+    // estimated row height. Keep all later ideas reachable by scrolling.
+    var height = tenth.getBoundingClientRect().bottom - table.getBoundingClientRect().top +
+      table.scrollTop + table.offsetHeight - table.clientHeight;
+    table.style.maxHeight = Math.ceil(height) + "px";
+  }
+  function queueTableSize() {
+    if (tableFrame !== null) cancelAnimationFrame(tableFrame);
+    tableFrame = requestAnimationFrame(sizeTable);
+  }
+  new ResizeObserver(queueTableSize).observe(rows.closest("table"));
 
   function sortRows() {
     sortButtons.forEach(function (button) {
@@ -38,13 +59,14 @@
       button.closest("th").setAttribute("aria-sort", active ? (sortDirection === 1 ? "ascending" : "descending") : "none");
       button.querySelector("span").textContent = active ? (sortDirection === 1 ? "\u25b4" : "\u25be") : "\u2195";
     });
-    if (!sortKey) return;
+    if (!sortKey) { queueTableSize(); return; }
     Array.from(rows.children).sort(function (a, b) {
       var first = Number(a.dataset[sortKey]), second = Number(b.dataset[sortKey]);
       var hasFirst = Number.isFinite(first), hasSecond = Number.isFinite(second);
       if (hasFirst !== hasSecond) return hasFirst ? -1 : 1;
       return (hasFirst ? (first - second) * sortDirection : 0) || Number(a.dataset.order) - Number(b.dataset.order);
     }).forEach(function (row) { rows.appendChild(row); });
+    queueTableSize();
   }
   sortButtons.forEach(function (button) {
     button.addEventListener("click", function () {
