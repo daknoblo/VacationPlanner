@@ -23,6 +23,10 @@
   var fitting = false;
   var activeRow = null;
   var activeRoad = null;
+  var routeLabels = [];
+  var labelFrame = null;
+  var labelGuides = null;
+  var moving = false;
 
   function located(point) {
     return Number.isFinite(point.lat) && Number.isFinite(point.lng) &&
@@ -55,15 +59,17 @@
     if (activeRoad) activeRoad.setStyle({ color: "#2563eb", weight: 3, opacity: 0.65 });
     activeRow = null;
     activeRoad = null;
+    scheduleLabels();
   }
   function highlight(row, road, reveal) {
     clearHighlight();
     activeRow = row;
     activeRoad = road;
     row.classList.add("is-route-active");
-    road.setStyle({ color: "#1d4ed8", weight: 5, opacity: 1 });
+    road.setStyle({ color: "#c026d3", weight: 5, opacity: 1 });
     road.bringToFront();
     if (road.getTooltip()) road.getTooltip().bringToFront();
+    scheduleLabels();
     if (reveal) {
       // Scroll only the comparison table; keep the hovered map under the pointer.
       var bounds = table.getBoundingClientRect();
@@ -71,6 +77,87 @@
       if (target.top < bounds.top) table.scrollTop += target.top - bounds.top;
       else if (target.bottom > bounds.bottom) table.scrollTop += target.bottom - bounds.bottom;
     }
+  }
+  function focusRoad(row, road) {
+    popupIdea = null;
+    map.closePopup();
+    userAdjusted = true;
+    var bounds = road.getBounds();
+    fit([bounds.getSouthWest(), bounds.getNorthEast()]);
+    highlight(row, road, true);
+    road.openPopup(road.getCenter());
+    if (demo && overlay) overlay.setBounds(map.getBounds());
+  }
+  function hideLabels() {
+    if (labelGuides) labelGuides.replaceChildren();
+    routeLabels.forEach(function (entry) { entry.tooltip.getElement().style.visibility = "hidden"; });
+  }
+  function scheduleLabels() {
+    if (labelFrame !== null) cancelAnimationFrame(labelFrame);
+    labelFrame = requestAnimationFrame(layoutLabels);
+  }
+  function overlaps(a, b) {
+    return a.left < b.right + 5 && a.right + 5 > b.left && a.top < b.bottom + 5 && a.bottom + 5 > b.top;
+  }
+  function layoutLabels() {
+    labelFrame = null;
+    if (!map || moving || !visible()) return;
+    hideLabels();
+    var size = map.getSize();
+    var viewport = el.getBoundingClientRect();
+    var occupied = [];
+    el.querySelectorAll(".leaflet-control, .leaflet-marker-icon, .leaflet-popup").forEach(function (node) {
+      var rect = node.getBoundingClientRect();
+      occupied.push({ left: rect.left - viewport.left, right: rect.right - viewport.left,
+        top: rect.top - viewport.top, bottom: rect.bottom - viewport.top });
+    });
+    // Prioritize the hovered/focused route when a very small viewport cannot fit every label.
+    var ordered = routeLabels.filter(function (entry) { return entry.road === activeRoad; })
+      .concat(routeLabels.filter(function (entry) { return entry.road !== activeRoad; }));
+    ordered.forEach(function (entry) {
+      var node = entry.tooltip.getElement();
+      var width = node.offsetWidth, height = node.offsetHeight;
+      if (width > size.x - 16 || height > size.y - 16) return;
+      var midpoint = map.latLngToContainerPoint(entry.road.getCenter());
+      var target = midpoint.x >= 0 && midpoint.x <= size.x && midpoint.y >= 0 && midpoint.y <= size.y ?
+        midpoint : size.divideBy(2);
+      var nearest = entry.road.closestLayerPoint(map.containerPointToLayerPoint(target));
+      if (!nearest) return; // The road has no visible segment in this viewport.
+      var anchor = map.layerPointToContainerPoint(nearest);
+      var x = Math.max(8 + width / 2, Math.min(size.x - 8 - width / 2, anchor.x));
+      var y = Math.max(8 + height / 2, Math.min(size.y - 8 - height / 2, anchor.y));
+      var placed = null;
+      var stepX = width + 8, stepY = height + 8;
+      var limit = Math.max(Math.ceil(size.x / stepX), Math.ceil(size.y / stepY));
+      for (var ring = 0; ring <= limit && !placed; ring++) {
+        for (var dy = -ring; dy <= ring && !placed; dy++) {
+          for (var dx = -ring; dx <= ring; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+            var candidate = { left: x + dx * stepX - width / 2, top: y + dy * stepY - height / 2 };
+            candidate.right = candidate.left + width;
+            candidate.bottom = candidate.top + height;
+            if (candidate.left < 8 || candidate.top < 8 || candidate.right > size.x - 8 || candidate.bottom > size.y - 8 ||
+                occupied.some(function (rect) { return overlaps(candidate, rect); })) continue;
+            placed = candidate;
+            break;
+          }
+        }
+      }
+      if (!placed) return;
+      occupied.push(placed);
+      var center = L.point(placed.left + width / 2, placed.top + height / 2);
+      entry.tooltip.setLatLng(map.containerPointToLatLng(center));
+      node.style.visibility = "visible";
+      node.classList.toggle("is-route-active", entry.road === activeRoad);
+      if (center.distanceTo(anchor) > 8) {
+        var guide = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        guide.setAttribute("x1", anchor.x);
+        guide.setAttribute("y1", anchor.y);
+        guide.setAttribute("x2", center.x);
+        guide.setAttribute("y2", center.y);
+        labelGuides.appendChild(guide);
+      }
+    });
   }
   function initialize() {
     if (map) return;
@@ -83,7 +170,14 @@
     }
     roads = L.layerGroup().addTo(map);
     layer = L.layerGroup().addTo(map);
+    labelGuides = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    labelGuides.classList.add("idea-route-guides");
+    labelGuides.setAttribute("aria-hidden", "true");
+    el.appendChild(labelGuides);
     map.on("movestart", function () { if (!fitting) userAdjusted = true; });
+    map.on("movestart zoomstart", function () { moving = true; hideLabels(); });
+    map.on("moveend", function () { moving = false; scheduleLabels(); });
+    map.on("popupopen popupclose", scheduleLabels);
   }
   function choose(value) {
     selected = value;
@@ -129,6 +223,8 @@
     rows.replaceChildren();
     clearHighlight();
     var reopen = popupIdea;
+    hideLabels();
+    routeLabels = [];
     layer.clearLayers();
     roads.clearLayers();
     pending = false;
@@ -176,16 +272,17 @@
         [result.distance, result.duration, label].filter(Boolean).join(" · ")));
       if (origin && road) {
         var line = L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
-          .bindPopup(popup.cloneNode(true)).addTo(roads);
+          .bindPopup(popup.cloneNode(true), { autoPan: false }).addTo(roads);
         routeBounds.extend(line.getBounds());
         if (result.distance) {
           line.bindTooltip(text("span", (index + 1) + " · " + result.distance), {
             permanent: true, direction: "center", className: "idea-route-distance", opacity: 0.95
           });
+          routeLabels.push({ road: line, tooltip: line.getTooltip() });
         }
         line.on("mouseover", function () { highlight(row, line, true); });
         line.on("mouseout", function () { clearHighlight(line); });
-        line.on("click", function () { highlight(row, line, true); });
+        line.on("click", function () { focusRoad(row, line); });
         row.addEventListener("mouseenter", function () { highlight(row, line, false); });
         row.addEventListener("mouseleave", function () { clearHighlight(line); });
         title.addEventListener("focus", function () { highlight(row, line, false); });
@@ -201,7 +298,7 @@
           path.addEventListener("keydown", function (event) {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              line.openPopup();
+              focusRoad(row, line);
             }
           });
         }
@@ -253,6 +350,7 @@
     }
     viewKey = nextView;
     positions = nextPositions;
+    scheduleLabels();
     summary();
   }
   async function load() {
@@ -278,6 +376,8 @@
       data = null;
       rows.replaceChildren();
       clearHighlight();
+      hideLabels();
+      routeLabels = [];
       if (layer) layer.clearLayers();
       if (roads) roads.clearLayers();
       rendered = null;
@@ -297,6 +397,7 @@
     fitting = false;
     if (!userAdjusted && viewPoints) fit(viewPoints);
     if (demo && overlay) overlay.setBounds(map.getBounds());
+    scheduleLabels();
   }
   new ResizeObserver(function () {
     var now = visible();

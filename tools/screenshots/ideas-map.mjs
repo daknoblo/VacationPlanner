@@ -91,6 +91,22 @@ export async function verifyIdeasMap(browser) {
       return lines;
     });
   }
+  async function assertLabels(count) {
+    await page.waitForFunction(expected => [...document.querySelectorAll(".idea-route-distance")]
+      .filter(el => getComputedStyle(el).visibility === "visible").length === expected, count);
+    const layout = await page.evaluate(() => {
+      const map = document.querySelector("#ideas-map").getBoundingClientRect();
+      const labels = [...document.querySelectorAll(".idea-route-distance")]
+        .filter(el => getComputedStyle(el).visibility === "visible").map(el => el.getBoundingClientRect());
+      return {
+        inside: labels.every(r => r.left >= map.left && r.top >= map.top && r.right <= map.right && r.bottom <= map.bottom),
+        overlaps: labels.some((a, i) => labels.slice(i + 1).some(b =>
+          a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top)),
+      };
+    });
+    assert.equal(layout.inside, true, "Every visible distance label must fit inside the map");
+    assert.equal(layout.overlaps, false, "Distance labels must never overlap");
+  }
   try {
     await page.goto("http://127.0.0.1/", { waitUntil: "networkidle" });
     assert.equal(requests, 0);
@@ -134,8 +150,11 @@ export async function verifyIdeasMap(browser) {
     await waitText(page.locator("[data-ideas-map-cache-status]"), "4 saved / 0 failed / 0 pending");
     await page.waitForFunction(() => document.querySelectorAll(".idea-route-distance").length === 2);
     assert.deepEqual(await page.locator(".idea-route-distance").allTextContents(), ["1 · 12.3 km", "2 · 12.3 km"]);
+    await assertLabels(2);
     const pageY = await page.evaluate(() => scrollY);
     await page.locator('.idea-driving-route[data-idea-id="two"]').dispatchEvent("mouseover");
+    assert.equal(await page.locator('.idea-driving-route[data-idea-id="two"]').evaluate(el => getComputedStyle(el).stroke), "rgb(192, 38, 211)",
+      "Hovered road must change from blue to a clearly different magenta");
     assert.equal(await rows.locator("tr.is-route-active").getAttribute("data-idea-id"), "two");
     assert.equal(await rows.locator("tr.is-route-active td").first().evaluate(el => getComputedStyle(el).backgroundColor), "rgb(239, 246, 255)");
     assert.ok(await page.locator(".ideas-map-table").evaluate(el => {
@@ -145,9 +164,71 @@ export async function verifyIdeasMap(browser) {
     }), "Hover must reveal the correct row inside the table");
     assert.equal(await page.evaluate(() => scrollY), pageY, "Route hover must not scroll the page away from the pointer");
     await page.locator('.idea-driving-route[data-idea-id="two"]').dispatchEvent("mouseout");
+    assert.equal(await page.locator('.idea-driving-route[data-idea-id="two"]').evaluate(el => getComputedStyle(el).stroke), "rgb(37, 99, 235)");
     assert.equal(await rows.locator("tr.is-route-active").count(), 0);
+
+    const secondRoad = routes.a.two.geometry;
+    routes.a.two.geometry = [[55, 8], [57, 10], [55.2, 8.2]];
+    await refresh();
+    await page.waitForFunction(() => testMap.getBounds().contains([57, 10]));
+    const allRoadZoom = await page.evaluate(() => testMap.getZoom());
+    await page.locator('.idea-driving-route[data-idea-id="one"]').dispatchEvent("click");
+    assert.ok(await page.evaluate(() => [[55, 8], [55.05, 8.3], [55.1, 8.1]].every(point => testMap.getBounds().contains(point))),
+      "Clicking a road must fit all its real geometry, including detours");
+    assert.ok(await page.evaluate(() => testMap.getZoom()) > allRoadZoom, "Click must focus the chosen road, not all routes");
+    const focusedView = await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]);
+    data.ideas[1].title = "Scheduled idea updated";
+    await refresh();
+    await waitText(rows, "Scheduled idea updated");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
+      "Cached polling must preserve the clicked route's viewport");
     await page.locator('.idea-driving-route[data-idea-id="one"]').focus();
     assert.equal(await rows.locator("tr.is-route-active").getAttribute("data-idea-id"), "one", "Keyboard focus must also highlight the destination");
+    await page.locator('.idea-driving-route[data-idea-id="two"]').focus();
+    await page.locator('.idea-driving-route[data-idea-id="two"]').press("Enter");
+    assert.ok(await page.evaluate(() => testMap.getBounds().contains([57, 10])), "Keyboard activation must fit the entire chosen road");
+    routes.a.two.geometry = secondRoad;
+    await page.evaluate(() => testMap.closePopup());
+    await select.selectOption("");
+    await select.selectOption("a");
+    for (let index = 0; index < 12; index++) {
+      const id = `cluster-${index}`;
+      data.ideas.push({ id, title: `Clustered idea ${index}`, lat: 55.1, lng: 8.1 });
+      routes.a[id] = { ...routes.a.one, distance: `${100 + index}.4 km` };
+    }
+    await refresh();
+    await assertLabels(14);
+    assert.ok(await page.locator(".idea-route-guides line").count() > 0, "Shifted labels need distinguishable leader lines");
+    await page.locator("#ideas-map").evaluate(el => { el.style.width = "320px"; });
+    await page.waitForFunction(() => testMap.getSize().x === 320);
+    await assertLabels(14);
+    await page.evaluate(() => testMap.setZoom(testMap.getZoom() - 1, { animate: false }));
+    await assertLabels(14);
+    await page.evaluate(() => testMap.panBy([12, 8], { animate: false }));
+    await assertLabels(14);
+    for (let index = 12; index < 40; index++) {
+      const id = `cluster-${index}`;
+      data.ideas.push({ id, title: `Clustered idea ${index}`, lat: 55.1, lng: 8.1 });
+      routes.a[id] = { ...routes.a.one, distance: `${100 + index}.4 km` };
+    }
+    await page.locator("#ideas-map").evaluate(el => { el.style.height = "160px"; });
+    await refresh();
+    await page.waitForFunction(() => {
+      const shown = [...document.querySelectorAll(".idea-route-distance")]
+        .filter(el => getComputedStyle(el).visibility === "visible").length;
+      return document.querySelectorAll("[data-ideas-map-rows] tr").length === 43 && shown > 0 && shown < 42;
+    });
+    await page.locator('.idea-driving-route[data-idea-id="cluster-39"]').dispatchEvent("mouseover");
+    await page.waitForFunction(() => [...document.querySelectorAll(".idea-route-distance.is-route-active")]
+      .some(el => getComputedStyle(el).visibility === "visible" && el.textContent.includes("139.4 km")));
+    await assertLabels(await page.locator(".idea-route-distance").evaluateAll(elements =>
+      elements.filter(el => getComputedStyle(el).visibility === "visible").length));
+    data.ideas.splice(3);
+    for (const id of Object.keys(routes.a)) if (id.startsWith("cluster-")) delete routes.a[id];
+    await page.locator("#ideas-map").evaluate(el => { el.style.width = "640px"; el.style.height = "400px"; });
+    await select.selectOption("");
+    await select.selectOption("a");
+    await assertLabels(2);
     await waitText(rows, "12.3 km");
     await rows.locator("button").first().click();
     await page.locator(".leaflet-popup-content").waitFor();
@@ -226,7 +307,7 @@ export async function verifyIdeasMap(browser) {
     assert.equal(requests, before, "Hidden tabs must stop polling (not the independent server worker)");
     assert.deepEqual(errors, []);
     await verifyRouteRetryForm(context);
-    console.log("Validated adaptive route bounds, saved distance labels, hover/keyboard table highlights and read-only polling.");
+    console.log("Validated non-overlapping labels, distinct hover color, full-route click/keyboard zoom and read-only polling.");
   } finally {
     if (release) release();
     await context.close();

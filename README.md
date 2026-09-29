@@ -165,8 +165,13 @@ published together as a Pages artifact, not checked into the repository.
   starting accommodation in the dropdown or click its marker to load its saved routes.
   The map fits the selected stay, located ideas and actual road detours, rather than
   using a fixed zoom or including unrelated distant stays. Small numbered distance
-  labels match the table; hovering or focusing a road highlights its destination and
-  scrolls only the comparison table, keeping the map in place.
+  labels match the table and are laid out without overlaps, avoiding map controls and
+  markers. Thin dashed connectors associate shifted labels with their roads. Placement
+  updates after pan, zoom and resize; if the viewport cannot fit every label, hover or
+  zoom to reveal it instead of overlapping labels.
+  Hovering or focusing a road turns it magenta and highlights its destination, scrolling
+  only the comparison table. Clicking a road (or pressing Enter/Space when focused)
+  fits its complete saved geometry, including detours; cached polling preserves that view.
   **Overview** is the initial selection and restores the full accommodation/idea extent
   without choosing an origin. The selected start is outlined, and accommodation labels
   include the booked dates.

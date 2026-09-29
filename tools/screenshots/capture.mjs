@@ -275,6 +275,13 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,
       "Selected accommodation displays every illustrative route in the offline demo");
     assert.equal(await page.locator("#ideas-map .idea-route-distance").count(), 14, "Every saved road has a distance label");
+    await page.waitForFunction(() => [...document.querySelectorAll("#ideas-map .idea-route-distance")]
+      .filter(el => getComputedStyle(el).visibility === "visible").length === 14);
+    assert.ok(await page.locator("#ideas-map .idea-route-distance").evaluateAll(elements => {
+      const bounds = elements.map(el => el.getBoundingClientRect());
+      return bounds.every((a, i) => bounds.slice(i + 1).every(b =>
+        a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom));
+    }), "The actual demo must show all 14 distance labels without overlap");
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       "Ideas map and route table must fit the mobile viewport");

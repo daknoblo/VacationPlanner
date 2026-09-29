@@ -5,7 +5,7 @@ package i18n
 var messages = map[Lang]map[string]string{
 	LangEN: {
 		"ideas.map.title":        "Ideas on the map",
-		"ideas.map.hint":         "Overview shows all accommodations and saved ideas. Selecting an accommodation loads saved routes and fits the map to its ideas and roads. Distance labels match the numbered table; hover a route to highlight its destination. Routes are prepared in the background, even with this tab closed. Retry missing routes in Settings. No live traffic.",
+		"ideas.map.hint":         "Overview shows all accommodations and saved ideas. Select an accommodation to show its saved routes. Distance labels are spaced apart; dotted connectors link shifted labels to their roads. Hover a route to highlight it in magenta and reveal its table row; click to fit the entire route. If space is tight, hover or zoom in to reveal a label. Routes load in the background; refresh missing data in Settings. No live traffic.",
 		"ideas.map.origin":       "Starting accommodation",
 		"ideas.map.choose":       "Overview",
 		"ideas.map.overview":     "Overview of all accommodations and ideas. Select an accommodation to see its driving routes.",
@@ -575,7 +575,7 @@ var messages = map[Lang]map[string]string{
 
 	LangDE: {
 		"ideas.map.title":        "Ideen auf der Karte",
-		"ideas.map.hint":         "Die Übersicht zeigt alle Unterkünfte und gespeicherten Ideen. Die Unterkunftsauswahl lädt gespeicherte Routen und passt den Kartenausschnitt an Ideen und Straßenverläufe an. Entfernungslabels entsprechen der nummerierten Tabelle; beim Überfahren einer Route wird ihr Ziel hervorgehoben. Routen werden auch bei geschlossenem Tab im Hintergrund vorbereitet. Fehlende Routen lassen sich in den Einstellungen erneut abrufen. Ohne Live-Verkehr.",
+		"ideas.map.hint":         "Die Übersicht zeigt alle Unterkünfte und gespeicherten Ideen. Wähle eine Unterkunft für ihre gespeicherten Routen. Entfernungslabels werden ohne Überlappung verteilt; gestrichelte Hilfslinien verbinden versetzte Labels mit ihrer Strecke. Beim Überfahren wird die Route magenta und ihre Tabellenzeile sichtbar; ein Klick zeigt die gesamte Route. Bei Platzmangel wird das Label beim Überfahren oder Hineinzoomen sichtbar. Routen laden im Hintergrund; fehlende Daten lassen sich in den Einstellungen aktualisieren. Ohne Live-Verkehr.",
 		"ideas.map.origin":       "Startunterkunft",
 		"ideas.map.choose":       "Übersicht",
 		"ideas.map.overview":     "Übersicht aller Unterkünfte und Ideen. Wähle eine Unterkunft für deren Autofahrtrouten.",

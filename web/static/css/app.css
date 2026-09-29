@@ -1396,7 +1396,10 @@ textarea { resize: vertical; }
 .ideas-map-table td a { display: block; }
 .ideas-map-table td a.idea-location-warning { display: inline-flex; }
 .ideas-map-table tr.is-route-active td { background: #eff6ff; }
-.idea-route-distance { padding: 2px 5px; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; background: #fff; font-size: 11px; font-weight: 600; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15); pointer-events: none; }
+.idea-route-distance { visibility: hidden; padding: 2px 5px; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; background: #fff; font-size: 11px; font-weight: 600; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15); pointer-events: none; }
 .idea-route-distance::before { display: none; }
-.idea-driving-route:focus { outline: none; stroke: #1d4ed8; stroke-width: 5; }
+.idea-route-distance.is-route-active { border-color: #c026d3; color: #86198f; }
+.idea-route-guides { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 625; pointer-events: none; }
+.idea-route-guides line { stroke: #64748b; stroke-width: 1; stroke-dasharray: 3 3; }
+.idea-driving-route:focus { outline: none; stroke: #c026d3; stroke-width: 5; }
 @media (max-width: 600px) { .ideas-map { height: 320px; } }

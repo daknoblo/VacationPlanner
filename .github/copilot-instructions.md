@@ -114,8 +114,11 @@ a reverse proxy.
   between current same-trip records. The Ideas map defaults to Overview; selecting an
   accommodation reloads cached data and fits its ideas and saved road geometries.
   Distance labels match numbered table rows; route hover/focus highlights and reveals
-  the destination within the table without scrolling the page. Preserve manual views
-  on polling. The map has no refresh/retry buttons.
+  the destination within the table without scrolling the page and turns the road magenta.
+  Distance labels use collision-free viewport placement with dashed leader lines when
+  displaced; recalculate after pan/zoom/resize. In a crowded viewport prioritize the
+  active road's label rather than overlap labels. Click/Enter/Space fits the full saved
+  road geometry. Preserve focused/manual views on polling. The map has no refresh/retry buttons.
 - `POST /settings/route/retry` – Settings trip-selectable retry for missing idea routes,
   with CSRF and trip validation; also queue missing location/region enrichment.
   The Refresh action works without a routing key and then clearly reports location-only

@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Route label placement and focus — prevent distance-label overlaps, keep labels
+      within the viewport and away from controls/markers, and link shifted labels with
+      dashed guides. Reposition after pan/zoom/resize, prioritizing active routes when
+      space runs out. Hover/focus uses contrasting magenta; click or Enter/Space fits
+      the complete cached road geometry and polling preserves the chosen view.
+
 - [x] Combined location/route refresh — Settings updates missing locations and regions
       alongside failed/incomplete routes for the selected trip, even without a routing
       key. Remove the planner's old hint/refresh block. Routing queues bounded initial
