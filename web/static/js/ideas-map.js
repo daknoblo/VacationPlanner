@@ -5,6 +5,7 @@
   var el = root.querySelector("#ideas-map");
   var select = root.querySelector("[data-ideas-map-origin]");
   var status = root.querySelector("[data-ideas-map-status]");
+  var cacheStatus = root.querySelector("[data-ideas-map-cache-status]");
   var rows = root.querySelector("[data-ideas-map-rows]");
   var retry = root.querySelector("[data-ideas-map-retry]");
   var demo = window.VP_DEMO_IDEAS;
@@ -71,6 +72,7 @@
       failed ? root.dataset.unavailable : root.dataset.ready;
     if (remaining) value += " · " + root.dataset.pending + " (" + progress.completed + "/" + progress.total + ")";
     status.textContent = value;
+    cacheStatus.textContent = data.progress_label || "";
   }
   function render() {
     if (!data || !visible()) return;
@@ -206,10 +208,12 @@
       if (roads) roads.clearLayers();
       rendered = null;
       status.textContent = root.dataset.error;
+      cacheStatus.textContent = "";
     }
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }
   select.addEventListener("change", function () { choose(select.value); });
+  root.querySelector("[data-ideas-map-refresh]").addEventListener("click", load);
   retry.addEventListener("click", async function () {
     if (demo) { load(); return; }
     var csrf = document.querySelector('meta[name="csrf-token"]');

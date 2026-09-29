@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
@@ -21,11 +22,12 @@ type ideasMapPoint struct {
 }
 
 type ideasMapPayload struct {
-	Lodgings []ideasMapPoint          `json:"lodgings"`
-	Ideas    []ideasMapPoint          `json:"ideas"`
-	Routing  bool                     `json:"routing"`
-	Routes   map[string]ideaDrive     `json:"routes"`
-	Progress models.IdeaRouteProgress `json:"progress"`
+	Lodgings      []ideasMapPoint          `json:"lodgings"`
+	Ideas         []ideasMapPoint          `json:"ideas"`
+	Routing       bool                     `json:"routing"`
+	Routes        map[string]ideaDrive     `json:"routes"`
+	Progress      models.IdeaRouteProgress `json:"progress"`
+	ProgressLabel string                   `json:"progress_label,omitempty"`
 }
 
 // The map reads all saved ideas, including scheduled and visited entries.
@@ -84,6 +86,9 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
+		payload.ProgressLabel = i18n.FromContext(r.Context()).T("ideas.map.cache_status",
+			payload.Progress.Completed-payload.Progress.Failed, payload.Progress.Failed,
+			payload.Progress.Total-payload.Progress.Completed)
 	}
 	if raw := r.URL.Query().Get("lodging"); raw != "" {
 		lodgingID, err := uuid.Parse(raw)

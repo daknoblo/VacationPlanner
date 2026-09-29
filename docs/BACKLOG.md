@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] ORS summary-only response compatibility — use validated summary metrics for
+      two-point directions without instruction segments; retain real multi-leg
+      breakdowns. Cover failed-cache recovery and persistence without repeat calls.
+      Separate read-only map refresh from explicit missing-route retries, and show
+      saved/failed/pending counts rather than treating checked attempts as successes.
+
 - [x] Ideas map overview, accommodation zoom and all-route overlays — default full
       overview, zoom to a selected stay and render actual provider road geometry.
       Persist all located accommodation/idea pairs through a paced lifecycle worker,

@@ -119,6 +119,10 @@ a reverse proxy.
   current coordinate/provider comparisons protect against stale writes and reads.
   New/geocoded pairs are discovered automatically. GET/status polling never dispatches
   routing calls. Missing geometry is explicit, never replaced with a straight line.
+  Two-point ORS replies can legitimately omit segments with instructions disabled;
+  use validated provider summary metrics for the sole leg. Map refresh only reads
+  SQLite; retry missing routes is a separate CSRF-protected action and preserves
+  successful results. Display saved, failed and pending route counts separately.
 - `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/calendar-regions` – read-only saved accommodation regions

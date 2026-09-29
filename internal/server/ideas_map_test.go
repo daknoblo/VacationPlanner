@@ -172,7 +172,7 @@ func TestIdeaDriveDisabledFailuresAndMalformedMetrics(t *testing.T) {
 		{"empty", `{"routes":[]}`, "unavailable", true, 200},
 		{"missing metrics", `{"routes":[{"segments":[{}]}]}`, "unavailable", true, 200},
 		{"negative metrics", `{"routes":[{"segments":[{"distance":-1,"duration":30}]}]}`, "unavailable", true, 200},
-		{"missing leg", `{"routes":[{"summary":{"distance":30,"duration":10}}]}`, "unavailable", true, 200},
+		{"incomplete summary", `{"routes":[{"summary":{"distance":30}}]}`, "unavailable", true, 200},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			s := newIntegrationServer(t)

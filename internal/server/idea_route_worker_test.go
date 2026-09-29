@@ -46,7 +46,7 @@ func TestBackgroundRoutesProgressGeometryAndReadOnlyPolling(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !body.Geometry || body.Instructions == nil || *body.Instructions {
 			t.Errorf("background request must include geometry and omit turn instructions: %+v %v", body, err)
 		}
-		_, _ = w.Write([]byte("{\"routes\":[{\"geometry\":\"_p~iF~ps|U_ulLnnqC_mqNvxq`@\",\"segments\":[{\"distance\":12345,\"duration\":4567}]}]}"))
+		_, _ = w.Write([]byte("{\"routes\":[{\"geometry\":\"_p~iF~ps|U_ulLnnqC_mqNvxq`@\",\"summary\":{\"distance\":12345,\"duration\":4567}}]}"))
 	}))
 	defer provider.Close()
 	s.routing = route.New("test")
@@ -190,9 +190,10 @@ func TestRetryIncompleteRouteReachesProviderAgain(t *testing.T) {
 	var calls atomic.Int32
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) == 1 {
-			_, _ = w.Write([]byte(`{"routes":[{"summary":{"distance":1000,"duration":600}}]}`))
+			_, _ = w.Write([]byte(`{"routes":[{"summary":{"distance":1000}}]}`))
 			return
 		}
+
 		_, _ = w.Write([]byte("{\"routes\":[{\"geometry\":\"_p~iF~ps|U_ulLnnqC_mqNvxq`@\",\"segments\":[{\"distance\":1000,\"duration\":600}]}]}"))
 	}))
 	defer provider.Close()
@@ -208,5 +209,64 @@ func TestRetryIncompleteRouteReachesProviderAgain(t *testing.T) {
 	}
 	if err := s.prepareNextIdeaRoute(t.Context()); err != nil || calls.Load() != 2 {
 		t.Fatal("retry reused an incomplete in-memory result", err, calls.Load())
+	}
+}
+
+func TestRetryRepairsSavedFailureAndKeepsSuccessfulSummaryRoutes(t *testing.T) {
+	s := newIntegrationServer(t)
+	v, lodging, idea := seedIdeaRoute(t, s)
+	var calls atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write([]byte("{\"routes\":[{\"geometry\":\"_p~iF~ps|U_ulLnnqC_mqNvxq`@\",\"summary\":{\"distance\":12345,\"duration\":4567}}]}"))
+	}))
+	defer provider.Close()
+	s.routing = route.New("test")
+	if err := s.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
+		t.Fatal(err)
+	}
+	job, err := s.store.NextIdeaRoute(t.Context(), provider.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job.Status = "unavailable"
+	if stored, err := s.store.PutIdeaRoute(t.Context(), job); err != nil || !stored {
+		t.Fatal(stored, err)
+	}
+	path := "/vacations/" + v.ID.String() + "/api/ideas-map?lodging=" + lodging.ID.String()
+	var data ideasMapPayload
+	readTripJSON(t, s, path, &data)
+	if data.Progress.Failed != 1 || !strings.Contains(data.ProgressLabel, "failed: 1") {
+		t.Fatal("failure hidden as success", data.ProgressLabel)
+	}
+	if err := s.prepareNextIdeaRoute(t.Context()); err != nil || calls.Load() != 0 {
+		t.Fatal("failure retried automatically", err)
+	}
+	retry := "/vacations/" + v.ID.String() + "/ideas-routes/retry"
+	if rec := postAISettings(s, retry, url.Values{}, true); rec.Code != http.StatusOK {
+		t.Fatal(rec.Code)
+	}
+	if err := s.prepareNextIdeaRoute(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	s.routing = route.New("test") // Discard the in-memory cache, keeping SQLite.
+	for range 3 {
+		readTripJSON(t, s, path, &data)
+		drive := data.Routes[idea.ID.String()]
+		if drive.Status != "ready" || drive.Distance != "12.3 km" || drive.Duration != "1 h 16 min" || len(drive.Geometry) != 3 {
+			t.Fatalf("summary-only provider result did not reach the saved map/table: %+v", drive)
+		}
+		if data.Progress.Failed != 0 || !strings.Contains(data.ProgressLabel, "saved routes: 1") {
+			t.Fatal(data.ProgressLabel)
+		}
+		if rec := postAISettings(s, retry, url.Values{}, true); rec.Code != http.StatusOK {
+			t.Fatal(rec.Code)
+		}
+		if err := s.prepareNextIdeaRoute(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("reads/retries repeated successful provider calls: %d", calls.Load())
 	}
 }

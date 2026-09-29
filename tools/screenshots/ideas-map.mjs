@@ -13,7 +13,7 @@ export async function verifyIdeasMap(browser) {
   let failRetry = false;
   let gate, release;
   const data = {
-    routing: true, progress: { total: 4, completed: 4 },
+    routing: true, progress: { total: 4, completed: 4 }, progress_label: "4 saved / 0 failed / 0 pending",
     lodgings: [
       { id: "a", title: "House <em>A</em>", date_range: "01.05.2027 – 03.05.2027", lat: 55, lng: 8 },
       { id: "b", title: "Campsite B", date_range: "03.05.2027 – 05.05.2027", lat: 56, lng: 9 },
@@ -71,8 +71,9 @@ export async function verifyIdeasMap(browser) {
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-retry-error="Retry failed" data-no-ideas="Empty">
-        <select data-ideas-map-origin></select><button data-ideas-map-retry>Retry</button>
+        <select data-ideas-map-origin></select><button data-ideas-map-refresh>Refresh map</button><button data-ideas-map-retry>Retry</button>
         <div id="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
+        <p data-ideas-map-cache-status></p>
         <table><tbody data-ideas-map-rows></tbody></table>
       </section></section>
       <script src="/leaflet.js"></script><script src="/hooks.js"></script><script src="/ideas-map.js"></script>
@@ -114,6 +115,11 @@ export async function verifyIdeasMap(browser) {
     await waitText(status, "Ready");
     assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), [55, 8, 12]);
     assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "All provider road vertices must be used, not straight lines");
+    await waitText(page.locator("[data-ideas-map-cache-status]"), "4 saved / 0 failed / 0 pending");
+    const refreshed = page.waitForResponse(response => response.url().includes("/map?lodging=a"));
+    await page.locator("[data-ideas-map-refresh]").click();
+    await refreshed;
+    assert.equal(retries, 0, "Refreshing the map must only read cached data");
     await waitText(rows, "12.3 km");
     await rows.locator("button").first().click();
     await page.locator(".leaflet-popup-content").waitFor();
@@ -157,14 +163,17 @@ export async function verifyIdeasMap(browser) {
     await waitText(status, "Ready"); // Read-only polling discovers completed background work.
     assert.equal((await lines()).length, 2);
     routes.b.one = { status: "unavailable" };
+    data.progress_label = "3 saved / 1 failed / 0 pending";
     await refresh();
     await waitText(status, "Route unavailable");
+    await waitText(page.locator("[data-ideas-map-cache-status]"), "3 saved / 1 failed / 0 pending");
     assert.equal((await lines()).length, 1, "Failed route must never become a straight-line fallback");
     failRetry = true;
     await page.locator("[data-ideas-map-retry]").click();
     await waitText(status, "Retry failed");
     failRetry = false;
     routes.b.one = saved;
+    data.progress_label = "4 saved / 0 failed / 0 pending";
     await page.locator("[data-ideas-map-retry]").click();
     await waitText(status, "Ready");
     assert.equal(retries, 2);
@@ -183,8 +192,9 @@ export async function verifyIdeasMap(browser) {
     assert.equal(await rows.locator("tr").count(), 0);
     assert.deepEqual(await lines(), []);
     failMap = false;
-    await page.locator("[data-ideas-map-retry]").click();
+    await page.locator("[data-ideas-map-refresh]").click();
     await waitText(status, "Choose origin");
+    assert.equal(retries, 2, "Recovering a cache read must not retry provider work");
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });
     await new Promise(resolve => setTimeout(resolve, 100));
     const before = requests;

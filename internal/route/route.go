@@ -89,16 +89,22 @@ type orsRequest struct {
 
 type orsResponse struct {
 	Routes []struct {
-		Geometry string `json:"geometry"`
-		Summary  struct {
-			Distance float64 `json:"distance"`
-			Duration float64 `json:"duration"`
-		} `json:"summary"`
-		Segments []struct {
-			Distance *float64 `json:"distance"`
-			Duration *float64 `json:"duration"`
-		} `json:"segments"`
+		Geometry string       `json:"geometry"`
+		Summary  *orsMetrics  `json:"summary"`
+		Segments []orsMetrics `json:"segments"`
 	} `json:"routes"`
+}
+
+type orsMetrics struct {
+	Distance *float64 `json:"distance"`
+	Duration *float64 `json:"duration"`
+}
+
+func (m orsMetrics) leg() (Leg, error) {
+	if m.Distance == nil || m.Duration == nil || !validMetric(*m.Distance) || !validMetric(*m.Duration) {
+		return Leg{}, fmt.Errorf("route: missing or invalid distance/duration")
+	}
+	return Leg{DistanceM: *m.Distance, DurationS: *m.Duration}, nil
 }
 
 // Route returns per-leg distance and duration for the ordered points. baseURL
@@ -125,7 +131,7 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 	for i, p := range points {
 		coords[i] = [2]float64{p.Lng, p.Lat} // ORS expects [lng, lat]
 	}
-	body, err := json.Marshal(orsRequest{Coordinates: coords, Geometry: true})
+	body, err := json.Marshal(orsRequest{Coordinates: coords, Geometry: true, Instructions: len(points) > 2})
 	if err != nil {
 		return Result{}, fmt.Errorf("route: encoding request: %w", err)
 	}
@@ -162,16 +168,30 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 	}
 
 	r0 := parsed.Routes[0]
-	res := Result{
-		TotalDistanceM: r0.Summary.Distance,
-		TotalDurationS: r0.Summary.Duration,
-		Legs:           make([]Leg, 0, len(r0.Segments)),
-	}
+	res := Result{Legs: make([]Leg, 0, len(r0.Segments))}
 	for _, seg := range r0.Segments {
-		if seg.Distance == nil || seg.Duration == nil || !validMetric(*seg.Distance) || !validMetric(*seg.Duration) {
-			return Result{}, fmt.Errorf("route: missing or invalid segment metrics")
+		leg, err := seg.leg()
+		if err != nil {
+			return Result{}, err
 		}
-		res.Legs = append(res.Legs, Leg{DistanceM: *seg.Distance, DurationS: *seg.Duration})
+		res.Legs = append(res.Legs, leg)
+		res.TotalDistanceM += leg.DistanceM
+		res.TotalDurationS += leg.DurationS
+	}
+	if r0.Summary != nil {
+		summary, err := r0.Summary.leg()
+		if err != nil {
+			return Result{}, err
+		}
+		res.TotalDistanceM, res.TotalDurationS = summary.DistanceM, summary.DurationS
+		// With instructions=false ORS omits segments. For exactly two points,
+		// the complete route summary is also the sole leg, not an estimate.
+		if len(points) == 2 && len(res.Legs) == 0 {
+			res.Legs = append(res.Legs, summary)
+		}
+	}
+	if len(res.Legs) != len(points)-1 || !validMetric(res.TotalDistanceM) || !validMetric(res.TotalDurationS) {
+		return Result{}, fmt.Errorf("route: missing or invalid leg breakdown")
 	}
 	if r0.Geometry != "" {
 		res.Geometry, err = decodeGeometry(r0.Geometry)

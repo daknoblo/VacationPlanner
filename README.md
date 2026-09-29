@@ -182,13 +182,21 @@ published together as a Pages artifact, not checked into the repository.
 - Results, including the provider's road geometry, are persisted in SQLite and reused
   after restart. Coordinates and routing-base-URL comparisons reject stale results and
   automatically invalidate changed pairs; unrelated edits do not recalculate routes.
-  There is no automatic expiry or retry of completed failures. **Refresh map and retry
-  routes** explicitly retries failures and incomplete geometry, leaving complete results
+  There is no automatic expiry or retry of completed failures. **Retry missing routes**
+  explicitly retries failures and incomplete geometry, leaving complete results
   intact. Missing geometry is never replaced by a made-up straight route.
 - Page and status polling only read saved results; they never enqueue jobs or contact
   providers. The visible map polls every three seconds and keeps the selected origin and
-  manual viewport while new results arrive. The static demo uses clearly labeled
+  manual viewport while new results arrive. **Refresh map** also only reads this cache,
+  without resetting or re-fetching successful routes. The map separately lists saved,
+  failed and pending route counts across all accommodations; a completed attempt is
+  not necessarily a successful route. The static demo uses clearly labeled
   illustrative values/lines and never contacts a routing provider.
+- **Upgrading from v2.8.0 with unavailable routes:** after updating, click **Retry missing
+  routes** once. OpenRouteService omits its `segments` list when turn instructions are
+  disabled; the corrected parser uses the validated full-route `summary` for the single
+  accommodation-to-idea leg. Multi-waypoint requests retain segment details. Previously
+  stored failures need this explicit retry; successful cached routes are not discarded.
 
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel

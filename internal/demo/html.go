@@ -166,7 +166,7 @@ func navigation(raw, tripID string) string {
 }
 
 func readonlyControl(n *html.Node) bool {
-	for _, key := range []string{"data-tab", "data-view", "data-goto-day", "data-payer-filter", "data-print", "data-ideas-region-filter", "data-ideas-map-origin", "data-ideas-map-retry"} {
+	for _, key := range []string{"data-tab", "data-view", "data-goto-day", "data-payer-filter", "data-print", "data-ideas-region-filter", "data-ideas-map-origin", "data-ideas-map-retry", "data-ideas-map-refresh"} {
 		if hasAttr(n, key) {
 			return true
 		}
@@ -178,6 +178,7 @@ func keepData(key string) bool {
 	switch key {
 	case "data-tabs", "data-tab", "data-tab-panel", "data-view", "data-viewtoggle",
 		"data-ideas-map-panel", "data-ideas-map-origin", "data-ideas-map-retry", "data-ideas-map-status", "data-ideas-map-rows",
+		"data-ideas-map-refresh", "data-ideas-map-cache-status",
 		"data-loading", "data-error", "data-missing", "data-no-origin", "data-pending", "data-unavailable",
 		"data-disabled", "data-ready", "data-choose", "data-removed", "data-no-ideas", "data-demo",
 		"data-overview", "data-no-geometry", "data-retry-error",

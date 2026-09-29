@@ -186,7 +186,7 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
     "input:not([type=hidden]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]), " +
-    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-map-retry]):not(.ideas-map-link)",
+    "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-map-retry]):not([data-ideas-map-refresh]):not(.ideas-map-link)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
   );

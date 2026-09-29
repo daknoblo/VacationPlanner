@@ -15,11 +15,13 @@
       <label for="ideas-map-origin">{{t "ideas.map.origin"}}</label>
       <select id="ideas-map-origin" data-ideas-map-origin disabled><option value="">{{t "ideas.map.choose"}}</option></select>
     </div>
-    <button class="btn btn--sm" type="button" data-ideas-map-retry>{{t "ideas.map.refresh"}}</button>
+    <button class="btn btn--sm" type="button" data-ideas-map-refresh>{{t "ideas.map.refresh"}}</button>
+    <button class="btn btn--sm" type="button" data-ideas-map-retry>{{t "ideas.map.retry"}}</button>
   </div>
   <p class="muted small">{{t "ideas.map.legend"}}</p>
   <div id="ideas-map" class="ideas-map" aria-label="{{t "ideas.map.title"}}"></div>
   <p class="muted small" role="status" data-ideas-map-status>{{t "ideas.map.loading"}}</p>
+  <p class="muted small" data-ideas-map-cache-status></p>
   <div class="ideas-map-table">
     <table>
       <thead><tr><th scope="col">{{t "ideas.map.idea"}}</th><th scope="col">{{t "ideas.map.distance"}}</th><th scope="col">{{t "ideas.map.duration"}}</th><th scope="col">{{t "ideas.map.status"}}</th></tr></thead>
