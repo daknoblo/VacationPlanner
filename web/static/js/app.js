@@ -541,7 +541,7 @@
 
     var marker = null;
     var pointVersion = 0;
-    function setPoint(la, ln, zoom, persist) {
+    function setPoint(la, ln, zoom, persist, keepView) {
       pointVersion++;
       var z = zoom || lmap.getZoom();
       if (latIn) latIn.value = la.toFixed(6);
@@ -549,13 +549,14 @@
       if (persist && zoomIn) { zoomIn.value = z; }
       if (marker) { marker.setLatLng([la, ln]); }
       else { marker = L.marker([la, ln]).addTo(lmap); }
-      lmap.setView([la, ln], z);
+      if (!keepView) lmap.setView([la, ln], z);
     }
     if (hasPoint) setPoint(lat, lng, hasStoredZoom ? storedZoom : 6, false);
 
     function customCenter() {
       if (!centerSelect) return;
       centerSelect.value = "custom";
+      if (searchMap) searchMap.update();
       centerSelect.setCustomValidity("");
       if (customLocation) customLocation.hidden = false;
       if (centerStatus) centerStatus.hidden = true;
@@ -578,7 +579,7 @@
       if (input) input.value = choice.dataset.name;
       var la = parseFloat(choice.dataset.lat), ln = parseFloat(choice.dataset.lng);
       if (Number.isFinite(la) && Number.isFinite(ln)) {
-        setPoint(la, ln, parseInt(choice.dataset.zoom, 10), false);
+        setPoint(la, ln, parseInt(choice.dataset.zoom, 10), false, choice.value.startsWith("lodging:"));
       } else {
         if (latIn) latIn.value = "";
         if (lngIn) lngIn.value = "";
@@ -597,6 +598,8 @@
         }
       });
     }
+    var searchMap = centerSelect && window.VPAISearchMap ?
+      window.VPAISearchMap(lmap, centerSelect, pk.closest("form").querySelector('[name="radius"]')) : null;
     // When the picker resolves clicks to a place name (e.g. the AI search
     // center), a raw map click has no matching label, so reverse-geocode the
     // point and fill the field with the resolved place name.

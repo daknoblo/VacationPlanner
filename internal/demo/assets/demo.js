@@ -172,5 +172,23 @@
       });
     });
   }
+  var searchElement = document.querySelector("[data-ai-search-map]");
+  if (searchElement && window.L) {
+    var searchSelect = document.querySelector("[data-ai-center]");
+    var searchRadius = document.querySelector("[data-ai-radius]");
+    var searchMap = L.map(searchElement, {attributionControl: false}).setView(
+      [Number(searchElement.dataset.lat), Number(searchElement.dataset.lng)], 6);
+    var backdrop = L.imageOverlay("../../static/demo/map.svg", searchMap.getBounds()).addTo(searchMap);
+    searchMap.on("moveend", function () { backdrop.setBounds(searchMap.getBounds()); });
+    searchSelect.addEventListener("change", function () {
+      var option = searchSelect.selectedOptions[0];
+      if (!option || option.value.startsWith("lodging:") || !option.dataset.lat || !option.dataset.lng) return;
+      searchMap.setView([Number(option.dataset.lat), Number(option.dataset.lng)], Number(option.dataset.zoom), {animate: false});
+    });
+    searchRadius.addEventListener("input", function () {
+      searchRadius.closest(".ai-controls-row").querySelector(".range-value").textContent = searchRadius.value;
+    });
+    window.VPAISearchMap(searchMap, searchSelect, searchRadius);
+  }
   activateHash();
 }());

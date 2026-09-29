@@ -33,10 +33,18 @@ func aiSearchCenters(loc *i18n.Localizer, vacation *models.Vacation, lodgings []
 		count   int
 	}
 	regions := make(map[string]*regionPoints)
+	var accommodationCenters []aiSearchCenter
 	for _, lodging := range lodgings {
-		name := strings.TrimSpace(lodging.Region)
-		if name == "" || !lodging.HasCoords() || math.IsNaN(*lodging.Latitude) || math.IsNaN(*lodging.Longitude) ||
+		if !lodging.HasCoords() || math.IsNaN(*lodging.Latitude) || math.IsNaN(*lodging.Longitude) ||
 			math.Abs(*lodging.Latitude) > 90 || math.Abs(*lodging.Longitude) > 180 {
+			continue
+		}
+		accommodationCenters = append(accommodationCenters, aiSearchCenter{
+			Key: "lodging:" + lodging.ID.String(), Label: loc.T("ai.center.lodging", lodging.Name), Name: lodging.Name,
+			Lat: lodging.Latitude, Lng: lodging.Longitude, Zoom: 9,
+		})
+		name := strings.TrimSpace(lodging.Region)
+		if name == "" {
 			continue
 		}
 		key := strings.ToLower(name)
@@ -71,6 +79,7 @@ func aiSearchCenters(loc *i18n.Localizer, vacation *models.Vacation, lodgings []
 		}
 		centers = append(centers, center)
 	}
+	centers = append(centers, accommodationCenters...)
 	return append(centers, aiSearchCenter{Key: "custom", Label: loc.T("ai.center.custom"), Zoom: 9})
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/foundry"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 	"github.com/daknoblo/vacationplanner/internal/models"
+	"github.com/google/uuid"
 )
 
 func TestAISearchCentersGroupOnlyLocatedAccommodationRegions(t *testing.T) {
@@ -25,14 +26,21 @@ func TestAISearchCentersGroupOnlyLocatedAccommodationRegions(t *testing.T) {
 		{Latitude: fptr(54), Longitude: fptr(9)},
 		{Region: "Invalid", Latitude: fptr(math.NaN()), Longitude: fptr(9)},
 	}
+	for i := range lodgings {
+		lodgings[i].ID = uuid.New()
+	}
 	centers := aiSearchCenters(i18n.NewLocalizer(i18n.LangEN), v, lodgings)
-	if len(centers) != 4 || centers[0].Key != "destination" || centers[3].Key != "custom" ||
+	if len(centers) != 8 || centers[0].Key != "destination" || centers[7].Key != "custom" ||
 		centers[1].Name != "Jutland" || centers[2].Name != "Zealand" {
 		t.Fatalf("unexpected options: %+v", centers)
 	}
 	if *centers[0].Lat != 55 || *centers[0].Lng != 10 ||
 		math.Abs(*centers[1].Lat) > 1e-9 || math.Abs(*centers[1].Lng-20) > 1e-9 {
 		t.Fatal("default destination or unweighted accommodation midpoint changed")
+	}
+	if centers[6].Key != "lodging:"+lodgings[4].ID.String() || *centers[6].Lat != 54 ||
+		*centers[6].Lng != 9 {
+		t.Fatal("located accommodations without a region must remain selectable")
 	}
 	again := aiSearchCenters(i18n.NewLocalizer(i18n.LangDE), v, []models.Lodging{lodgings[2], lodgings[1], lodgings[0]})
 	if again[1].Key != centers[1].Key || math.Abs(*again[1].Lng-*centers[1].Lng) > 1e-9 ||
@@ -115,6 +123,7 @@ func TestRecommendationPresetsUseCurrentTripBookingsAndIgnoreHiddenCoordinates(t
 		key, expected string
 	}{
 		{centers[1].Key, "Search center: Accommodation region (latitude 0.00000, longitude 20.00000)"},
+		{"lodging:" + lodgings[0].ID.String(), "Search center: Example stay (latitude 0.00000, longitude 10.00000)"},
 		{"destination", "Search center: Denmark (latitude 55.00000, longitude 10.00000)"},
 		{"custom", "Search center: Wrong place (latitude 80.00000, longitude -120.00000)"},
 		{"", "Search center: Wrong place (latitude 80.00000, longitude -120.00000)"},
@@ -136,6 +145,23 @@ func TestRecommendationPresetsUseCurrentTripBookingsAndIgnoreHiddenCoordinates(t
 			t.Fatalf("wrong search context: %s", backend.payload)
 		}
 	}
+	lodgings[0].Name, lodgings[0].Latitude, lodgings[0].Longitude = "Updated stay", fptr(1), fptr(11)
+	if err := s.store.UpdateLodging(ctx, &lodgings[0]); err != nil {
+		t.Fatal(err)
+	}
+	form.Set("ai_center", "lodging:"+lodgings[0].ID.String())
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK ||
+		!strings.Contains(string(backend.payload), "Search center: Updated stay (latitude 1.00000, longitude 11.00000)") {
+		t.Fatal("accommodation preset used stale names or hidden coordinates")
+	}
+	lodgings[0].Latitude, lodgings[0].Longitude = nil, nil
+	if err := s.store.UpdateLodging(ctx, &lodgings[0]); err != nil {
+		t.Fatal(err)
+	}
+	before := backend.calls
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusUnprocessableEntity || backend.calls != before {
+		t.Fatal("an accommodation that lost its coordinates must fail before inference")
+	}
 	if err := s.store.DeleteLodging(ctx, lodgings[0].ID); err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +174,7 @@ func TestRecommendationPresetsUseCurrentTripBookingsAndIgnoreHiddenCoordinates(t
 		t.Fatal(err)
 	}
 	calls := backend.calls
-	for _, key := range []string{centers[1].Key, "region:unknown"} {
+	for _, key := range []string{centers[1].Key, "region:unknown", "lodging:" + lodgings[0].ID.String(), "lodging:unknown"} {
 		form.Set("ai_center", key)
 		if rec := postAISettings(s, path, form, true); rec.Code != http.StatusUnprocessableEntity ||
 			rec.Header().Get("HX-Retarget") != "#ai-error" || backend.calls != calls {

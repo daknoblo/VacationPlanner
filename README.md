@@ -289,13 +289,19 @@ published together as a Pages artifact, not checked into the repository.
   service-principal authentication. Anchored to the destination with an adjustable **radius**, filtered
   against items already on the trip, with **thumbnails**; add a suggestion as an item in one click.
 - **Search-center dropdown** – defaults to the trip's existing saved destination
-  center, with one option per located accommodation region. Selecting a region uses
+  center, with options for located accommodations and their regions. Selecting a region uses
   the unweighted geographic midpoint of that region's booked accommodations, not the
   geographic center of the administrative region. The map and search radius use this
   point. Region options refresh after background enrichment or booking edits without
   resetting interests, radius or suggestion count. A custom place/map point remains
   available; a removed region requires a new selection rather than silently falling
-  back to the destination.
+  back to the destination. The search map also shows bed markers for the located
+  accommodations. Clicking or keyboard-activating one selects that booking and fits
+  the entire current search radius; changing the radius refits the view. Selection
+  and radius changes do not request AI or geocoding. Accommodation presets are
+  re-resolved from current trip bookings before inference, just like regional presets.
+- **Compact idea cards** – the saved places/ideas list displays two cards per row
+  on wider screens and one on mobile. Inline editors span the list's full width.
 - **Robust AI response parsing** – JSON extraction for chatty models and clear error
   surfacing in the log viewer. Recommendations are requested explicitly in the Ideas tab.
 - **Identity-only AI** – automatic account-scoped endpoint and

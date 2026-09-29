@@ -6,6 +6,7 @@ export async function verifyAISearchCenters(browser) {
   const page = await context.newPage();
   const web = new URL("../../web/static/", import.meta.url);
   const app = await readFile(new URL("js/app.js", web), "utf8");
+  const searchMap = await readFile(new URL("js/ai-search-map.js", web), "utf8");
   const errors = [];
   let fail = false;
   let requests = 0;
@@ -14,6 +15,8 @@ export async function verifyAISearchCenters(browser) {
   let centers = [
     { key: "destination", label: "Denmark (default)", name: "Denmark", lat: 55, lng: 10, zoom: 6 },
     { key: "region:west", label: "Jutland", name: "Jutland", lat: 56, lng: 8, zoom: 9 },
+    { key: "lodging:west", label: "Accommodation: West stay", name: "West stay", lat: 56, lng: 8, zoom: 9 },
+    { key: "lodging:east", label: "Accommodation: East stay", name: "East stay", lat: 55, lng: 12, zoom: 9 },
     { key: "custom", label: "Custom place", name: "", lat: null, lng: null, zoom: 9 },
   ];
   page.on("pageerror", error => errors.push(error.message));
@@ -26,6 +29,8 @@ export async function verifyAISearchCenters(browser) {
     }
     if (url.pathname === "/app.js") {
       await route.fulfill({ contentType: "text/javascript", body: app });
+    } else if (url.pathname === "/ai-search-map.js") {
+      await route.fulfill({ contentType: "text/javascript", body: searchMap });
     } else if (url.pathname === "/map-hooks.js") {
       await route.fulfill({ contentType: "text/javascript", body: `
         window.testMaps = [];
@@ -58,6 +63,8 @@ export async function verifyAISearchCenters(browser) {
             <select data-ai-center name="ai_center" data-ai-centers-url="/centers">
               <option value="destination" data-name="Denmark" data-lat="55" data-lng="10" data-zoom="6">Denmark</option>
               <option value="region:west" data-name="Jutland" data-lat="56" data-lng="8" data-zoom="9">Jutland</option>
+              <option value="lodging:west" data-name="West stay" data-lat="56" data-lng="8" data-zoom="9">Accommodation: West stay</option>
+              <option value="lodging:east" data-name="East stay" data-lat="55" data-lng="12" data-zoom="9">Accommodation: East stay</option>
               <option value="custom">Custom place</option>
             </select>
             <div data-ai-custom-location hidden><input data-geocode-input name="ai_location" value="Denmark">
@@ -70,7 +77,7 @@ export async function verifyAISearchCenters(browser) {
           <div id="ai-error"></div>
         </form>
         <script src="/static/vendor/leaflet/leaflet.js"></script><script src="/map-hooks.js"></script>
-        <script src="/app.js"></script></body></html>` });
+        <script src="/ai-search-map.js"></script><script src="/app.js"></script></body></html>` });
     } else {
       errors.push(`Unexpected request: ${url.pathname}`);
       await route.abort();
@@ -82,6 +89,56 @@ export async function verifyAISearchCenters(browser) {
     const location = page.locator('[name="ai_location"]');
     const latitude = page.locator('[name="ai_lat"]');
     const longitude = page.locator('[name="ai_lng"]');
+    async function radiusFits(km) {
+      await page.waitForFunction(kilometers => {
+        const map = testMaps[0], circles = [];
+        map.eachLayer(layer => { if (layer instanceof L.Circle) circles.push(layer); });
+        if (circles.length !== 1 || circles[0].getRadius() !== kilometers * 1000) return false;
+        const bounds = circles[0].getBounds();
+        return map.getBounds().contains(bounds) &&
+          map.getZoom() === Math.min(15, map.getBoundsZoom(bounds, false, L.point(48, 48)));
+      }, km);
+    }
+    assert.equal(await page.locator(".ai-search-lodging").count(), 2);
+    await page.locator('[data-ai-lodging="lodging:west"]').click();
+    assert.equal(await select.inputValue(), "lodging:west", "Marker click must not bubble into custom-map selection");
+    assert.equal(await location.inputValue(), "West stay");
+    assert.equal(await latitude.inputValue(), "56.000000");
+    assert.equal(await longitude.inputValue(), "8.000000");
+    await radiusFits(50);
+    const broadZoom = await page.evaluate(() => testMaps[0].getZoom());
+    await page.locator('[name="radius"]').evaluate(el => {
+      el.value = "5";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await radiusFits(5);
+    assert.ok(await page.evaluate(() => testMaps[0].getZoom()) > broadZoom, "Smaller search radius zooms in");
+    await page.locator("[data-geocode-map]").evaluate(el => { el.style.width = "300px"; });
+    await radiusFits(5);
+    await page.locator("[data-geocode-map]").evaluate(el => { el.style.width = "640px"; });
+    await select.selectOption("destination");
+    await page.waitForFunction(() => testMaps[0].getZoom() === 6);
+    await page.locator('[data-ai-lodging="lodging:east"]').focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await select.inputValue(), "lodging:east");
+    await radiusFits(5);
+    centers = centers.map(center => center.key === "lodging:east" ? { ...center, lat: 55.5, lng: 11.5 } : center);
+    await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("geographyChanged")));
+    await page.waitForFunction(() => document.querySelector('[name="ai_lat"]').value === "55.500000");
+    await radiusFits(5);
+    centers = centers.filter(center => center.key !== "lodging:east");
+    await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("itemsChanged")));
+    await page.waitForFunction(() => !document.querySelector("[data-ai-center]").validity.valid);
+    assert.equal(await page.locator(".ai-search-lodging").count(), 1);
+    assert.equal(await page.evaluate(() => {
+      let circles = 0;
+      testMaps[0].eachLayer(layer => { if (layer instanceof L.Circle) circles++; });
+      return circles;
+    }), 0, "Removed accommodations must not retain a stale search-radius circle");
+    await page.locator('[name="radius"]').evaluate(el => {
+      el.value = "50";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     await select.selectOption("region:west");
     assert.equal(await location.inputValue(), "Jutland");
     assert.equal(await latitude.inputValue(), "56.000000");

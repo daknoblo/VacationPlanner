@@ -185,7 +185,7 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("script[src*='htmx'], script[src*='/js/app.js']").count(), 0);
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
-    "input:not([type=hidden]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]), " +
+    "input:not([type=hidden]):not([data-ai-radius]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]):not([data-ai-center]), " +
     "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not(.ideas-map-link):not(.idea-route-label)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
@@ -261,6 +261,16 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
+    assert.ok(await page.locator("#ideen-list").evaluate(list => {
+      const rows = [...list.children].map(row => row.getBoundingClientRect());
+      return rows.length >= 3 && rows[0].top === rows[1].top &&
+        rows[0].right < rows[1].left && rows[2].top >= rows[0].bottom;
+    }), "Exactly two saved idea cards share each desktop row");
+    await page.locator("#ideen-list > li").first().evaluate(row => row.classList.add("is-editing"));
+    assert.ok(await page.locator("#ideen-list").evaluate(list =>
+      Math.abs(list.firstElementChild.getBoundingClientRect().width - list.getBoundingClientRect().width) < 1),
+    "Inline editors span both desktop columns");
+    await page.locator("#ideen-list > li").first().evaluate(row => row.classList.remove("is-editing"));
     assert.ok(await page.locator(".idea-location-warning").count() > 0, "Unlocated ideas show a location warning");
     await page.locator("#ideas-map.leaflet-container").waitFor();
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 3);
@@ -301,13 +311,28 @@ async function verifyView(page, shot) {
         a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom));
     }), "The actual demo must show all 14 distance labels without overlap");
     await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.locator("#ideen-list").evaluate(list => {
+      const rows = [...list.children].map(row => row.getBoundingClientRect());
+      return rows.every(row => Math.abs(row.width - list.getBoundingClientRect().width) < 1) &&
+        rows[1].top >= rows[0].bottom;
+    }), "Mobile ideas use one full-width card per row");
+    const title = page.locator("#ideen-list .item-row__title strong").first();
+    const originalTitle = await title.textContent();
+    await title.evaluate(el => { el.textContent = "VeryLongLandmarkName".repeat(10); });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       "Ideas map and route table must fit the mobile viewport");
+    await title.evaluate((el, text) => { el.textContent = text; }, originalTitle);
     await page.setViewportSize(desktop);
     assert.equal(await page.locator("#ai-center").inputValue(), "destination");
-    assert.equal(await page.locator("#ai-center option").count(), 4, "Destination, two accommodation regions and custom point");
+    assert.equal(await page.locator("#ai-center option").count(), 7, "Destination, two regions, three accommodations and custom point");
     const labels = await page.locator("#ai-center option").allTextContents();
     assert.ok(labels.includes("Toscana") && labels.includes("Lazio"), "Each accommodation region appears once");
+    assert.equal(await page.locator("[data-ai-search-map] .ai-search-lodging").count(), 3);
+    const accommodation = await page.locator('[data-ai-center] option[value^="lodging:"]').first().getAttribute("value");
+    await page.locator(`[data-ai-lodging="${accommodation}"]`).click();
+    assert.equal(await page.locator("[data-ai-center]").inputValue(), accommodation,
+      "The offline AI map selects accommodations without network calls");
+    await page.locator("[data-ai-center]").selectOption("destination");
   }
   if (shot.name === "day-planner" || shot.name === "week-planner") {
     assert.equal(await page.locator('[data-tab-panel="tagesplan"] [data-geography-refresh], [data-planner-geography-status], .planner-region-tools').count(), 0,

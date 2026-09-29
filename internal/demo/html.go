@@ -166,7 +166,7 @@ func navigation(raw, tripID string) string {
 }
 
 func readonlyControl(n *html.Node) bool {
-	for _, key := range []string{"data-tab", "data-view", "data-goto-day", "data-payer-filter", "data-print", "data-ideas-region-filter", "data-ideas-map-origin"} {
+	for _, key := range []string{"data-tab", "data-view", "data-goto-day", "data-payer-filter", "data-print", "data-ideas-region-filter", "data-ideas-map-origin", "data-ai-center", "data-ai-radius"} {
 		if hasAttr(n, key) {
 			return true
 		}
@@ -177,6 +177,7 @@ func readonlyControl(n *html.Node) bool {
 func keepData(key string) bool {
 	switch key {
 	case "data-tabs", "data-tab", "data-tab-panel", "data-view", "data-viewtoggle",
+		"data-ai-center", "data-ai-radius", "data-ai-search-map", "data-name",
 		"data-ideas-map-panel", "data-ideas-map-origin", "data-ideas-map-status", "data-ideas-map-rows",
 		"data-ideas-map-cache-status",
 		"data-loading", "data-error", "data-missing", "data-no-origin", "data-pending", "data-unavailable",
@@ -321,6 +322,7 @@ func transform(raw []byte, fragments map[string][]byte, tripID, language, filena
 	}
 	body.AppendChild(element("script", "", "src", staticPrefix+"vendor/leaflet/leaflet.js"))
 	body.AppendChild(element("script", "", "src", "map-data.js"))
+	body.AppendChild(element("script", "", "src", staticPrefix+"js/ai-search-map.js"))
 	body.AppendChild(element("script", "", "src", staticPrefix+"demo/demo.js"))
 	body.AppendChild(element("script", "", "src", staticPrefix+"js/ideas-map.js"))
 	var out bytes.Buffer

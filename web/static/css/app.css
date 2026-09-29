@@ -177,6 +177,7 @@ code {
 }
 /* The AI search-center picker uses a larger, half-page map. */
 .ai-location-picker .location-map { height: 360px; }
+.ai-location-picker .location-map.leaflet-container { overflow: clip; }
 
 /* AI form: "interests" + "search center" on one 50/50 row above the map. */
 .ai-input-row { display: flex; flex-wrap: wrap; gap: 0.9rem; }
@@ -559,6 +560,14 @@ code {
 
 /* Day items (unified sights + activities) */
 .list.items { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+#ideen-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#ideen-list .item-row { min-width: 0; }
+#ideen-list .item-row__main { overflow-wrap: anywhere; }
+#ideen-list .item-row__thumb { width: 120px; }
+#ideen-list .is-editing { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  #ideen-list { grid-template-columns: minmax(0, 1fr); }
+}
 .item-row {
   border: 1px solid var(--line);
   border-radius: 10px;

@@ -154,10 +154,11 @@ a reverse proxy.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/calendar-regions` – read-only saved accommodation regions
   for horizontal day/week calendar bands; never starts provider work.
-- `GET /vacations/{id}/api/ai-centers` – read-only destination and accommodation-region
+- `GET /vacations/{id}/api/ai-centers` – read-only destination, accommodation and accommodation-region
   search presets. Regional midpoints use all located accommodations in that region.
   Recommendation POSTs re-resolve presets from current trip bookings; custom map points
-  remain supported, and missing/removed regional presets fail before any AI call.
+  remain supported, and missing/removed presets fail before any AI call. Accommodation
+  markers select their booking and fit the current search radius without provider work.
 - `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.

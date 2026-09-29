@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Two-column idea cards and accommodation search markers — display two saved
+      places per desktop row, one on mobile, with full-width inline editors.
+      Add current-trip accommodation presets and clickable/keyboard-accessible bed
+      markers to the AI map; fit and display the current search radius, refresh
+      changed bookings, reject removed presets, and support the offline demo.
+
 - [x] Compact Ideas map and direct planning — shorten help, align the origin selector
       and header counters, replace repetitive route-status cells with trip-day selection,
       and show short descriptions below idea titles. Preserve original items and times
