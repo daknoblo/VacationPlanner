@@ -182,7 +182,8 @@ published together as a Pages artifact, not checked into the repository.
 - The compact header shows the saved-route totals on the right; the accommodation
   label and selector share one line. The table contains the idea and a short description,
   right-aligned distance/time, and a **Plan for day** selector instead of repeated route-status text.
-  Choosing a trip day updates the original idea, not a copy, and refreshes the day planner.
+  Choosing a trip day updates the original idea, not a copy, and refreshes the day planner,
+  including moving an existing time block immediately without reloading the page.
   New day assignments remain untimed; existing times, costs, payers, coordinates and links
   are preserved. Polling pauses while choosing a day, and failed saves remain visible.
 - Existing descriptions are shortened to one sentence (at most 160 characters) for this

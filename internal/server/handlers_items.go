@@ -458,8 +458,17 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
+		item, err = s.store.GetItem(r.Context(), id)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 		hxTrigger(w, "itemsChanged")
-		w.WriteHeader(http.StatusNoContent)
+		if item.Timed() {
+			s.fragment(w, r, "planner_block", map[string]any{"Item": item})
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
 		return
 	}
 	item.Day = day

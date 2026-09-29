@@ -113,7 +113,8 @@ func TestMapDaySchedulingPreservesOriginalIdea(t *testing.T) {
 		t.Fatal(err)
 	}
 	form.Set("day", v.EndDate.Format("2006-01-02"))
-	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusNoContent {
+	if rec := postAISettings(s, path, form, true); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `class="planner-block"`) || !strings.Contains(rec.Body.String(), "10:00") {
 		t.Fatal(rec.Code, rec.Body.String())
 	}
 	got, err = s.store.GetItem(t.Context(), item.ID)

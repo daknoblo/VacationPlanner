@@ -261,11 +261,14 @@
         body: new URLSearchParams({ day: day, day_only: "1" }).toString()
       });
       if (!response.ok) throw new Error("Scheduling failed");
+      var html = await response.text();
       idea.scheduled_day = day;
       feedback.textContent = "";
       picker.blur();
       scheduling = false;
-      document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
+      document.body.dispatchEvent(new CustomEvent("itemsChanged", {
+        bubbles: true, detail: { scheduledItem: { id: idea.id, day: day, html: html } }
+      }));
     } catch (error) {
       scheduleErrors.set(idea.id, true);
       picker.value = previous;

@@ -22,7 +22,8 @@ export async function verifyIdeasMap(browser) {
       { id: "c", title: "Unlocated stay", date_range: "", lat: null, lng: null },
     ],
     ideas: [
-      { id: "one", title: "Saved <script>unsafe()</script>", description: "A museum with <b>historic boats</b>.", lat: 55.1, lng: 8.1 },
+      { id: "one", title: "Saved <script>unsafe()</script>", description: "A museum with <b>historic boats</b>.",
+        scheduled_day: "2027-05-02", day: "02.05.2027", lat: 55.1, lng: 8.1 },
       { id: "two", title: "Scheduled idea", day: "02.05.2027", scheduled_day: "2027-05-02", lat: 55.2, lng: 8.2 },
       { id: "three", title: "Unlocated idea", lat: null, lng: null },
     ],
@@ -43,6 +44,7 @@ export async function verifyIdeasMap(browser) {
       return route.abort();
     }
     if (url.pathname === "/ideas-map.js") return route.fulfill({ contentType: "text/javascript", body: script });
+    if (url.pathname === "/app.js") return route.fulfill({ contentType: "text/javascript", body: await readFile(new URL("js/app.js", web)) });
     if (url.pathname === "/app.css") return route.fulfill({ contentType: "text/css", body: await readFile(new URL("css/app.css", web)) });
     if (url.pathname === "/hooks.js") return route.fulfill({ contentType: "text/javascript", body: `
       const createMap = L.map;
@@ -73,7 +75,8 @@ export async function verifyIdeasMap(browser) {
       if (failSchedule) return route.fulfill({ status: 500, body: "Save failed" });
       data.ideas[0].scheduled_day = values.get("day");
       data.ideas[0].day = data.days.find(day => day.value === values.get("day")).label;
-      return route.fulfill({ status: 204 });
+      return route.fulfill({ status: 200, contentType: "text/html",
+        body: '<div class="planner-block" data-id="one">10:00 — Saved idea</div>' });
     }
     if (url.pathname === "/") return route.fulfill({ contentType: "text/html", body: `<!doctype html>
       <html><head><meta charset="utf-8"><link rel="stylesheet" href="/leaflet.css"><link rel="stylesheet" href="/app.css"></head><body>
@@ -89,7 +92,11 @@ export async function verifyIdeasMap(browser) {
         <p data-ideas-map-cache-status></p>
         <div class="ideas-map-table" style="height:65px"><table><tbody data-ideas-map-rows></tbody></table></div>
       </section></section>
-      <script src="/leaflet.js"></script><script src="/hooks.js"></script><script src="/ideas-map.js"></script>
+      <div hidden>
+        <div data-planner-grid data-day="2027-05-01"></div>
+        <div data-planner-grid data-day="2027-05-02"><div class="planner-block" data-id="one">Old block</div></div>
+      </div>
+      <script src="/leaflet.js"></script><script src="/hooks.js"></script><script src="/app.js"></script><script src="/ideas-map.js"></script>
       </body></html>` });
     errors.push(`Unexpected request (GET must not start routing): ${url}`);
     return route.abort();
@@ -400,10 +407,15 @@ export async function verifyIdeasMap(browser) {
     await page.waitForFunction(() => document.querySelector('[data-idea-schedule="one"]').value === "2027-05-01" &&
       !document.querySelector('[data-idea-schedule="one"]').disabled);
     assert.equal(await rows.locator("tr").count(), 3, "Scheduling reuses the original idea");
+    assert.equal(await page.locator('[data-planner-grid][data-day="2027-05-02"] .planner-block').count(), 0);
+    assert.equal(await page.locator('[data-planner-grid][data-day="2027-05-01"] .planner-block').count(), 1,
+      "The daily time grid moves the existing activity without a page reload");
     failSchedule = true;
     await picker.selectOption("2027-05-02");
     await firstRow.getByRole("alert").waitFor();
     assert.equal(await picker.inputValue(), "2027-05-01", "Failed scheduling restores the saved day");
+    assert.equal(await page.locator('[data-planner-grid][data-day="2027-05-01"] .planner-block').count(), 1,
+      "A failed save must not move the existing time block");
     assert.deepEqual(schedules, ["2027-05-01", "2027-05-02"]);
     await picker.blur();
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });

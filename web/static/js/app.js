@@ -1203,6 +1203,20 @@
     for (var i = 0; i < grids.length; i++) { initPlanner(grids[i]); }
   }
 
+  document.body.addEventListener("itemsChanged", function (event) {
+    var scheduled = event.detail && event.detail.scheduledItem;
+    if (!scheduled) return;
+    document.querySelectorAll("[data-planner-grid]").forEach(function (grid) {
+      grid.querySelectorAll(".planner-block[data-id]").forEach(function (block) {
+        if (block.dataset.id === scheduled.id) block.remove();
+      });
+      if (grid.dataset.day === scheduled.day && scheduled.html) {
+        grid.insertAdjacentHTML("beforeend", scheduled.html);
+        if (typeof htmx !== "undefined") htmx.process(grid);
+      }
+    });
+  });
+
   // ---- Drag ideas from the backlog onto a day's grid to schedule them ----
   document.addEventListener("dragstart", function (e) {
     var chip = e.target && e.target.closest ? e.target.closest(".idea-chip") : null;
