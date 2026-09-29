@@ -304,6 +304,20 @@ func (s *SQLite) ScheduleItemDay(ctx context.Context, id uuid.UUID, day time.Tim
 	return checkAffected(result)
 }
 
+func (s *SQLite) ScheduleItemRange(ctx context.Context, id uuid.UUID, day time.Time, start, end int) error {
+	if start < 0 || end > 1440 || end-start < 30 {
+		return fmt.Errorf("store: invalid item time range")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE items SET day = ?, start_min = ?, end_min = ?, updated_at = ?
+		WHERE id = ? AND EXISTS (SELECT 1 FROM vacations v WHERE v.id = items.vacation_id
+		AND ? BETWEEN v.start_date AND v.end_date)`,
+		dbDate(day), start, end, dbTime(time.Now().UTC()), id, dbDate(day))
+	if err != nil {
+		return err
+	}
+	return checkAffected(result)
+}
+
 func (s *SQLite) DeleteItem(ctx context.Context, id uuid.UUID) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, id)
 	if err != nil {

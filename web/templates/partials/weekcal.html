@@ -1,5 +1,7 @@
 {{define "weekcal"}}
-<div class="weekcal">
+<div class="weekcal" data-resize-start="{{t "planner.resize_start"}}" data-resize-end="{{t "planner.resize_end"}}"
+     data-save-error="{{t "planner.time_save_error"}}" data-saving="{{t "ideas.map.saving"}}">
+  <p class="form-error small" data-week-save-status role="status" hidden></p>
   {{range $wi, $week := .Weeks}}
   <details class="weekcal__wk" open>
     <summary class="weekcal__wk-sum">{{t "tab.week"}} {{add $wi 1}}</summary>
@@ -29,6 +31,12 @@
                style="top:{{.TopPx}}px;height:{{.HeightPx}}px" title="{{.Title}}">
             <span class="weekcal-block__time">{{.Label}}</span>
             <span class="weekcal-block__title"><span>{{if .Travel}}✈ {{end}}{{.Title}}</span>{{if .MissingLocation}}{{template "idea_location_warning" .}}{{end}}</span>
+            {{if and .ID (not .Travel)}}
+            <button type="button" class="weekcal-block__resize weekcal-block__resize--start" data-week-resize="start"
+                    title="{{t "planner.resize_start"}}" aria-label="{{t "planner.resize_start"}} · {{.Title}}"></button>
+            <button type="button" class="weekcal-block__resize weekcal-block__resize--end" data-week-resize="end"
+                    title="{{t "planner.resize_end"}}" aria-label="{{t "planner.resize_end"}} · {{.Title}}"></button>
+            {{end}}
           </div>
           {{end}}{{end}}
         </div>

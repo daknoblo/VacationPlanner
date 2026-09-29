@@ -1356,13 +1356,51 @@
     titleEl.textContent = title;
     block.appendChild(timeEl);
     block.appendChild(titleEl);
+    ["start", "end"].forEach(function (edge) {
+      var handle = document.createElement("button");
+      var label = col.closest(".weekcal").dataset[edge === "start" ? "resizeStart" : "resizeEnd"];
+      handle.type = "button";
+      handle.className = "weekcal-block__resize weekcal-block__resize--" + edge;
+      handle.dataset.weekResize = edge;
+      handle.title = label;
+      handle.setAttribute("aria-label", label + " \u00b7 " + title);
+      block.appendChild(handle);
+    });
     col.appendChild(block);
   }
 
-  // ---- Move a scheduled block within the week calendar (drag to reschedule) ----
-  // Document-level pointer handling (no capture) so the block can be reparented
-  // into another day's column mid-drag without losing events.
+  // Moving uses document-level handling without capture so blocks can change columns.
+  // Resizing captures the pointer and stays in the original column.
   var weekDrag = null;
+  var weekSaving = new Set();
+
+  function weekState(block, mode) {
+    var col = block.closest("[data-weekcol]");
+    return { block: block, mode: mode, col: col, originalCol: col,
+      originalStart: Number(block.dataset.start), originalEnd: Number(block.dataset.end),
+      start: Number(block.dataset.start), end: Number(block.dataset.end) };
+  }
+
+  function paintWeekBlock(d) {
+    d.block.dataset.start = d.start;
+    d.block.dataset.end = d.end;
+    d.block.style.top = calMinToPx(d.start) + "px";
+    d.block.style.height = Math.max(12, calMinToPx(d.end) - calMinToPx(d.start)) + "px";
+    d.block.querySelector(".weekcal-block__time").textContent = plLabel(d.start) + "\u2013" + plLabel(d.end);
+  }
+
+  function restoreWeekBlock(d) {
+    d.originalCol.appendChild(d.block);
+    d.start = d.originalStart;
+    d.end = d.originalEnd;
+    paintWeekBlock(d);
+  }
+
+  function resizeWeekBlock(d, minutes) {
+    if (d.mode === "start") d.start = plClamp(minutes, 0, d.originalEnd - 30);
+    else d.end = plClamp(minutes, d.originalStart + 30, 1440);
+    paintWeekBlock(d);
+  }
 
   function weekColUnder(x, y, block) {
     var prev = block.style.pointerEvents;
@@ -1374,48 +1412,71 @@
 
   document.addEventListener("pointerdown", function (e) {
     var block = e.target && e.target.closest ? e.target.closest(".weekcal-block[data-id]") : null;
-    if (!block) return;
-    if (e.target.closest("a,button,input,select,textarea,label")) return;
+    if (!block || weekDrag || weekSaving.has(block.dataset.id) || e.button !== 0 || !e.isPrimary) return;
+    var handle = e.target.closest("[data-week-resize]");
+    if (!handle && e.target.closest("a,button,input,select,textarea,label")) return;
     e.preventDefault();
-    var start = parseInt(block.getAttribute("data-start"), 10) || 0;
-    var end = parseInt(block.getAttribute("data-end"), 10) || (start + 60);
-    weekDrag = { block: block, dur: Math.max(15, end - start), col: block.closest(".weekcal__col"), start: start, moved: false };
+    weekDrag = weekState(block, handle ? handle.dataset.weekResize : "move");
+    weekDrag.pointer = e.pointerId;
+    var edge = weekDrag.mode === "end" ? weekDrag.end : weekDrag.start;
+    weekDrag.offset = e.clientY - weekDrag.col.getBoundingClientRect().top - calMinToPx(edge);
+    weekDrag.initialY = e.clientY;
+    weekDrag.initialX = e.clientX;
+    if (handle) {
+      handle.focus();
+      block.classList.add("is-resizing");
+      block.setPointerCapture(e.pointerId);
+    }
     block.classList.add("is-dragging");
   });
 
   document.addEventListener("pointermove", function (e) {
-    if (!weekDrag) return;
-    weekDrag.moved = true;
-    var target = weekColUnder(e.clientX, e.clientY, weekDrag.block) || weekDrag.col;
-    if (!target) return;
-    if (target !== weekDrag.block.parentNode) { target.appendChild(weekDrag.block); weekDrag.col = target; }
-    var rect = target.getBoundingClientRect();
-    var minutes = Math.round(calPxToMin(e.clientY - rect.top) / WEEK_SNAP) * WEEK_SNAP;
-    minutes = plClamp(minutes, 0, 1440 - weekDrag.dur);
-    weekDrag.start = minutes;
-    var top = calMinToPx(minutes), bottom = calMinToPx(minutes + weekDrag.dur);
-    weekDrag.block.style.top = top + "px";
-    weekDrag.block.style.height = Math.max(4, bottom - top) + "px";
-    var t = weekDrag.block.querySelector(".weekcal-block__time");
-    if (t) t.textContent = plLabel(minutes) + "\u2013" + plLabel(minutes + weekDrag.dur);
+    var d = weekDrag;
+    if (!d || e.pointerId !== d.pointer) return;
+    if (!d.started && Math.abs(e.clientY - d.initialY) < 3 && Math.abs(e.clientX - d.initialX) < 3) return;
+    d.started = true;
+    var target = d.mode === "move" ? weekColUnder(e.clientX, e.clientY, d.block) || d.col : d.originalCol;
+    if (target.closest(".weekcal") !== d.originalCol.closest(".weekcal")) return;
+    var snap = d.mode === "move" ? WEEK_SNAP : PLANNER_SNAP;
+    var minutes = Math.round(calPxToMin(e.clientY - target.getBoundingClientRect().top - d.offset) / snap) * snap;
+    if (d.mode !== "move") {
+      resizeWeekBlock(d, minutes);
+      return;
+    }
+    if (target !== d.col) { target.appendChild(d.block); d.col = target; }
+    var duration = d.originalEnd - d.originalStart;
+    d.start = plClamp(minutes, 0, 1440 - duration);
+    d.end = d.start + duration;
+    paintWeekBlock(d);
   });
 
-  function weekMoveFinish() {
-    if (!weekDrag) return;
+  function weekMoveFinish(e) {
+    if (!weekDrag || (e.pointerId !== undefined && e.pointerId !== weekDrag.pointer)) return;
     var d = weekDrag;
     weekDrag = null;
-    d.block.classList.remove("is-dragging");
-    if (!d.moved || !d.col) return;
+    d.block.classList.remove("is-dragging", "is-resizing");
+    if (d.block.hasPointerCapture(d.pointer)) d.block.releasePointerCapture(d.pointer);
+    if (e.type !== "pointerup") { restoreWeekBlock(d); return; }
+    saveWeekBlock(d);
+  }
+
+  function saveWeekBlock(d) {
+    if (d.col === d.originalCol && d.start === d.originalStart && d.end === d.originalEnd) return;
     var day = d.col.getAttribute("data-day");
     var id = d.block.getAttribute("data-id");
-    if (!day || !id) return;
-    var start = d.start, end = d.start + d.dur;
-    d.block.setAttribute("data-start", start);
-    d.block.setAttribute("data-end", end);
+    var calendar = d.col.closest(".weekcal");
+    var status = calendar.querySelector("[data-week-save-status]");
+    status.hidden = false;
+    status.setAttribute("role", "status");
+    status.textContent = calendar.dataset.saving;
+    delete status.dataset.failed;
+    weekSaving.add(id);
+    d.block.classList.add("is-saving");
+    d.block.setAttribute("aria-busy", "true");
     var body = new URLSearchParams();
     body.set("day", day);
-    body.set("start", plLabel(start));
-    body.set("end", plLabel(end));
+    body.set("start", plLabel(d.start));
+    body.set("end", plLabel(d.end));
     fetch("/items/" + encodeURIComponent(id) + "/schedule", {
       method: "POST",
       headers: {
@@ -1423,12 +1484,53 @@
         "X-CSRF-Token": getCookie("csrf_token")
       },
       body: body.toString()
-    }).then(function () {
-      document.body.dispatchEvent(new CustomEvent("itemsChanged", { bubbles: true }));
-    }).catch(function () { /* ignore */ });
+    }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.text();
+    }).then(function (html) {
+      var template = document.createElement("template");
+      template.innerHTML = html;
+      var saved = template.content.querySelector(".planner-block[data-id]");
+      if (!saved || saved.dataset.id !== id) throw new Error("Missing saved activity");
+      var start = Number(saved.dataset.start), end = Number(saved.dataset.end);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end > 1440 || end - start < 30) {
+        throw new Error("Invalid saved activity times");
+      }
+      d.start = start;
+      d.end = end;
+      paintWeekBlock(d);
+      if (!status.dataset.failed) status.hidden = true;
+      document.body.dispatchEvent(new CustomEvent("itemsChanged", {
+        bubbles: true, detail: { scheduledItem: { id: id, day: day, html: html } }
+      }));
+    }).catch(function (error) {
+      restoreWeekBlock(d);
+      status.hidden = false;
+      status.setAttribute("role", "alert");
+      status.textContent = calendar.dataset.saveError;
+      status.dataset.failed = "true";
+      console.error("Saving weekly activity failed", error);
+    }).finally(function () {
+      weekSaving.delete(id);
+      d.block.classList.remove("is-saving");
+      d.block.removeAttribute("aria-busy");
+    });
   }
   document.addEventListener("pointerup", weekMoveFinish);
   document.addEventListener("pointercancel", weekMoveFinish);
+  document.addEventListener("lostpointercapture", weekMoveFinish);
+  window.addEventListener("blur", weekMoveFinish);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && weekDrag) { weekMoveFinish(e); return; }
+    var handle = e.target.closest && e.target.closest("[data-week-resize]");
+    if (!handle || !["ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    var block = handle.closest(".weekcal-block[data-id]");
+    if (weekDrag || weekSaving.has(block.dataset.id) || e.repeat) return;
+    var d = weekState(block, handle.dataset.weekResize);
+    resizeWeekBlock(d, d[d.mode] + (e.key === "ArrowUp" ? -PLANNER_SNAP : PLANNER_SNAP));
+    saveWeekBlock(d);
+  });
 
   function initPlanner(grid) {
     var drag = null;

@@ -434,7 +434,7 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	item, err := s.store.GetItem(r.Context(), id)
+	_, err = s.store.GetItem(r.Context(), id)
 	if err != nil {
 		if isNotFound(err) {
 			s.notFound(w, r)
@@ -458,7 +458,7 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
-		item, err = s.store.GetItem(r.Context(), id)
+		item, err := s.store.GetItem(r.Context(), id)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
@@ -471,11 +471,20 @@ func (s *Server) handleScheduleItem(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	item.Day = day
-	item.StartMin = parseMinutes(formStr(r, "start"), 540)
-	item.EndMin = parseMinutes(formStr(r, "end"), item.StartMin+60)
-	item.StartMin, item.EndMin = clampRange(item.StartMin, item.EndMin, 60)
-	if err := s.store.UpdateItem(r.Context(), item); err != nil {
+	start := parseMinutes(formStr(r, "start"), 540)
+	end := parseMinutes(formStr(r, "end"), start+60)
+	start, end = clampRange(start, end, 30)
+	err = s.store.ScheduleItemRange(r.Context(), id, *day, start, end)
+	if isNotFound(err) {
+		http.Error(w, i18n.FromContext(r.Context()).T("error.planned_invalid"), http.StatusConflict)
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	item, err := s.store.GetItem(r.Context(), id)
+	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}

@@ -25,7 +25,7 @@ a[aria-disabled="true"] { opacity: 0.6; text-decoration: none; }
 .activity-item__body { min-width: 0; overflow-wrap: anywhere; }
 .activity-item__origin { flex-wrap: wrap; max-width: 100%; }
 .activity-item__origin select { min-width: 0; max-width: 100%; }
-.planner-block__resize, .planner__resize { display: none !important; }
+.planner-block__resize, .planner__resize, .weekcal-block__resize { display: none !important; }
 [hidden] { display: none !important; }
 .demo-site main { padding-top: 2rem; padding-bottom: 3rem; }
 .demo-hero { padding: clamp(1.5rem, 4vw, 4rem); }

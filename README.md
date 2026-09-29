@@ -77,7 +77,11 @@ published together as a Pages artifact, not checked into the repository.
 - **Unified items** – activities, sights and ideas share one model: category, description,
   coordinates, planned day, start/end time, cost, a **"visited"** flag and notes.
 - **Week view** – real calendar weeks (Mon–Sun), **collapsible per week**, with drag-to-schedule
-  and drag-to-move blocks (30-minute snap).
+  and drag-to-move blocks (30-minute snap). Drag an activity's top or bottom edge
+  to change its start or end (5-minute snap, minimum 30 minutes); focused handles
+  also support the Up/Down arrow keys. Times are saved automatically and reflected
+  in the day view. Escape cancels a drag; failed saves restore the previous time
+  and show an error. Travel and accommodation blocks remain read-only.
 - **Day view** – an hour grid with drag/resize (5-minute snap) and a **"Route of the day"**
   (origin → distance → time between consecutive stops, using the hotel or the previous stop).
 - **Activity counts** – day and week headings show assigned activities in brackets,

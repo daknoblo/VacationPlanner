@@ -33,6 +33,7 @@ type Store interface {
 	ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error)
 	UpdateItem(ctx context.Context, i *models.Item) error
 	ScheduleItemDay(ctx context.Context, id uuid.UUID, day time.Time) error
+	ScheduleItemRange(ctx context.Context, id uuid.UUID, day time.Time, start, end int) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 	NextIdeaRoute(ctx context.Context, provider string) (*models.IdeaRoute, error)
 	UnlocatedRouteVacations(ctx context.Context) ([]uuid.UUID, error)

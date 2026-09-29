@@ -54,6 +54,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Weekly activity resizing** — top/bottom drag handles and keyboard adjustments,
+      automatic time persistence and day-view synchronization, cancel/failure rollback,
+      and atomic scheduling that preserves source booking details.
+
 - [x] Region-prefixed planning dates — show accommodation regions before each date
       in the Ideas day dropdown, sharing calendar timezone/transfer-day rules and
       localized missing-data labels. Keep submitted dates unchanged and refresh

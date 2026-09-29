@@ -9,6 +9,7 @@ import { chromium } from "playwright";
 import { verifyCalendarRegionUpdates } from "./calendar-regions.mjs";
 import { verifyAISearchCenters } from "./ai-centers.mjs";
 import { verifyIdeasMap } from "./ideas-map.mjs";
+import { verifyWeekResize } from "./week-resize.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -167,6 +168,7 @@ try {
   await verifyCalendarRegionUpdates(browser);
   await verifyAISearchCenters(browser);
   await verifyIdeasMap(browser);
+  await verifyWeekResize(browser);
   assert.deepEqual(failures, [], "The demo must work without failed requests or external services");
   await writeFile(join(output, "manifest.json"), JSON.stringify({
     version: metadata.version,

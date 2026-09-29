@@ -922,6 +922,13 @@ code {
 .weekcal-block--travel { background: #0ea5e9; }
 .weekcal-block--move { cursor: grab; touch-action: none; }
 .weekcal-block--move.is-dragging { cursor: grabbing; opacity: 0.85; z-index: 5; box-shadow: 0 3px 10px rgba(2, 6, 23, 0.35); }
+.weekcal-block__resize { position: absolute; left: 0; right: 0; width: 100%; height: 6px; padding: 0; border: 0; background: transparent; cursor: ns-resize; touch-action: none; }
+.weekcal-block__resize--start { top: 0; }
+.weekcal-block__resize--end { bottom: 0; }
+.weekcal-block__resize::after { content: ""; display: block; width: 18px; height: 2px; margin: auto; border-radius: 1px; background: #ffffffa6; }
+.weekcal-block__resize:hover, .weekcal-block__resize:focus-visible { background: #ffffff40; outline: 1px solid white; outline-offset: -1px; }
+.weekcal-block.is-resizing { cursor: ns-resize; }
+.weekcal-block.is-saving, .weekcal-block.is-saving .weekcal-block__resize { cursor: wait; }
 
 @media print {
   .topbar, .toast, .no-print { display: none !important; }

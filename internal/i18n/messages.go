@@ -4,6 +4,9 @@ package i18n
 // complete; other locales may omit keys and will fall back to English.
 var messages = map[Lang]map[string]string{
 	LangEN: {
+		"planner.resize_start":              "Change start time (drag or arrow keys)",
+		"planner.resize_end":                "Change end time (drag or arrow keys)",
+		"planner.time_save_error":           "Could not save the activity time. The previous time has been restored. Please try again.",
 		"app.brand":                         "Vacation Planner",
 		"app.tab_name":                      "Vacationplanner",
 		"ideas.map.title":                   "Ideas on the map",
@@ -587,6 +590,9 @@ var messages = map[Lang]map[string]string{
 	},
 
 	LangDE: {
+		"planner.resize_start":              "Beginn ändern (ziehen oder Pfeiltasten)",
+		"planner.resize_end":                "Ende ändern (ziehen oder Pfeiltasten)",
+		"planner.time_save_error":           "Die Aktivitätszeit konnte nicht gespeichert werden. Die vorherige Zeit wurde wiederhergestellt. Bitte erneut versuchen.",
 		"app.brand":                         "Vacation Planner",
 		"app.tab_name":                      "Vacationplanner",
 		"ideas.map.title":                   "Ideen auf der Karte",
