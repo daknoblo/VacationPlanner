@@ -53,23 +53,31 @@
     });
     fitting = false;
   }
-  function clearHighlight(road) {
+  function updateLabelHighlights() {
+    routeLabels.forEach(function (entry) {
+      entry.tooltip.getElement().classList.toggle("is-route-active", entry.road === activeRoad);
+    });
+  }
+  function clearHighlight(road, keepLabels) {
     if (road && road !== activeRoad) return;
+    if (road && road.getTooltip() && road.getTooltip().getElement().matches(":hover, :focus-within")) return;
     if (activeRow) activeRow.classList.remove("is-route-active");
     if (activeRoad) activeRoad.setStyle({ color: "#2563eb", weight: 3, opacity: 0.65 });
     activeRow = null;
     activeRoad = null;
-    scheduleLabels();
+    updateLabelHighlights();
+    if (!keepLabels) scheduleLabels();
   }
-  function highlight(row, road, reveal) {
-    clearHighlight();
+  function highlight(row, road, reveal, keepLabels) {
+    clearHighlight(null, true);
     activeRow = row;
     activeRoad = road;
     row.classList.add("is-route-active");
     road.setStyle({ color: "#c026d3", weight: 5, opacity: 1 });
     road.bringToFront();
     if (road.getTooltip()) road.getTooltip().bringToFront();
-    scheduleLabels();
+    updateLabelHighlights();
+    if (!keepLabels) scheduleLabels();
     if (reveal) {
       // Scroll only the comparison table; keep the hovered map under the pointer.
       var bounds = table.getBoundingClientRect();
@@ -102,48 +110,78 @@
   function layoutLabels() {
     labelFrame = null;
     if (!map || moving || !visible()) return;
-    hideLabels();
+    labelGuides.replaceChildren();
+    if (!routeLabels.length) return;
     var size = map.getSize();
     var viewport = el.getBoundingClientRect();
     var occupied = [];
-    el.querySelectorAll(".leaflet-control, .leaflet-marker-icon, .leaflet-popup").forEach(function (node) {
+    var obstacles = Array.from(el.querySelectorAll(".leaflet-control, .leaflet-marker-icon"));
+    map.eachLayer(function (item) {
+      if (item instanceof L.Popup && item.isOpen()) obstacles.push(item.getElement());
+    });
+    obstacles.forEach(function (node) {
       var rect = node.getBoundingClientRect();
       occupied.push({ left: rect.left - viewport.left, right: rect.right - viewport.left,
         top: rect.top - viewport.top, bottom: rect.bottom - viewport.top });
     });
+    var widest = 0, tallest = 0;
+    routeLabels.forEach(function (entry) {
+      widest = Math.max(widest, entry.tooltip.getElement().offsetWidth);
+      tallest = Math.max(tallest, entry.tooltip.getElement().offsetHeight);
+    });
+    var columns = Math.floor((size.x - 8) / (widest + 8));
+    var labelRows = Math.floor((size.y - 8) / (tallest + 8));
+    var slots = [];
+    for (var row = 0; row < labelRows; row++) {
+      for (var col = 0; col < columns; col++) {
+        slots.push(L.point((size.x - (columns - 1) * (widest + 8)) / 2 + col * (widest + 8),
+          (size.y - (labelRows - 1) * (tallest + 8)) / 2 + row * (tallest + 8)));
+      }
+    }
     // Prioritize the hovered/focused route when a very small viewport cannot fit every label.
     var ordered = routeLabels.filter(function (entry) { return entry.road === activeRoad; })
       .concat(routeLabels.filter(function (entry) { return entry.road !== activeRoad; }));
     ordered.forEach(function (entry) {
       var node = entry.tooltip.getElement();
       var width = node.offsetWidth, height = node.offsetHeight;
-      if (width > size.x - 16 || height > size.y - 16) return;
+      if (width > size.x - 16 || height > size.y - 16) { node.style.visibility = "hidden"; return; }
       var midpoint = map.latLngToContainerPoint(entry.road.getCenter());
       var target = midpoint.x >= 0 && midpoint.x <= size.x && midpoint.y >= 0 && midpoint.y <= size.y ?
         midpoint : size.divideBy(2);
       var nearest = entry.road.closestLayerPoint(map.containerPointToLayerPoint(target));
-      if (!nearest) return; // The road has no visible segment in this viewport.
+      if (!nearest) { node.style.visibility = "hidden"; return; }
       var anchor = map.layerPointToContainerPoint(nearest);
-      var x = Math.max(8 + width / 2, Math.min(size.x - 8 - width / 2, anchor.x));
-      var y = Math.max(8 + height / 2, Math.min(size.y - 8 - height / 2, anchor.y));
       var placed = null;
-      var stepX = width + 8, stepY = height + 8;
-      var limit = Math.max(Math.ceil(size.x / stepX), Math.ceil(size.y / stepY));
-      for (var ring = 0; ring <= limit && !placed; ring++) {
-        for (var dy = -ring; dy <= ring && !placed; dy++) {
-          for (var dx = -ring; dx <= ring; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-            var candidate = { left: x + dx * stepX - width / 2, top: y + dy * stepY - height / 2 };
-            candidate.right = candidate.left + width;
-            candidate.bottom = candidate.top + height;
-            if (candidate.left < 8 || candidate.top < 8 || candidate.right > size.x - 8 || candidate.bottom > size.y - 8 ||
-                occupied.some(function (rect) { return overlaps(candidate, rect); })) continue;
-            placed = candidate;
-            break;
+      if (node.matches(":hover, :focus-within")) {
+        var current = node.getBoundingClientRect();
+        var pinned = { left: current.left - viewport.left, right: current.right - viewport.left,
+          top: current.top - viewport.top, bottom: current.bottom - viewport.top };
+        if (pinned.left >= 8 && pinned.top >= 8 && pinned.right <= size.x - 8 && pinned.bottom <= size.y - 8 &&
+            !occupied.some(function (rect) { return overlaps(pinned, rect); })) placed = pinned;
+      }
+      var candidates = slots.slice().sort(function (a, b) { return a.distanceTo(anchor) - b.distanceTo(anchor); });
+      for (var index = 0; index < candidates.length && !placed; index++) {
+        var point = candidates[index];
+        var candidate = { left: point.x - width / 2, top: point.y - height / 2,
+          right: point.x + width / 2, bottom: point.y + height / 2 };
+        if (occupied.some(function (rect) { return overlaps(candidate, rect); })) continue;
+        placed = candidate;
+        break;
+      }
+      if (!placed) {
+        var closest = Infinity;
+        for (var y = 8; y + height <= size.y - 8; y += 8) {
+          for (var x = 8; x + width <= size.x - 8; x += 8) {
+            var distance = L.point(x + width / 2, y + height / 2).distanceTo(anchor);
+            if (distance >= closest) continue;
+            var gap = { left: x, top: y, right: x + width, bottom: y + height };
+            if (occupied.some(function (rect) { return overlaps(gap, rect); })) continue;
+            placed = gap;
+            closest = distance;
           }
         }
       }
-      if (!placed) return;
+      if (!placed) { node.style.visibility = "hidden"; return; }
       occupied.push(placed);
       var center = L.point(placed.left + width / 2, placed.top + height / 2);
       entry.tooltip.setLatLng(map.containerPointToLatLng(center));
@@ -271,13 +309,36 @@
       popup.appendChild(text("p", (origin ? origin.title + ": " : "") +
         [result.distance, result.duration, label].filter(Boolean).join(" · ")));
       if (origin && road) {
+        var routeName = [root.dataset.focusRoute, (index + 1) + ". " + idea.title, result.distance, result.duration].filter(Boolean).join(" · ");
         var line = L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
           .bindPopup(popup.cloneNode(true), { autoPan: false }).addTo(roads);
         routeBounds.extend(line.getBounds());
         if (result.distance) {
-          line.bindTooltip(text("span", (index + 1) + " · " + result.distance), {
-            permanent: true, direction: "center", className: "idea-route-distance", opacity: 0.95
+          var routeButton = document.createElement("button");
+          routeButton.type = "button";
+          routeButton.className = "idea-route-label";
+          routeButton.dataset.ideaId = idea.id;
+          routeButton.setAttribute("aria-label", routeName);
+          var number = text("span", String(index + 1));
+          number.className = "idea-route-number";
+          var metrics = document.createElement("span");
+          metrics.className = "idea-route-metrics";
+          metrics.append(text("span", result.distance), text("span", result.duration || "\u2014"));
+          routeButton.append(number, metrics);
+          L.DomEvent.disableClickPropagation(routeButton);
+          routeButton.addEventListener("click", function (event) {
+            event.stopPropagation();
+            focusRoad(row, line);
           });
+          // Do not move a label out from under the pointer or keyboard focus.
+          routeButton.addEventListener("mouseenter", function () { highlight(row, line, true, true); });
+          routeButton.addEventListener("mouseleave", function () { clearHighlight(line, true); });
+          routeButton.addEventListener("focus", function () { highlight(row, line, true, true); });
+          routeButton.addEventListener("blur", function () { clearHighlight(line, true); });
+          line.bindTooltip(routeButton, {
+            permanent: true, interactive: true, direction: "center", className: "idea-route-distance", opacity: 0.95
+          });
+          line.getTooltip().getElement().setAttribute("role", "presentation");
           routeLabels.push({ road: line, tooltip: line.getTooltip() });
         }
         line.on("mouseover", function () { highlight(row, line, true); });
@@ -292,7 +353,7 @@
           path.dataset.ideaId = idea.id;
           path.setAttribute("tabindex", "0");
           path.setAttribute("role", "button");
-          path.setAttribute("aria-label", idea.title + " · " + (result.distance || ""));
+          path.setAttribute("aria-label", routeName);
           path.addEventListener("focus", function () { highlight(row, line, true); });
           path.addEventListener("blur", function () { clearHighlight(line); });
           path.addEventListener("keydown", function (event) {
@@ -310,6 +371,18 @@
         }).bindPopup(popup, { autoPan: false }).addTo(layer);
         marker.on("popupopen", function () { popupIdea = idea.id; });
         marker.on("popupclose", function () { popupIdea = null; });
+        if (line) {
+          marker.on("click", function () { focusRoad(row, line); });
+          marker.on("mouseover", function () { highlight(row, line, true); });
+          marker.on("mouseout", function () { clearHighlight(line); });
+          marker.getElement().setAttribute("aria-label", routeName);
+          marker.getElement().addEventListener("keydown", function (event) {
+            if (event.key === " ") {
+              event.preventDefault();
+              focusRoad(row, line);
+            }
+          });
+        }
         if (reopen === idea.id) marker.openPopup();
         points.push([idea.lat, idea.lng]);
         if (routeBounds) routeBounds.extend([idea.lat, idea.lng]);

@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Route numbers and rich labels — blue idea markers and clickable route labels
+      focus the same complete saved route as the road itself. Labels show a circled
+      idea number, driving distance and duration, retain collision-free placement,
+      and stay stationary on hover/focus. Cover pointer and keyboard activation;
+      keep location popups when no saved route is available.
+
 - [x] Route label placement and focus — prevent distance-label overlaps, keep labels
       within the viewport and away from controls/markers, and link shifted labels with
       dashed guides. Reposition after pan/zoom/resize, prioritizing active routes when

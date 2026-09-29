@@ -117,8 +117,11 @@ a reverse proxy.
   the destination within the table without scrolling the page and turns the road magenta.
   Distance labels use collision-free viewport placement with dashed leader lines when
   displaced; recalculate after pan/zoom/resize. In a crowded viewport prioritize the
-  active road's label rather than overlap labels. Click/Enter/Space fits the full saved
-  road geometry. Preserve focused/manual views on polling. The map has no refresh/retry buttons.
+  active road's label rather than overlap labels. Labels contain a circled number and
+  saved distance/time. The road, blue numbered marker and label activate the same full
+  saved-route fit (also via keyboard). Hover/focus must not move the activated label
+  under the pointer. Markers without a saved road keep their location popup.
+  Preserve focused/manual views on polling. The map has no refresh/retry buttons.
 - `POST /settings/route/retry` – Settings trip-selectable retry for missing idea routes,
   with CSRF and trip validation; also queue missing location/region enrichment.
   The Refresh action works without a routing key and then clearly reports location-only

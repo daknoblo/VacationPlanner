@@ -64,9 +64,10 @@ export async function verifyIdeasMap(browser) {
         data-loading="Loading" data-error="Map failed" data-missing="Missing location" data-no-origin="Choose origin"
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
-        data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor">
+        data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
+        data-focus-route="Show the entire route">
         <select data-ideas-map-origin></select>
-        <div id="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
+        <div id="ideas-map" class="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
         <div class="ideas-map-table" style="height:65px"><table><tbody data-ideas-map-rows></tbody></table></div>
       </section></section>
@@ -93,7 +94,19 @@ export async function verifyIdeasMap(browser) {
   }
   async function assertLabels(count) {
     await page.waitForFunction(expected => [...document.querySelectorAll(".idea-route-distance")]
-      .filter(el => getComputedStyle(el).visibility === "visible").length === expected, count);
+      .filter(el => getComputedStyle(el).visibility === "visible").length === expected, count, { timeout: 5000 }).catch(async error => {
+      console.error("Unexpected label layout", JSON.stringify(await page.evaluate(() => ({
+        size: testMap.getSize(),
+        obstacles: [...document.querySelectorAll("#ideas-map .leaflet-control, #ideas-map .leaflet-marker-icon, #ideas-map .leaflet-popup")]
+          .map(el => ({ class: el.className, opacity: getComputedStyle(el).opacity, rect: el.getBoundingClientRect().toJSON() })),
+        labels: [...document.querySelectorAll(".idea-route-distance")].slice(0, 20).map(el => ({
+          text: el.textContent, width: el.offsetWidth, height: el.offsetHeight,
+          visibility: getComputedStyle(el).visibility,
+          x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y,
+        })),
+      }))));
+      throw error;
+    });
     const layout = await page.evaluate(() => {
       const map = document.querySelector("#ideas-map").getBoundingClientRect();
       const labels = [...document.querySelectorAll(".idea-route-distance")]
@@ -128,6 +141,11 @@ export async function verifyIdeasMap(browser) {
     assert.equal(await rows.locator("script, em").count(), 0);
     assert.equal(await select.locator('option[value="c"]').isDisabled(), true);
     assert.ok(await page.evaluate(() => testMap.getBounds().contains([55, 8]) && testMap.getBounds().contains([56, 9])));
+    await page.locator(".idea-map-marker").first().click();
+    await page.locator(".leaflet-popup-content").waitFor();
+    assert.equal(await select.inputValue(), "", "Without a saved route, a number must not guess an origin");
+    assert.deepEqual(await lines(), []);
+    await page.evaluate(() => testMap.closePopup());
 
     await select.selectOption("a");
     await waitText(status, "Ready");
@@ -149,8 +167,15 @@ export async function verifyIdeasMap(browser) {
     await page.waitForFunction(() => !testMap.getBounds().contains([55.05, 9]), null, { timeout: 5000 });
     await waitText(page.locator("[data-ideas-map-cache-status]"), "4 saved / 0 failed / 0 pending");
     await page.waitForFunction(() => document.querySelectorAll(".idea-route-distance").length === 2);
-    assert.deepEqual(await page.locator(".idea-route-distance").allTextContents(), ["1 · 12.3 km", "2 · 12.3 km"]);
+    assert.deepEqual(await page.locator(".idea-route-label").evaluateAll(elements => elements.map(el =>
+      [el.querySelector(".idea-route-number").textContent, ...[...el.querySelectorAll(".idea-route-metrics > span")].map(span => span.textContent)])),
+    [["1", "12.3 km", "1 h 16 min"], ["2", "12.3 km", "1 h 16 min"]]);
+    assert.ok(await page.locator(".idea-route-number").evaluateAll(elements => elements.every(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.width === rect.height && getComputedStyle(el).borderRadius === "50%";
+    })), "Label numbers must be circles, not plain text");
     await assertLabels(2);
+    await page.mouse.move(1100, 20);
     const pageY = await page.evaluate(() => scrollY);
     await page.locator('.idea-driving-route[data-idea-id="two"]').dispatchEvent("mouseover");
     assert.equal(await page.locator('.idea-driving-route[data-idea-id="two"]').evaluate(el => getComputedStyle(el).stroke), "rgb(192, 38, 211)",
@@ -182,6 +207,36 @@ export async function verifyIdeasMap(browser) {
     await waitText(rows, "Scheduled idea updated");
     assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
       "Cached polling must preserve the clicked route's viewport");
+    await page.evaluate(() => testMap.setView([55.1, 8.1], 13, { animate: false }));
+    await page.locator(".idea-map-marker").first().click();
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
+      "Clicking the blue number must fit exactly the same road as clicking its line");
+    await page.evaluate(() => testMap.closePopup());
+    const secondLabel = page.locator('.idea-route-label[data-idea-id="two"]');
+    await secondLabel.waitFor({ state: "visible" });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const labelBounds = await secondLabel.boundingBox();
+    await secondLabel.hover();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.deepEqual(await secondLabel.boundingBox(), labelBounds, "Hover must not move the clicked label away from the pointer");
+    assert.deepEqual(await secondLabel.evaluate(el => ({
+      hovered: el.matches(":hover"),
+      tooltipHovered: el.closest(".idea-route-distance").matches(":hover"),
+      activeRow: document.querySelector("tr.is-route-active")?.dataset.ideaId,
+      stroke: getComputedStyle(document.querySelector('.idea-driving-route[data-idea-id="two"]')).stroke,
+    })), { hovered: true, tooltipHovered: true, activeRow: "two", stroke: "rgb(192, 38, 211)" });
+    await secondLabel.click();
+    assert.ok(await page.evaluate(() => testMap.getBounds().contains([57, 10])), "Clicking a label must fit its entire route");
+    const firstLabel = page.locator('.idea-route-label[data-idea-id="one"]');
+    await firstLabel.waitFor({ state: "visible" });
+    await firstLabel.focus();
+    await firstLabel.press("Enter");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
+      "Keyboard activation of a label must focus the same complete road");
+    await secondLabel.waitFor({ state: "visible" });
+    await secondLabel.focus();
+    await secondLabel.press("Space");
+    assert.ok(await page.evaluate(() => testMap.getBounds().contains([57, 10])), "Space must activate route labels too");
     await page.locator('.idea-driving-route[data-idea-id="one"]').focus();
     assert.equal(await rows.locator("tr.is-route-active").getAttribute("data-idea-id"), "one", "Keyboard focus must also highlight the destination");
     await page.locator('.idea-driving-route[data-idea-id="two"]').focus();
@@ -189,6 +244,7 @@ export async function verifyIdeasMap(browser) {
     assert.ok(await page.evaluate(() => testMap.getBounds().contains([57, 10])), "Keyboard activation must fit the entire chosen road");
     routes.a.two.geometry = secondRoad;
     await page.evaluate(() => testMap.closePopup());
+    await page.mouse.move(1100, 20);
     await select.selectOption("");
     await select.selectOption("a");
     for (let index = 0; index < 12; index++) {
@@ -307,7 +363,7 @@ export async function verifyIdeasMap(browser) {
     assert.equal(requests, before, "Hidden tabs must stop polling (not the independent server worker)");
     assert.deepEqual(errors, []);
     await verifyRouteRetryForm(context);
-    console.log("Validated non-overlapping labels, distinct hover color, full-route click/keyboard zoom and read-only polling.");
+    console.log("Validated circled labels with saved distance/time, marker/label/road route focus, collision handling and read-only polling.");
   } finally {
     if (release) release();
     await context.close();
