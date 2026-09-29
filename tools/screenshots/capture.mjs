@@ -143,6 +143,7 @@ try {
         await page.locator(shot.view === "day" ? "[data-day-view]" : "[data-weekview]").waitFor();
       }
       await verifyView(page, shot);
+      await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
       await page.evaluate(() => document.fonts.ready);
       const file = join(output, language, `${shot.name}.png`);
       await page.screenshot({ path: file, fullPage: !shot.mobile, animations: "disabled" });
@@ -267,6 +268,36 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#route-retry-vacation").isDisabled(), true, "Static demo must not retry routes");
   }
   if (shot.name === "ideas") {
+    const mapPins = page.locator("#ideen-list .suggestion__link--map");
+    assert.equal(await mapPins.count(), await page.locator("#ideen-list .item-row:not(:has(.idea-location-warning))").count(),
+      "Every located idea tile has one coordinate pin");
+    assert.ok(await page.locator("#ideen-list .suggestion__links").evaluateAll(groups => groups.every(group => {
+      const links = [...group.querySelectorAll("a")];
+      return links.every(link => getComputedStyle(link).backgroundColor === "rgb(37, 99, 235)" &&
+        getComputedStyle(link).color === "rgb(255, 255, 255)") &&
+        (!group.querySelector(".suggestion__link--map") || group.lastElementChild.classList.contains("suggestion__link--map"));
+    })), "Primary-color source labels share a row with the map pin at the end");
+    assert.ok(await mapPins.evaluateAll(pins => pins.every(pin => {
+      const url = new URL(pin.href);
+      return url.hostname === "www.google.com" && url.searchParams.get("api") === "1" &&
+        /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(url.searchParams.get("query")) &&
+        pin.target === "_blank" && pin.rel.includes("noopener") && pin.getAttribute("aria-label");
+    })), "Map pins open saved numeric coordinates in a safe new tab");
+    const mapHref = await mapPins.first().getAttribute("href");
+    const mapResponse = route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Map link test</title>" });
+    await page.context().route(mapHref, mapResponse);
+    const popupReady = page.waitForEvent("popup");
+    await mapPins.first().click();
+    const popup = await popupReady;
+    await popup.waitForLoadState();
+    assert.equal(popup.url(), mapHref, "Clicking the pin opens the exact saved-coordinate URL");
+    assert.equal(await popup.evaluate(() => window.opener), null, "Map tab must not retain an opener");
+    await popup.close();
+    await page.context().unroute(mapHref, mapResponse);
+    await page.mouse.move(0, 0);
+    assert.ok(await page.locator("#ideen-list .item-row__main").evaluateAll(rows =>
+      rows.every(row => !/-?\d+\.\d{4,},\s*-?\d+\.\d{4,}/.test(row.textContent))),
+    "Tiles no longer display raw coordinate rows");
     assert.ok(await page.locator("#ideen-list .item-row__thumb").evaluateAll(images => images.every(image => {
       const bounds = image.getBoundingClientRect(), row = image.closest(".item-row").getBoundingClientRect();
       return Math.abs(row.right - bounds.right - 1) < 1 &&

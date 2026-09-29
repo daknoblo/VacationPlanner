@@ -4,6 +4,7 @@ package i18n
 // complete; other locales may omit keys and will fall back to English.
 var messages = map[Lang]map[string]string{
 	LangEN: {
+		"item.open_maps":                    "Open location in Google Maps (new tab)",
 		"item.location_loading":             "Searching for places…",
 		"item.location_proposal":            "Suggested place — please check the address",
 		"item.location_accept":              "Use this place",
@@ -597,6 +598,7 @@ var messages = map[Lang]map[string]string{
 	},
 
 	LangDE: {
+		"item.open_maps":                    "Ort in Google Maps öffnen (neuer Tab)",
 		"item.location_loading":             "Orte werden gesucht…",
 		"item.location_proposal":            "Ortsvorschlag — bitte die Adresse prüfen",
 		"item.location_accept":              "Diesen Ort übernehmen",

@@ -54,6 +54,9 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Compact idea source labels** — primary-color source badges and a Google Maps
+      pin beside the links, replacing visible GPS coordinates while retaining costs.
+
 - [x] **Local POI search and reviewed location proposals** — restaurant/POI filters,
       explicit-town bounds, circular search progress, spelling/location previews with
       accept/reject controls, title-based lookup for empty fields, and persisted

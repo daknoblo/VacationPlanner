@@ -13,12 +13,7 @@
     {{if .Description}}<p class="item-row__desc">{{.Description}}</p>{{end}}
     {{if .Region}}<p class="muted small">{{t "ideas.region.label"}}: {{.Region}}</p>{{end}}
     {{template "item_reference_links" .}}
-    {{if or .Cost .HasCoords}}
-    <p class="muted small">
-      {{if .Cost}}💶 {{cost .Cost}}{{end}}
-      {{if .HasCoords}}{{if .Cost}} · {{end}}📍 {{coord .Latitude}}, {{coord .Longitude}}{{end}}
-    </p>
-    {{end}}
+    {{if .Cost}}<p class="muted small">💶 {{cost .Cost}}</p>{{end}}
     {{if .Notes}}<p class="small">📝 {{.Notes}}</p>{{end}}
     {{template "attachments_box" (printf "/items/%s/documents" .ID)}}
   </div>
@@ -47,18 +42,19 @@
 {{end}}
 
 {{define "item_links"}}
-{{if .}}<div class="suggestion__links">
-  {{range .}}{{$link := .}}{{with .SafeURL}}<a class="suggestion__link" href="{{.}}" target="_blank" rel="noopener noreferrer">{{t (printf "ai.%s" $link.Kind)}}</a>{{end}}{{end}}
-</div>{{end}}
+{{range .}}{{$link := .}}{{with .SafeURL}}<a class="suggestion__link" href="{{.}}" target="_blank" rel="noopener noreferrer">{{t (printf "ai.%s" $link.Kind)}}</a>{{end}}{{end}}
 {{end}}
 
 {{define "item_reference_links"}}
-{{if .Links}}{{template "item_links" .Links}}{{else}}
 <div class="suggestion__links">
+  {{if .Links}}{{template "item_links" .Links}}{{else}}
   <a class="suggestion__link" href="https://en.wikipedia.org/w/index.php?search={{.Title}}" target="_blank" rel="noopener noreferrer">{{t "ai.wikipedia"}}</a>
   <a class="suggestion__link" href="https://www.tripadvisor.com/Search?q={{.Title}}" target="_blank" rel="noopener noreferrer">{{t "ai.tripadvisor"}}</a>
+  {{end}}
+  {{if .HasCoords}}<a class="suggestion__link suggestion__link--map"
+     href="https://www.google.com/maps/search/?api=1&amp;query={{coord .Latitude}},{{coord .Longitude}}"
+     target="_blank" rel="noopener noreferrer" title="{{t "item.open_maps"}}" aria-label="{{t "item.open_maps"}}"><span aria-hidden="true">📍</span></a>{{end}}
 </div>
-{{end}}
 {{end}}
 
 {{define "item_created"}}
