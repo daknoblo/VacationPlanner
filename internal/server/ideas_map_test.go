@@ -112,6 +112,20 @@ func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/vacations/" + v.ID.String() + "/api/ideas-route?lodging=" + lodging.ID.String() + "&item=" + item.ID.String()
+	var initial ideaDrive
+	readTripJSON(t, s, path, &initial)
+	if initial.Status != "pending" || calls.Load() != 0 {
+		t.Fatal("GET started provider work")
+	}
+	for range 2 {
+		if err := s.prepareNextIdeaRoute(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.routing = route.New("test")
+	if err := s.prepareNextIdeaRoute(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		var data ideaDrive
 		readTripJSON(t, s, path, &data)
@@ -119,8 +133,8 @@ func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 			t.Fatalf("wrong metrics: %+v", data)
 		}
 	}
-	if calls.Load() != 1 {
-		t.Fatal("successful route was not cached")
+	if calls.Load() != 2 {
+		t.Fatal("background results were not persisted for both accommodations")
 	}
 	var selected ideaDrive
 	readTripJSON(t, s, "/vacations/"+v.ID.String()+"/api/ideas-route?lodging="+second.ID.String()+"&item="+item.ID.String(), &selected)
@@ -187,6 +201,11 @@ func TestIdeaDriveDisabledFailuresAndMalformedMetrics(t *testing.T) {
 			if err := s.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
 				t.Fatal(err)
 			}
+			if err := s.prepareNextIdeaRoute(t.Context()); test.enabled && err == nil {
+				t.Fatal("provider failure was not reported")
+			} else if !test.enabled && err != nil {
+				t.Fatal(err)
+			}
 			var data ideaDrive
 			readTripJSON(t, s, "/vacations/"+v.ID.String()+"/api/ideas-route?lodging="+l.ID.String()+"&item="+i.ID.String(), &data)
 			if data.Status != test.want || data.Distance != "" || data.Duration != "" {
@@ -194,6 +213,10 @@ func TestIdeaDriveDisabledFailuresAndMalformedMetrics(t *testing.T) {
 			}
 			if !test.enabled && calls.Load() != 0 {
 				t.Fatal("disabled routing made a provider call")
+			}
+			before := calls.Load()
+			if err := s.prepareNextIdeaRoute(t.Context()); err != nil || calls.Load() != before {
+				t.Fatal("failed attempts must not retry automatically", err)
 			}
 		})
 	}

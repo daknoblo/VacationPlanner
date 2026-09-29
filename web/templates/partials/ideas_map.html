@@ -1,6 +1,7 @@
 {{define "ideas_map"}}
 <section class="panel ideas-map-panel" data-ideas-map-panel
-         data-map-url="/vacations/{{.ID}}/api/ideas-map" data-route-url="/vacations/{{.ID}}/api/ideas-route"
+         data-map-url="/vacations/{{.ID}}/api/ideas-map" data-retry-url="/vacations/{{.ID}}/ideas-routes/retry"
+         data-overview="{{t "ideas.map.overview"}}" data-no-geometry="{{t "ideas.map.no_geometry"}}" data-retry-error="{{t "ideas.map.retry_error"}}"
          data-loading="{{t "ideas.map.loading"}}" data-error="{{t "ideas.map.error"}}"
          data-missing="{{t "ideas.map.missing"}}" data-no-origin="{{t "ideas.map.no_origin"}}"
          data-pending="{{t "ideas.map.pending"}}" data-unavailable="{{t "ideas.map.unavailable"}}"

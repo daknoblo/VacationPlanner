@@ -112,6 +112,8 @@ func run() error {
 	defer stopCheatsheets()
 	stopGeography := srv.StartGeographyWorker(ctx)
 	defer stopGeography()
+	stopIdeaRoutes := srv.StartIdeaRouteWorker(ctx)
+	defer stopIdeaRoutes()
 
 	// Background maintenance (automatic database vacuum when configured).
 	srv.StartMaintenance(ctx)

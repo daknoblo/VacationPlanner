@@ -6,12 +6,17 @@
   var select = root.querySelector("[data-ideas-map-origin]");
   var status = root.querySelector("[data-ideas-map-status]");
   var rows = root.querySelector("[data-ideas-map-rows]");
+  var retry = root.querySelector("[data-ideas-map-retry]");
   var demo = window.VP_DEMO_IDEAS;
-  var map, layer, data, signature, request, timer;
-  var dirty = true;
+  var map, layer, roads, data, request, timer, overlay;
   var version = 0;
   var selected = "";
-  var cache = new Map();
+  var viewKey = null;
+  var positions = null;
+  var rendered = null;
+  var pending = false;
+  var failed = false;
+  var popupIdea = null;
 
   function located(point) {
     return Number.isFinite(point.lat) && Number.isFinite(point.lng) &&
@@ -28,15 +33,12 @@
     node.textContent = value;
     return node;
   }
-  function message(result) {
-    return root.dataset[result.status] || root.dataset.unavailable;
-  }
   function fit(points) {
-    if (!points.length) return;
+    if (!points.length) { map.setView([48, 10], 4); return; }
     var size = map.getSize();
     map.fitBounds(points, {
       padding: [Math.max(30, Math.ceil(size.x * 0.15)), Math.max(30, Math.ceil(size.y * 0.15))],
-      maxZoom: 13
+      maxZoom: 13, animate: false
     });
   }
   function initialize() {
@@ -48,13 +50,34 @@
         attribution: "\u00a9 OpenStreetMap contributors"
       }).addTo(map);
     }
+    roads = L.layerGroup().addTo(map);
     layer = L.layerGroup().addTo(map);
+  }
+  function choose(value) {
+    selected = value;
+    rendered = null;
+    if (data) { data.routes = {}; render(); }
+    load();
+  }
+  function summary() {
+    var progress = data.progress || {};
+    var remaining = progress.total > progress.completed;
+    var value = !data.ideas.length ? root.dataset.noIdeas :
+      !selected ? root.dataset.overview :
+      !data.lodgings.some(function (l) { return l.id === selected && located(l); }) ? root.dataset.noOrigin :
+      demo ? root.dataset.demo :
+      !data.routing ? root.dataset.disabled :
+      pending ? root.dataset.pending :
+      failed ? root.dataset.unavailable : root.dataset.ready;
+    if (remaining) value += " · " + root.dataset.pending + " (" + progress.completed + "/" + progress.total + ")";
+    status.textContent = value;
   }
   function render() {
     if (!data || !visible()) return;
     initialize();
-    stop();
-    var run = version;
+    var signature = JSON.stringify([selected, data.lodgings, data.ideas, data.routes, data.routing]);
+    if (signature === rendered) { summary(); return; }
+    rendered = signature;
     select.replaceChildren(new Option(root.dataset.choose, ""));
     data.lodgings.forEach(function (lodging) {
       var option = new Option(lodging.title + " · " + lodging.date_range +
@@ -63,17 +86,17 @@
       select.add(option);
     });
     var origin = data.lodgings.find(function (lodging) { return lodging.id === selected && located(lodging); });
-    if (!selected) {
-      origin = data.lodgings.find(located);
-      selected = origin ? origin.id : "";
-    }
     if (selected && !origin && !data.lodgings.some(function (lodging) { return lodging.id === selected; })) {
       select.add(new Option(root.dataset.removed, selected));
     }
     select.value = selected;
-    select.disabled = !data.lodgings.some(located);
+    select.disabled = false;
     rows.replaceChildren();
+    var reopen = popupIdea;
     layer.clearLayers();
+    roads.clearLayers();
+    pending = false;
+    failed = false;
     var points = [];
     data.lodgings.forEach(function (lodging) {
       if (!located(lodging)) return;
@@ -81,15 +104,11 @@
       var marker = L.marker([lodging.lat, lodging.lng], {
         icon: L.divIcon({ className: "lodging-marker" + (lodging.id === selected ? " ideas-map-origin" : ""),
           html: "\u{1f6cf}", iconSize: [28, 28], iconAnchor: [14, 14] }),
-        title: label.textContent,
-        zIndexOffset: lodging.id === selected ? 2000 : 1000
+        title: label.textContent, zIndexOffset: lodging.id === selected ? 2000 : 1000
       }).bindPopup(label).addTo(layer);
-      marker.on("click", function () {
-        if (selected !== lodging.id) { selected = lodging.id; render(); }
-      });
+      marker.on("click", function () { if (selected !== lodging.id) choose(lodging.id); });
       points.push([lodging.lat, lodging.lng]);
     });
-    var queue = [];
     data.ideas.forEach(function (idea, index) {
       var row = document.createElement("tr");
       row.dataset.ideaId = idea.id;
@@ -99,20 +118,37 @@
       title.className = "ideas-map-link";
       name.appendChild(title);
       row.appendChild(name);
-      var distance = text("td", "\u2014");
-      var duration = text("td", "\u2014");
-      var state = text("td", "");
-      row.append(distance, duration, state);
-      rows.appendChild(row);
       var popup = text("div", idea.title + (idea.day ? " · " + idea.day : ""));
-      var detail = text("p", "");
-      popup.appendChild(detail);
-      var marker;
+      var result = { status: "pending" };
+      if (!located(idea)) result = { status: "missing" };
+      else if (!origin) result = { status: "noOrigin" };
+      else if (demo) {
+        var sample = (index + 1) * (data.lodgings.indexOf(origin) + 1);
+        result = { status: "demo", distance: (sample * 4.2).toFixed(1) + " km", duration: (sample * 6) + " min",
+          geometry: [[origin.lat, origin.lng], [(origin.lat + idea.lat) / 2 + 0.015, (origin.lng + idea.lng) / 2], [idea.lat, idea.lng]] };
+      } else if (!data.routing) result = { status: "disabled" };
+      else if (data.routes && data.routes[idea.id]) result = data.routes[idea.id];
+      if (result.status === "pending") pending = true;
+      if (result.status === "unavailable") failed = true;
+      var road = Array.isArray(result.geometry) && result.geometry.length >= 2;
+      var label = result.status === "ready" && !road ? root.dataset.noGeometry :
+        root.dataset[result.status] || root.dataset.unavailable;
+      row.append(text("td", result.distance || "\u2014"), text("td", result.duration || "\u2014"), text("td", label));
+      rows.appendChild(row);
+      popup.appendChild(text("p", (origin ? origin.title + ": " : "") +
+        [result.distance, result.duration, label].filter(Boolean).join(" · ")));
+      if (origin && road) {
+        L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
+          .bindPopup(popup.cloneNode(true)).addTo(roads);
+      }
       if (located(idea)) {
-        marker = L.marker([idea.lat, idea.lng], {
+        var marker = L.marker([idea.lat, idea.lng], {
           icon: L.divIcon({ className: "idea-map-marker", html: String(index + 1), iconSize: [26, 26], iconAnchor: [13, 13] }),
           title: idea.title
-        }).bindPopup(popup).addTo(layer);
+        }).bindPopup(popup, { autoPan: false }).addTo(layer);
+        marker.on("popupopen", function () { popupIdea = idea.id; });
+        marker.on("popupclose", function () { popupIdea = null; });
+        if (reopen === idea.id) marker.openPopup();
         points.push([idea.lat, idea.lng]);
         title.addEventListener("click", function () {
           map.setView([idea.lat, idea.lng], Math.max(map.getZoom(), 12));
@@ -128,120 +164,78 @@
           name.appendChild(edit);
         }
       }
-      function update(result) {
-        distance.textContent = result.distance || "\u2014";
-        duration.textContent = result.duration || "\u2014";
-        state.textContent = message(result);
-        detail.textContent = (origin ? origin.title + ": " : "") +
-          [result.distance, result.duration, message(result)].filter(Boolean).join(" · ");
-      }
-      if (!located(idea)) { update({ status: "missing" }); return; }
-      if (!origin) { update({ status: "noOrigin" }); return; }
-      if (demo) {
-        var sample = (index + 1) * (data.lodgings.indexOf(origin) + 1);
-        update({ status: "demo", distance: (sample * 4.2).toFixed(1) + " km", duration: (sample * 6) + " min" });
-        return;
-      }
-      if (!data.routing) { update({ status: "disabled" }); return; }
-      var key = JSON.stringify([origin.id, origin.lat, origin.lng, idea.id, idea.lat, idea.lng]);
-      var saved = cache.get(key);
-      if (saved && Date.now() - saved.time < 30 * 60 * 1000) { update(saved.result); return; }
-      update({ status: "pending" });
-      queue.push({ idea: idea, key: key, update: update });
     });
-    var nextSignature = JSON.stringify(points);
-    if (signature !== nextSignature) {
-      if (demo && points.length) {
-        L.imageOverlay("../../static/demo/map.svg", L.latLngBounds(points).pad(2)).addTo(map);
-      }
+    var nextPositions = JSON.stringify(points);
+    var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);
+    if (origin && nextView !== viewKey) {
+      map.setView([origin.lat, origin.lng], 12, { animate: false });
+    } else if (!selected && (nextView !== viewKey || positions !== nextPositions)) {
       fit(points);
-      signature = nextSignature;
     }
-    var completed = 0;
-    var total = queue.length;
-    var failures = false;
-    function summary(failed) {
-      status.textContent = !data.ideas.length ? root.dataset.noIdeas : !origin ? root.dataset.noOrigin :
-        demo ? root.dataset.demo : !data.routing ? root.dataset.disabled :
-        failed ? root.dataset.unavailable :
-        queue.length ? root.dataset.loading + " (" + completed + "/" + total + ")" :
-        failures ? root.dataset.unavailable : root.dataset.ready;
+    if (demo && (nextView !== viewKey || positions !== nextPositions)) {
+      if (overlay) overlay.setBounds(map.getBounds());
+      else overlay = L.imageOverlay("../../static/demo/map.svg", map.getBounds()).addTo(map);
     }
-    summary(false);
-    async function next() {
-      if (run !== version || !visible() || !queue.length) return;
-      var entry = queue.shift();
-      request = new AbortController();
-      try {
-        var url = root.dataset.routeUrl + "?lodging=" + encodeURIComponent(origin.id) + "&item=" + encodeURIComponent(entry.idea.id);
-        var response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error("Route unavailable");
-        var result = await response.json();
-        if (run !== version) return;
-        if (!["ready", "unavailable", "missing", "disabled"].includes(result.status)) throw new Error("Invalid route response");
-        if (result.status === "ready" && (!result.distance || !result.duration)) throw new Error("Invalid route metrics");
-        entry.update(result);
-        if (result.status === "ready") {
-          if (cache.size >= 256) cache.delete(cache.keys().next().value);
-          cache.set(entry.key, { result: result, time: Date.now() });
-        } else {
-          failures = true;
-        }
-        completed++;
-        summary(false);
-        timer = setTimeout(next, 1600);
-      } catch (error) {
-        if (run !== version) return;
-        entry.update({ status: "unavailable" });
-        queue.forEach(function (pending) { pending.update({ status: "unavailable" }); });
-        queue = [];
-        summary(true);
-      }
-    }
-    next();
+    viewKey = nextView;
+    positions = nextPositions;
+    summary();
   }
   async function load() {
     if (!visible()) return;
     stop();
     var run = version;
-    status.textContent = root.dataset.loading;
-    select.disabled = true;
+    if (!data) status.textContent = root.dataset.loading;
     try {
-      if (demo) { data = demo; }
+      if (demo) data = demo;
       else {
         request = new AbortController();
-        var response = await fetch(root.dataset.mapUrl, { signal: request.signal, headers: { Accept: "application/json" } });
+        var url = root.dataset.mapUrl + (selected ? "?lodging=" + encodeURIComponent(selected) : "");
+        var response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Map unavailable");
         var nextData = await response.json();
         if (run !== version) return;
         if (!Array.isArray(nextData.lodgings) || !Array.isArray(nextData.ideas)) throw new Error("Invalid map");
         data = nextData;
       }
-      dirty = false;
       render();
     } catch (error) {
       if (run !== version) return;
-      dirty = true;
       data = null;
       rows.replaceChildren();
       if (layer) layer.clearLayers();
-      signature = null;
+      if (roads) roads.clearLayers();
+      rendered = null;
       status.textContent = root.dataset.error;
     }
+    if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }
-  select.addEventListener("change", function () { selected = select.value; render(); });
-  root.querySelector("[data-ideas-map-retry]").addEventListener("click", load);
+  select.addEventListener("change", function () { choose(select.value); });
+  retry.addEventListener("click", async function () {
+    if (demo) { load(); return; }
+    var csrf = document.querySelector('meta[name="csrf-token"]');
+    retry.disabled = true;
+    try {
+      var body = new URLSearchParams({ csrf_token: csrf ? csrf.content : "" });
+      var response = await fetch(root.dataset.retryUrl, { method: "POST", body: body });
+      if (!response.ok) throw new Error("Retry failed");
+      load();
+    } catch (error) {
+      status.textContent = root.dataset.retryError;
+    } finally {
+      retry.disabled = false;
+    }
+  });
   ["itemsChanged", "infoChanged", "geographyChanged"].forEach(function (event) {
-    document.body.addEventListener(event, function () { dirty = true; load(); });
+    document.body.addEventListener(event, load);
   });
   var wasVisible = false;
   new ResizeObserver(function () {
     var now = visible();
     if (now && !wasVisible) {
-      if (dirty || !data) load();
-      else { map.invalidateSize(); render(); }
-    } else if (now && map) { map.invalidateSize(); }
-    else if (!now) { stop(); }
+      if (map) map.invalidateSize();
+      load();
+    } else if (now && map) map.invalidateSize();
+    else if (!now) stop();
     wasVisible = now;
   }).observe(el);
 }());

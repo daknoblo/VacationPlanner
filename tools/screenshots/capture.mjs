@@ -264,7 +264,12 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 14);
     assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
     assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
+    assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
     assert.ok(await page.locator("[data-ideas-map-status]").innerText());
+    const origin = await page.locator("[data-ideas-map-origin] option").nth(1).getAttribute("value");
+    await page.locator("[data-ideas-map-origin]").selectOption(origin);
+    assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,
+      "Selected accommodation displays every illustrative route in the offline demo");
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       "Ideas map and route table must fit the mobile viewport");

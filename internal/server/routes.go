@@ -92,6 +92,7 @@ func (s *Server) routes() {
 			r.Get("/api/overview-map", s.handleOverviewMap)
 			r.Get("/api/ideas-map", s.handleIdeasMap)
 			r.Get("/api/ideas-route", s.handleIdeaDrive)
+			r.Post("/ideas-routes/retry", s.handleRetryIdeaRoutes)
 			r.Post("/geography/refresh", s.handleRefreshGeography)
 			r.Get("/api/daycounts", s.handleDayCounts)
 			r.Get("/api/calendar-regions", s.handleCalendarRegions)

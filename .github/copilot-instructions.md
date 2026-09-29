@@ -110,10 +110,15 @@ a reverse proxy.
 - `GET /vacations/{id}/api/overview-map` – accommodation-only overview markers.
 - `GET /vacations/{id}/api/ideas-map` – read-only markers for all accommodation and
   saved ideas, including scheduled items and explicit unlocated records.
-- `GET /vacations/{id}/api/ideas-route?lodging=&item=` – one directed driving leg
-  between current same-trip records. The Ideas map selects its accommodation origin,
-  loads sequentially only while visible and reuses cached routes. Never invent driving
-  values when routing is disabled, unavailable or coordinates are missing.
+- `GET /vacations/{id}/api/ideas-route?lodging=&item=` – read-only cached driving leg
+  between current same-trip records. The Ideas map defaults to Overview, zooms to a
+  selected accommodation and draws all its saved provider road geometries.
+- `POST /vacations/{id}/ideas-routes/retry` – explicitly retry failed or incomplete
+  cached routes. A lifecycle worker prepares every located accommodation/idea pair
+  without page visits, one at a time with pacing. SQLite results survive restart;
+  current coordinate/provider comparisons protect against stale writes and reads.
+  New/geocoded pairs are discovered automatically. GET/status polling never dispatches
+  routing calls. Missing geometry is explicit, never replaced with a straight line.
 - `POST /vacations/{id}/geography/refresh` – retry bounded coordinate/region enrichment.
 - `GET /vacations/{id}/api/daycounts` – counts of day-assigned items, including untimed items.
 - `GET /vacations/{id}/api/calendar-regions` – read-only saved accommodation regions
@@ -126,8 +131,9 @@ a reverse proxy.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.
-- `GET /api/background-status` – read-only local progress for geography, translation
-  jobs and AI discovery; never enqueue work or make provider calls from status polling.
+- `GET /api/background-status` – read-only local progress for geography, translation,
+  background driving routes and AI discovery; never enqueue work or make provider
+  calls from status polling.
 - The header's background status remains visible while idle, using a neutral
   "No active requests" state rather than claiming all data is resolved. Initial loads
   and status-fetch failures are explicit; only genuinely active work animates.

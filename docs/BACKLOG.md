@@ -54,10 +54,17 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] Ideas map overview, accommodation zoom and all-route overlays — default full
+      overview, zoom to a selected stay and render actual provider road geometry.
+      Persist all located accommodation/idea pairs through a paced lifecycle worker,
+      discover new/geocoded coordinates automatically, show progress in the header and
+      keep GET/poll handlers read-only. Coordinate/provider CAS, explicit failure retries
+      and restart-safe results preserve source bookings and avoid repeated lookups.
+
 - [x] Ideas map and driving comparison — all accommodation and saved idea markers,
       including scheduled activities; selectable accommodation origin, dated lodging
       labels, numbered idea popups/table and explicit missing/unavailable route states.
-      Lazy sequential routing, cancellation, shared caching and bilingual static demo.
+      Background routing, persistent caching and bilingual static demo.
 
 - [x] Background idea geocoding — resolve missing coordinates/regions from saved
       place names and addresses, with exact Wikipedia-coordinate fallback for omitted

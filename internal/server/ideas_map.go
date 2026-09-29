@@ -1,14 +1,13 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"math"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/daknoblo/vacationplanner/internal/models"
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
@@ -22,9 +21,11 @@ type ideasMapPoint struct {
 }
 
 type ideasMapPayload struct {
-	Lodgings []ideasMapPoint `json:"lodgings"`
-	Ideas    []ideasMapPoint `json:"ideas"`
-	Routing  bool            `json:"routing"`
+	Lodgings []ideasMapPoint          `json:"lodgings"`
+	Ideas    []ideasMapPoint          `json:"ideas"`
+	Routing  bool                     `json:"routing"`
+	Routes   map[string]ideaDrive     `json:"routes"`
+	Progress models.IdeaRouteProgress `json:"progress"`
 }
 
 // The map reads all saved ideas, including scheduled and visited entries.
@@ -71,13 +72,52 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		}
 		payload.Ideas = append(payload.Ideas, point)
 	}
+	payload.Routes = make(map[string]ideaDrive)
+	settings, err := s.store.GetSettings(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if payload.Routing {
+		payload.Progress, err = s.store.IdeaRouteProgress(r.Context(), settings[settingRouteBaseURL], id)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+	if raw := r.URL.Query().Get("lodging"); raw != "" {
+		lodgingID, err := uuid.Parse(raw)
+		if err != nil {
+			s.notFound(w, r)
+			return
+		}
+		if payload.Routing {
+			routes, err := s.store.ListIdeaRoutes(r.Context(), settings[settingRouteBaseURL], id, lodgingID)
+			if err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			for _, value := range routes {
+				payload.Routes[value.ItemID.String()] = savedIdeaDrive(value)
+			}
+		}
+	}
 	s.ideasMapJSON(w, payload)
 }
 
 type ideaDrive struct {
-	Status   string `json:"status"`
-	Distance string `json:"distance,omitempty"`
-	Duration string `json:"duration,omitempty"`
+	Status   string       `json:"status"`
+	Distance string       `json:"distance,omitempty"`
+	Duration string       `json:"duration,omitempty"`
+	Geometry [][2]float64 `json:"geometry,omitempty"`
+}
+
+func savedIdeaDrive(value models.IdeaRoute) ideaDrive {
+	result := ideaDrive{Status: value.Status}
+	if value.Status == "ready" {
+		result.Distance, result.Duration, result.Geometry = formatDistance(value.DistanceM), formatDuration(value.DurationS), value.Geometry
+	}
+	return result
 }
 
 func (s *Server) ideasMapJSON(w http.ResponseWriter, value any) {
@@ -88,8 +128,7 @@ func (s *Server) ideasMapJSON(w http.ResponseWriter, value any) {
 	}
 }
 
-// Each request resolves one directed accommodation-to-idea leg using current
-// saved coordinates. The client requests legs sequentially only while visible.
+// Reads never enqueue jobs or call providers, including for uncached pairs.
 func (s *Server) handleIdeaDrive(w http.ResponseWriter, r *http.Request) {
 	id, err := urlUUID(r, "vacationID")
 	lodgingID, lodgingErr := uuid.Parse(r.URL.Query().Get("lodging"))
@@ -124,36 +163,50 @@ func (s *Server) handleIdeaDrive(w http.ResponseWriter, r *http.Request) {
 		s.ideasMapJSON(w, ideaDrive{Status: "missing"})
 		return
 	}
-	start := route.Point{Lat: *lodging.Latitude, Lng: *lodging.Longitude}
-	end := route.Point{Lat: *item.Latitude, Lng: *item.Longitude}
 	if s.routing == nil || !s.routing.Enabled() {
 		s.ideasMapJSON(w, ideaDrive{Status: "disabled"})
 		return
 	}
-	select {
-	case s.ideasRouteGate <- struct{}{}:
-		defer func() { <-s.ideasRouteGate }()
-	default:
-		w.Header().Set("Retry-After", "2")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
-	}
-	settings, err := s.settings(r.Context())
+	settings, err := s.store.GetSettings(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
-	defer cancel()
-	result, err := activityRoute(ctx, activityRouteKey{client: s.routing, baseURL: settings[settingRouteBaseURL], from: start, to: end})
-	if err != nil || !usableIdeaDrive(result) {
-		s.log.Warn("idea driving route unavailable", "vacation_id", id, "item_id", item.ID, "err", err)
-		s.ideasMapJSON(w, ideaDrive{Status: "unavailable"})
+	routes, err := s.store.ListIdeaRoutes(r.Context(), settings[settingRouteBaseURL], id, lodgingID)
+	if err != nil {
+		s.serverError(w, r, err)
 		return
 	}
-	s.ideasMapJSON(w, ideaDrive{
-		Status: "ready", Distance: formatDistance(result.Legs[0].DistanceM), Duration: formatDuration(result.Legs[0].DurationS),
-	})
+	for _, value := range routes {
+		if value.ItemID == itemID {
+			s.ideasMapJSON(w, savedIdeaDrive(value))
+			return
+		}
+	}
+	s.ideasMapJSON(w, ideaDrive{Status: "pending"})
+}
+
+func (s *Server) handleRetryIdeaRoutes(w http.ResponseWriter, r *http.Request) {
+	id, err := urlUUID(r, "vacationID")
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	if _, err := s.store.GetVacation(r.Context(), id); err != nil {
+		if isNotFound(err) {
+			s.notFound(w, r)
+		} else {
+			s.serverError(w, r, err)
+		}
+		return
+	}
+	if err := s.store.RetryIdeaRoutes(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.ideasMapJSON(w, struct {
+		Status string `json:"status"`
+	}{Status: "queued"})
 }
 
 func usableIdeaDrive(result route.Result) bool {

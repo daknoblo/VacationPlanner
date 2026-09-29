@@ -39,7 +39,8 @@ type Server struct {
 	wikipedia                    wikipediaLookup
 	geography                    *geographyWorker
 	routing                      *route.Client
-	ideasRouteGate               chan struct{}
+	ideasRouteStart              sync.Once
+	ideasRouteStop               func()
 	destImg                      *destimg.Client
 	render                       *renderer
 	limiter                      *ipRateLimiter
@@ -65,7 +66,6 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		geo:             geo.New(cfg.GeocoderAPIKey),
 		wikipedia:       geo.NewWikipedia(),
 		routing:         route.New(cfg.RouterAPIKey),
-		ideasRouteGate:  make(chan struct{}, 2),
 		destImg:         destimg.New(),
 		render:          r,
 		limiter:         newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300

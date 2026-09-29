@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/daknoblo/vacationplanner/internal/i18n"
 )
 
@@ -39,6 +41,19 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 		return view, err
 	}
 	discovery := s.aiDiscoveries.Load()
+	var routePending, routeCompleted, routeTotal int
+	if s.routing != nil && s.routing.Enabled() {
+		settings, err := s.store.GetSettings(ctx)
+		if err != nil {
+			return view, err
+		}
+		progress, err := s.store.IdeaRouteProgress(ctx, settings[settingRouteBaseURL], uuid.Nil)
+		if err != nil {
+			return view, err
+		}
+		routeCompleted, routeTotal = progress.Completed, progress.Total
+		routePending = routeTotal - routeCompleted
+	}
 	loc := i18n.FromContext(ctx)
 	var tasks []string
 	if geoJobs > 0 {
@@ -54,8 +69,14 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 	if discovery > 0 {
 		tasks = append(tasks, loc.T("background.discovery"))
 	}
+	if routePending > 0 {
+		tasks = append(tasks, loc.T("background.routes", routeCompleted, routeTotal))
+	}
 	view.Active = len(tasks) > 0
-	view.Determinate = geoJobs == 1 && view.Total > 0 && translations == 0 && discovery == 0
+	view.Determinate = geoJobs == 1 && view.Total > 0 && translations == 0 && discovery == 0 && routePending == 0
+	if routePending > 0 && geoJobs == 0 && translations == 0 && discovery == 0 {
+		view.Determinate, view.Completed, view.Total = true, routeCompleted, routeTotal
+	}
 	view.Detail = strings.Join(tasks, " · ")
 	return view, nil
 }

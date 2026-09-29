@@ -33,6 +33,11 @@ type Store interface {
 	ListItems(ctx context.Context, vacationID uuid.UUID) ([]models.Item, error)
 	UpdateItem(ctx context.Context, i *models.Item) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
+	NextIdeaRoute(ctx context.Context, provider string) (*models.IdeaRoute, error)
+	IdeaRouteProgress(ctx context.Context, provider string, vacationID uuid.UUID) (models.IdeaRouteProgress, error)
+	ListIdeaRoutes(ctx context.Context, provider string, vacationID, lodgingID uuid.UUID) ([]models.IdeaRoute, error)
+	PutIdeaRoute(ctx context.Context, job *models.IdeaRoute) (bool, error)
+	RetryIdeaRoutes(ctx context.Context, vacationID uuid.UUID) error
 
 	CreateTravelSegment(ctx context.Context, t *models.TravelSegment) error
 	UpsertTravelSegment(ctx context.Context, t *models.TravelSegment) error

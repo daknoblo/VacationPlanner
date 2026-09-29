@@ -162,20 +162,33 @@ published together as a Pages artifact, not checked into the repository.
 - **Ideas map** – at the top of **Ideas**, a separate map marks every saved idea
   (including scheduled activities) and all located accommodation records. Orange beds
   are accommodations; numbered blue markers match the comparison table. Select a
-  starting accommodation in the dropdown or click its marker. The selected start is
-  outlined, and accommodation labels include the booked dates.
+  starting accommodation in the dropdown or click its marker to zoom to that location.
+  **Overview** is the initial selection and restores the full accommodation/idea extent
+  without choosing an origin. The selected start is outlined, and accommodation labels
+  include the booked dates.
 - **Driving comparison** – one-way driving distance and time from that accommodation
-  appear in each idea's popup and the table, using the configured OpenRouteService
+  appear in each idea's popup and the table. All available road routes from the selected
+  accommodation are drawn together, using the configured OpenRouteService
   provider (`ROUTER_API_KEY`, base URL in Settings). These are not live-traffic estimates
   or a combined itinerary. Missing coordinates, disabled routing and failed routes stay
   explicit; no invented driving values or bookings are created. Unlocated ideas link
   to their original location editor.
-- Routes load sequentially only while the Ideas tab is visible, with at least 1.6 seconds
-  between requests and shared 30-minute provider caching. Changing accommodation
-  cancels obsolete requests. **Refresh map and retry routes** retries failures; successful
-  cached routes are reused. Saved-data refreshes preserve the selection and manual map
-  view unless marker positions change. The static demo uses clearly labeled illustrative
-  values and never contacts a routing provider.
+- A lifecycle worker prepares **every located accommodation–idea pair in the background**,
+  even without an open page. Adding records or updating their coordinates (including
+  automatic geocoding) makes missing routes eligible within the next two-second scan.
+  Existing records are also processed after upgrade. Only one provider request runs at a
+  time, with at least two seconds between requests and a 30-second pause after failures.
+  Progress is included in the header's background-status label.
+- Results, including the provider's road geometry, are persisted in SQLite and reused
+  after restart. Coordinates and routing-base-URL comparisons reject stale results and
+  automatically invalidate changed pairs; unrelated edits do not recalculate routes.
+  There is no automatic expiry or retry of completed failures. **Refresh map and retry
+  routes** explicitly retries failures and incomplete geometry, leaving complete results
+  intact. Missing geometry is never replaced by a made-up straight route.
+- Page and status polling only read saved results; they never enqueue jobs or contact
+  providers. The visible map polls every three seconds and keeps the selected origin and
+  manual viewport while new results arrive. The static demo uses clearly labeled
+  illustrative values/lines and never contacts a routing provider.
 
 - **Overview map** – Leaflet + OpenStreetMap shows only located accommodation records,
   including arrival/departure hotels and intermediate stays. Ideas, POIs and travel

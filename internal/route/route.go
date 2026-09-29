@@ -72,6 +72,7 @@ type Result struct {
 	Legs           []Leg
 	TotalDistanceM float64
 	TotalDurationS float64
+	Geometry       [][2]float64
 }
 
 // Point is a geographic coordinate as {latitude, longitude}.
@@ -81,12 +82,15 @@ type Point struct {
 
 // orsRequest is the ORS directions request body ([lng, lat] order).
 type orsRequest struct {
-	Coordinates [][2]float64 `json:"coordinates"`
+	Coordinates  [][2]float64 `json:"coordinates"`
+	Geometry     bool         `json:"geometry"`
+	Instructions bool         `json:"instructions"`
 }
 
 type orsResponse struct {
 	Routes []struct {
-		Summary struct {
+		Geometry string `json:"geometry"`
+		Summary  struct {
 			Distance float64 `json:"distance"`
 			Duration float64 `json:"duration"`
 		} `json:"summary"`
@@ -121,7 +125,7 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 	for i, p := range points {
 		coords[i] = [2]float64{p.Lng, p.Lat} // ORS expects [lng, lat]
 	}
-	body, err := json.Marshal(orsRequest{Coordinates: coords})
+	body, err := json.Marshal(orsRequest{Coordinates: coords, Geometry: true})
 	if err != nil {
 		return Result{}, fmt.Errorf("route: encoding request: %w", err)
 	}
@@ -169,6 +173,12 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 		}
 		res.Legs = append(res.Legs, Leg{DistanceM: *seg.Distance, DurationS: *seg.Duration})
 	}
+	if r0.Geometry != "" {
+		res.Geometry, err = decodeGeometry(r0.Geometry)
+		if err != nil {
+			return Result{}, err
+		}
+	}
 
 	c.store(key, res)
 	return res, nil
@@ -176,6 +186,20 @@ func (c *Client) Route(ctx context.Context, baseURL, profile string, points []Po
 
 func validMetric(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0
+}
+
+// Forget removes an incomplete result so an explicit retry can reach the provider.
+func (c *Client) Forget(baseURL, profile string, points []Point) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+	if strings.TrimSpace(profile) == "" {
+		profile = DefaultProfile
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.cache, cacheKey(baseURL, strings.TrimSpace(profile), points))
 }
 
 // Haversine returns the great-circle distance in metres between two points.
