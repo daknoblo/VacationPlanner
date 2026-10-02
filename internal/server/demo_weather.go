@@ -21,7 +21,7 @@ func (s *Server) seedDemoWeather(ctx context.Context, v *models.Vacation) error 
 	if err != nil {
 		return err
 	}
-	now := time.Now().UTC()
+	now := v.StartDate.Add(-time.Hour)
 	for _, l := range lodgings {
 		if !l.HasCoords() {
 			continue
