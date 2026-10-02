@@ -18,14 +18,17 @@ import (
 )
 
 type weatherEntry struct {
-	Place    string
-	Icon     string
-	Summary  string
-	Compact  string
-	Detail   string
-	Notice   string
-	Metrics  []weatherMetric
-	Coverage string
+	Place           string
+	Icon            string
+	Condition       string
+	RainChance      string
+	RainChanceLabel string
+	Summary         string
+	Compact         string
+	Detail          string
+	Notice          string
+	Metrics         []weatherMetric
+	Coverage        string
 }
 
 type weatherMetric struct {
@@ -46,20 +49,20 @@ type weatherView struct {
 	Updated string
 }
 
-func weatherCondition(code int) (string, string) {
+func weatherCondition(code int) string {
 	switch {
 	case code < 300:
-		return "⛈", "storm"
+		return "storm"
 	case code < 600:
-		return "🌧", "rain"
+		return "rain"
 	case code < 700:
-		return "❄", "snow"
+		return "snow"
 	case code < 800:
-		return "🌫", "fog"
+		return "fog"
 	case code == 800:
-		return "☀", "clear"
+		return "clear"
 	default:
-		return "☁", "clouds"
+		return "clouds"
 	}
 }
 
@@ -124,12 +127,15 @@ func weatherSummary(c models.WeatherCache, day string, tz *time.Location, loc *i
 			nearest = p
 		}
 	}
-	icon, condition := weatherCondition(nearest.Code)
-	entry.Icon = icon
+	condition := weatherCondition(nearest.Code)
+	entry.Icon = "/static/weather/" + condition + ".svg"
+	entry.Condition = loc.T("weather.condition." + condition)
+	entry.RainChance = loc.T("weather.value.percent", chance*100)
+	entry.RainChanceLabel = loc.T("weather.metric.chance")
 	entry.Compact = fmt.Sprintf("%.0f–%.0f °C", minT, maxT)
-	entry.Summary = loc.T("weather.condition."+condition) + " · " + entry.Compact
+	entry.Summary = entry.Condition + " · " + entry.Compact
 	entry.Metrics = []weatherMetric{
-		{Label: loc.T("weather.metric.chance"), Value: loc.T("weather.value.percent", chance*100), Hint: loc.T("weather.metric.maximum_hint")},
+		{Label: entry.RainChanceLabel, Value: entry.RainChance, Hint: loc.T("weather.metric.maximum_hint")},
 		{Label: loc.T("weather.metric.rain"), Value: loc.T("weather.value.mm", rain), Hint: loc.T("weather.metric.total_hint")},
 		{Label: loc.T("weather.metric.snow"), Value: loc.T("weather.value.mm", snow), Hint: loc.T("weather.metric.total_hint")},
 		{Label: loc.T("weather.metric.wind"), Value: loc.T("weather.value.wind", wind*3.6), Hint: loc.T("weather.metric.maximum_hint")},

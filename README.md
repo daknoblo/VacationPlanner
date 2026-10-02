@@ -305,6 +305,9 @@ published together as a Pages artifact, not checked into the repository.
 - **Overview** – a chronological list of travel totals, lodging and activities with color-coded
   categories, weekday/date/time and cost, plus **quick notes**. The adjacent map contains
   accommodation markers only; it is not an activity/idea marker map.
+  Activity thumbnails sit on the right so titles, source links and starting-point
+  controls align with the text of travel and accommodation entries. On narrow
+  screens, dates move above the shared text column.
 - **Budget** – budget vs. spent across items, lodging and travel, broken down by category with
   icons, in the configured **currency** (€ / $).
 - Larger summary/payer cards, separated booking metadata and amounts, and responsive
@@ -491,8 +494,12 @@ Availability is an estimate, not a guarantee of provider coverage.
 The heading shows the saved data timestamp (a range when displayed locations have
 different update times). Cards use labeled rain probability, rain, snow and wind
 rows, followed by the covered forecast intervals; attribution sits below the cards.
-Daily and weekly calendars share the countdown and show compact weather summaries
-above the planner. Locations follow the booked accommodation dates in the
+Compact day tiles and both calendars use bundled, colored SVG weather symbols;
+icons require no external service. Daily and weekly calendars show the symbol,
+temperature range and maximum rain probability above the planner, without a place
+name in the normal text. The location and detailed forecast remain in the tooltip;
+missing forecasts and errors stay explicit. Both calendars share the countdown.
+Locations follow the booked accommodation dates in the
 calendar timezone, including both accommodations on transfer days. Without a
 booked accommodation on a day, the saved trip destination is the normal weather
 location and is shown once, without a fallback label. A booked accommodation with

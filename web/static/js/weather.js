@@ -10,6 +10,14 @@
     if (className) el.className = className;
     return el;
   }
+  function icon(src, label, size) {
+    var image = document.createElement("img");
+    image.src = src;
+    image.alt = label;
+    image.width = image.height = size;
+    image.className = "weather-icon";
+    return image;
+  }
   function paint(view) {
     var days = document.createDocumentFragment();
     view.Days.forEach(function (day) {
@@ -18,7 +26,12 @@
       day.Entries.forEach(function (entry) {
         var place = text("article", "", "weather-place");
         place.appendChild(text("h4", entry.Place));
-        if (entry.Summary) place.appendChild(text("p", entry.Icon + " " + entry.Summary, "weather-summary"));
+        if (entry.Summary) {
+          var summary = text("p", "", "weather-summary");
+          if (entry.Icon) summary.appendChild(icon(entry.Icon, "", 32));
+          summary.appendChild(text("span", entry.Summary));
+          place.appendChild(summary);
+        }
         if (entry.Metrics && entry.Metrics.length) {
           var metrics = text("dl", "", "weather-metrics");
           entry.Metrics.forEach(function (metric) {
@@ -41,9 +54,19 @@
     document.querySelectorAll("[data-weather-day]").forEach(function (cell) {
       var fragment = document.createDocumentFragment();
       (view.ByDate[cell.dataset.weatherDay] || []).forEach(function (entry) {
-        var node = text("span", entry.Icon + " " + entry.Compact, "calendar-weather__entry");
+        var node = text("span", "", "calendar-weather__entry");
         node.title = [entry.Place, entry.Summary, entry.Detail, entry.Notice].filter(Boolean).join(" · ");
-        node.appendChild(text("span", entry.Place, "calendar-weather__place"));
+        var values = text("span", "", "calendar-weather__values");
+        if (entry.Icon) values.appendChild(icon(entry.Icon, entry.Condition, 32));
+        values.appendChild(text("span", entry.Compact));
+        if (entry.RainChance) {
+          var chance = text("span", "", "calendar-weather__rain");
+          chance.title = entry.RainChanceLabel;
+          chance.setAttribute("aria-label", entry.RainChanceLabel + ": " + entry.RainChance);
+          chance.append(icon("/static/weather/drop.svg", "", 16), document.createTextNode(" " + entry.RainChance));
+          values.appendChild(chance);
+        }
+        node.appendChild(values);
         if (entry.Notice) node.appendChild(text("span", entry.Notice, "calendar-weather__notice"));
         fragment.appendChild(node);
       });

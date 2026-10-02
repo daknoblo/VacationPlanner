@@ -1,8 +1,11 @@
 {{define "weather_summary"}}
 {{range .}}
 <span class="calendar-weather__entry" title="{{.Place}} · {{.Summary}} · {{.Detail}} {{.Notice}}">
-  <span aria-hidden="true">{{.Icon}}</span> {{.Compact}}
-  <span class="calendar-weather__place">{{.Place}}</span>
+  <span class="calendar-weather__values">
+    {{if .Icon}}<img class="weather-icon" src="{{.Icon}}" alt="{{.Condition}}" width="32" height="32">{{end}}
+    <span>{{.Compact}}</span>
+    {{if .RainChance}}<span class="calendar-weather__rain" title="{{.RainChanceLabel}}" aria-label="{{.RainChanceLabel}}: {{.RainChance}}"><img src="/static/weather/drop.svg" alt="" width="16" height="16"> {{.RainChance}}</span>{{end}}
+  </span>
   {{if .Notice}}<span class="calendar-weather__notice">{{.Notice}}</span>{{end}}
 </span>
 {{end}}
@@ -15,7 +18,7 @@
   {{range .Entries}}
   <article class="weather-place">
     <h4>{{.Place}}</h4>
-    {{if .Summary}}<p class="weather-summary"><span aria-hidden="true">{{.Icon}}</span> {{.Summary}}</p>{{end}}
+    {{if .Summary}}<p class="weather-summary">{{if .Icon}}<img class="weather-icon" src="{{.Icon}}" alt="" width="32" height="32">{{end}} <span>{{.Summary}}</span></p>{{end}}
     {{if .Metrics}}
     <dl class="weather-metrics">
       {{range .Metrics}}<div><dt title="{{.Hint}}">{{.Label}}</dt><dd>{{.Value}}</dd></div>{{end}}

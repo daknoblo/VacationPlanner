@@ -69,6 +69,8 @@ func TestWeatherPresentationUsesDisplayedForecastTimestamps(t *testing.T) {
 		}
 		entry := view.Days[0].Entries[0]
 		if entry.Place != v.Destination || len(entry.Metrics) != 4 ||
+			entry.Icon != "/static/weather/clear.svg" || entry.Condition != loc.T("weather.condition.clear") ||
+			entry.RainChance != "25%" || entry.RainChanceLabel != loc.T("weather.metric.chance") ||
 			entry.Metrics[0].Value != "25%" || entry.Metrics[1].Value != "0.2 mm" ||
 			entry.Metrics[2].Value != "0.0 mm" || entry.Metrics[3].Value != "11 km/h" ||
 			!strings.Contains(entry.Coverage, "10:00") || strings.Contains(entry.Detail, "09:00") {
@@ -112,6 +114,37 @@ func TestWeatherPresentationUsesDisplayedForecastTimestamps(t *testing.T) {
 	view, err := s.weatherView(t.Context(), v, now)
 	if err != nil || view.Updated != i18n.NewLocalizer(i18n.LangEN).T("weather.data_none") {
 		t.Fatal("missing location must not advertise an unrelated timestamp", view, err)
+	}
+}
+
+func TestWeatherSymbolsAndRainProbability(t *testing.T) {
+	s := newIntegrationServer(t)
+	now := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	loc := i18n.NewLocalizer(i18n.LangDE)
+	for _, tc := range []struct {
+		code int
+		name string
+	}{{211, "storm"}, {300, "rain"}, {501, "rain"}, {601, "snow"}, {741, "fog"}, {800, "clear"}, {804, "clouds"}} {
+		cache := models.WeatherCache{Status: "ready", UpdatedAt: now, Samples: []models.WeatherSample{
+			{Time: now, Temperature: 12, Code: tc.code, RainChance: .2},
+			{Time: now.Add(3 * time.Hour), Temperature: 20, Code: 800, RainChance: .85},
+		}}
+		entry := weatherSummary(cache, "2026-10-02", time.UTC, loc, now)
+		if entry.Icon != "/static/weather/"+tc.name+".svg" || entry.Condition != loc.T("weather.condition."+tc.name) ||
+			entry.RainChance != "85%" || entry.RainChance != entry.Metrics[0].Value ||
+			entry.RainChanceLabel != loc.T("weather.metric.chance") {
+			t.Fatalf("wrong symbol or maximum interval probability for code %d: %+v", tc.code, entry)
+		}
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, entry.Icon, nil))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Header().Get("Content-Type"), "image/svg+xml") ||
+			!strings.Contains(rec.Body.String(), "<svg") {
+			t.Fatalf("weather icon is not served locally: %s, status %d", entry.Icon, rec.Code)
+		}
+	}
+	empty := weatherSummary(models.WeatherCache{}, "2026-10-02", time.UTC, loc, now)
+	if empty.Icon != "" || empty.RainChance != "" {
+		t.Fatal("unavailable weather must not invent an icon or a zero rain probability", empty)
 	}
 }
 

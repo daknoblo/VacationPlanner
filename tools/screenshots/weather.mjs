@@ -10,7 +10,8 @@ export async function verifyWeather(browser) {
   let failWrite = false;
   let delayed, release;
   const posts = [];
-  const entry = { Place: "Hotel <script>unsafe()</script>", Icon: "☀", Compact: "12–20 °C",
+  const entry = { Place: "Hotel <script>unsafe()</script>", Icon: "/static/weather/clear.svg", Condition: "Clear",
+    RainChance: "30%", RainChanceLabel: "Rain probability (max.)", Compact: "12–20 °C",
     Summary: "Clear · 12–20 °C", Detail: "Rain probability up to 30% · forecast times 09:00–21:00", Notice: "",
     Coverage: "Forecast times 09:00–21:00 (5 intervals)", Metrics: [
       { Label: "Rain probability (max.)", Value: "30%", Hint: "Maximum" },
@@ -29,6 +30,8 @@ export async function verifyWeather(browser) {
       contentType: "text/javascript", body: await readFile(new URL("js/weather.js", web)) });
     if (url.pathname === "/app.css") return route.fulfill({
       contentType: "text/css", body: await readFile(new URL("css/app.css", web)) });
+    if (/^\/static\/weather\/[a-z]+\.svg$/.test(url.pathname)) return route.fulfill({
+      contentType: "image/svg+xml", body: await readFile(new URL(url.pathname.slice("/static/".length), web)) });
     if (url.pathname === "/forecast") {
       assert.equal(route.request().method(), "GET");
       reads++;
@@ -51,7 +54,7 @@ export async function verifyWeather(browser) {
         body: failWrite ? "API key missing" : url.pathname.endsWith("/refresh") ? "Queued: 1" : "" });
     }
     const settings = url.pathname === "/settings";
-    return route.fulfill({ contentType: "text/html", body: `<!doctype html><html><head>
+    return route.fulfill({ contentType: "text/html", body: `<!doctype html><html><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css">
       </head><body>${settings ? `
       <section data-weather-settings data-error="Status unavailable" data-saved="Saved">
@@ -86,6 +89,15 @@ export async function verifyWeather(browser) {
     assert.ok(!(await page.locator(".weather-place").innerText()).includes("Data as of:"));
     assert.equal(await page.locator("[data-weather-updated]").evaluate(el => getComputedStyle(el).textAlign), "right");
     assert.equal(await page.locator(".calendar-weather__entry").count(), 2, "Both calendars show the same saved forecast");
+    assert.equal(await page.locator(".calendar-weather__place").count(), 0, "Place names stay out of the calendar text");
+    assert.deepEqual(await page.locator(".calendar-weather__rain").allTextContents(), [" 30%", " 30%"]);
+    assert.ok(await page.locator(".calendar-weather__entry").evaluateAll(nodes =>
+      nodes.every(node => !node.textContent.includes("Hotel") && node.title.includes("Hotel"))),
+    "The forecast location remains available in the tooltip only");
+    await page.waitForFunction(() => [...document.querySelectorAll(".weather-icon")].every(image =>
+      image.complete && image.naturalWidth > 0 && new URL(image.src).origin === location.origin));
+    assert.ok((await page.locator(".weather-day").boundingBox()).width < 320,
+      "Even a single forecast day uses a compact tile rather than filling the whole row");
     assert.ok(await page.locator(".calendar-weather__entry").evaluateAll(nodes =>
       nodes.every(node => node.title.includes("forecast times"))), "Compact summaries expose full details");
     entries = [entry, { ...entry, Place: "Rome", Notice: "No saved location for accommodation Second stay; showing weather at the trip destination. Saved forecast is old" }];
@@ -94,8 +106,8 @@ export async function verifyWeather(browser) {
     assert.equal(await page.locator(".calendar-weather__entry").count(), 4, "Transfer days show both places");
     assert.equal(await page.locator(".weather-place h4").nth(1).textContent(), "Rome",
       "The card names the actual forecast location, not an unlocated accommodation");
-    assert.deepEqual(await page.locator(".calendar-weather__place").allTextContents(),
-      [entry.Place, "Rome", entry.Place, "Rome"], "Both calendars name the same actual forecast locations");
+    assert.deepEqual(await page.locator(".calendar-weather__entry").evaluateAll(nodes => nodes.map(node => node.title.split(" · ")[0])),
+      [entry.Place, "Rome", entry.Place, "Rome"], "Both calendars retain the actual forecast locations in their tooltips");
     assert.ok((await page.locator(".weather-notice").innerText()).includes("Second stay"),
       "A genuine accommodation fallback remains explicit, separate from the place heading");
     await page.setViewportSize({ width: 390, height: 800 });
@@ -109,7 +121,7 @@ export async function verifyWeather(browser) {
     updated = "Data as of: 02.10.2026 11:00 UTC";
     delayed = undefined;
     await refresh();
-    await page.getByText("☀ Rain · 10–15 °C", { exact: true }).waitFor();
+    await page.getByText("Rain · 10–15 °C", { exact: true }).waitFor();
     release();
     await page.waitForTimeout(100);
     assert.equal(await page.locator(".weather-place").count(), 1, "Stale responses must not overwrite new data");

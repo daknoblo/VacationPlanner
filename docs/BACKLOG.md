@@ -54,6 +54,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Compact visual weather and aligned overview activities** — use local
+      colored SVG icons, temperatures and rain probabilities in both calendars,
+      retain locations in tooltips, narrow weather tiles, and move activity
+      thumbnails right so titles, reference links and origins share one text edge.
 - [x] **Accurate weather location labels** — treat the destination as the normal
       weather location on days without a stay; show the actual forecast location
       once and reserve a separate warning for genuinely unlocated accommodations.

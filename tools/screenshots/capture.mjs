@@ -201,6 +201,22 @@ async function verifyView(page, shot) {
   );
   assert.deepEqual(unsafe, [], "Mutating controls must be read-only or disabled");
   if (["overview", "mobile"].includes(shot.name)) {
+    assert.ok(await page.locator('[data-tab-panel="overview"] .activity-list').evaluateAll(lists =>
+      lists.every(list => {
+        const rows = [...list.querySelectorAll(".activity-item")];
+        if (!rows.length) return true;
+        const left = rows[0].querySelector(".activity-item__body").getBoundingClientRect().left;
+        return rows.every(row => {
+          const body = row.querySelector(".activity-item__body").getBoundingClientRect();
+          const image = row.querySelector(".activity-item__thumb");
+          const aligned = [...row.querySelectorAll(".activity-item__title, .suggestion__links, .activity-item__origin")]
+            .every(el => Math.abs(el.getBoundingClientRect().left - left) < 1);
+          return Math.abs(body.left - left) < 1 && aligned &&
+            (!image || image.getBoundingClientRect().left > body.right);
+        });
+      })), "All activity titles, links and origins share one text edge; thumbnails sit on the right");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      "The activity overview fits the desktop and mobile viewport");
     await page.locator("#map.leaflet-container").waitFor();
     assert.equal(await page.locator("#map .leaflet-marker-icon").count(), 3, "All three lodgings, no ideas");
     const marker = page.locator("#map .leaflet-marker-icon").first();
@@ -222,6 +238,12 @@ async function verifyView(page, shot) {
     ), "Participants receive complete self-introductions rather than placeholders");
   }
   if (shot.name === "weather") {
+    const tiles = await page.locator(".weather-day").evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
+    assert.ok(tiles[0].width < 300 && tiles.slice(0, 4).every(tile => tile.top === tiles[0].top),
+      "The desktop weather view fits four compact day tiles per row");
+    assert.ok(await page.locator(".weather-summary .weather-icon").evaluateAll(images =>
+      images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0 && image.src.endsWith(".svg"))),
+    "Weather cards use loaded local SVG icons");
     assert.equal(await page.locator(".weather-heading [data-weather-updated]").count(), 1);
     assert.ok((await page.locator("[data-weather-updated]").innerText()).includes("CEST"));
     assert.ok(await page.locator(".weather-metrics dd").count() > 0, "Forecast values use labeled rows");
@@ -248,6 +270,11 @@ async function verifyView(page, shot) {
   if (["day-planner", "week-planner"].includes(shot.name)) {
     assert.ok(await page.locator(".calendar-weather-week [data-weather-day]").count() > 0);
     const scope = page.locator(shot.view === "day" ? "[data-day-view]" : "[data-weekview]");
+    assert.equal(await scope.locator(".calendar-weather__place").count(), 0, "Calendar forecasts do not print place names");
+    assert.ok(await scope.locator(".calendar-weather__rain").count() > 0, "Calendar forecasts include rain probability");
+    assert.ok(await scope.locator(".calendar-weather__values > .weather-icon").evaluateAll(images =>
+      images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0)),
+    "Both calendar views use loaded weather symbols");
     if (shot.view === "week") {
       const bands = await scope.locator("[data-region-week] .calendar-region-band").allTextContents();
       assert.ok(bands.some(text => text.includes("Toscana · Lazio")), "Week band includes the transfer");
