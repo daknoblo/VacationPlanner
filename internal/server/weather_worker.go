@@ -38,26 +38,24 @@ func weatherPlaces(v *models.Vacation, day string, tz *time.Location) []weatherP
 		return lodgings[i].ID.String() < lodgings[j].ID.String()
 	})
 	var places []weatherPlace
-	fallback := func(name string) weatherPlace {
-		p := weatherPlace{Name: name, Fallback: true}
-		if v.HasCoords() && weather.ValidCoordinates(*v.Latitude, *v.Longitude) {
-			p.Located, p.Lat, p.Lng = true, *v.Latitude, *v.Longitude
-		}
-		return p
+	destination := weatherPlace{Name: v.Destination}
+	if v.HasCoords() && weather.ValidCoordinates(*v.Latitude, *v.Longitude) {
+		destination.Located, destination.Lat, destination.Lng = true, *v.Latitude, *v.Longitude
 	}
 	for _, l := range lodgings {
 		if !l.CheckOut.After(l.CheckIn) || day < l.CheckIn.In(tz).Format("2006-01-02") ||
 			day > l.CheckOut.In(tz).Format("2006-01-02") {
 			continue
 		}
-		p := fallback(l.Name)
+		p := destination
+		p.Name, p.Fallback = l.Name, true
 		if l.HasCoords() && weather.ValidCoordinates(*l.Latitude, *l.Longitude) {
 			p = weatherPlace{Name: l.Name, Located: true, Lat: *l.Latitude, Lng: *l.Longitude}
 		}
 		places = append(places, p)
 	}
 	if len(places) == 0 {
-		places = append(places, fallback(v.Destination))
+		places = append(places, destination)
 	}
 	return places
 }

@@ -163,13 +163,9 @@ func (s *Server) weatherView(ctx context.Context, v *models.Vacation, now time.T
 			cache := caches[weather.Key(p.Lat, p.Lng)]
 			e := weatherSummary(cache, day, tz, loc, now)
 			e.Place = p.Name
-			if p.Fallback {
-				fallback := loc.T("weather.destination", v.Destination)
-				if p.Name == v.Destination {
-					e.Place = fallback
-				} else {
-					e.Place += " · " + fallback
-				}
+			if p.Fallback && p.Located {
+				e.Place = v.Destination
+				e.Notice = strings.TrimSpace(loc.T("weather.lodging_location_missing", p.Name) + " " + e.Notice)
 			}
 			if !p.Located {
 				e = weatherEntry{Place: p.Name, Compact: "—", Notice: loc.T("weather.no_location")}

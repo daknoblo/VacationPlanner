@@ -493,9 +493,12 @@ different update times). Cards use labeled rain probability, rain, snow and wind
 rows, followed by the covered forecast intervals; attribution sits below the cards.
 Daily and weekly calendars share the countdown and show compact weather summaries
 above the planner. Locations follow the booked accommodation dates in the
-calendar timezone, including both accommodations on transfer days. A missing
-accommodation location falls back to the trip destination, explicitly labeled;
-missing coordinates are never invented.
+calendar timezone, including both accommodations on transfer days. Without a
+booked accommodation on a day, the saved trip destination is the normal weather
+location and is shown once, without a fallback label. A booked accommodation with
+missing coordinates uses the trip destination instead: the heading names that
+actual forecast location, while a separate notice identifies the unlocated stay.
+Missing coordinates are never invented.
 
 Identical coordinates share a SQLite forecast. Page loads and status polling
 only read this cache, never call OpenWeatherMap. Failed refreshes retain the last

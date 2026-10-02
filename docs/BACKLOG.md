@@ -54,6 +54,9 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Accurate weather location labels** — treat the destination as the normal
+      weather location on days without a stay; show the actual forecast location
+      once and reserve a separate warning for genuinely unlocated accommodations.
 - [x] **Start the Ideas map at the trip destination** — center Overview on the
       location saved under General, including empty trips; preserve manual views
       during polling and accommodation route fits, and explain missing coordinates.

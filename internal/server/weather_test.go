@@ -169,6 +169,73 @@ func TestWeatherPlacesTimezoneTransferAndAggregation(t *testing.T) {
 	}
 }
 
+func TestWeatherPlacesSelectActualDailyLocation(t *testing.T) {
+	day := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	stay := models.Lodging{Name: "Booked stay", CheckIn: day, CheckOut: day.AddDate(0, 0, 2)}
+	locatedStay := stay
+	locatedStay.Latitude, locatedStay.Longitude = fptr(52), fptr(13)
+	futureStay := locatedStay
+	futureStay.CheckIn, futureStay.CheckOut = day.AddDate(0, 0, 3), day.AddDate(0, 0, 4)
+	invalidStay := locatedStay
+	invalidStay.Latitude = fptr(91)
+	for _, tc := range []struct {
+		name     string
+		lodgings []models.Lodging
+		lat, lng *float64
+		want     weatherPlace
+	}{
+		{"no stay", nil, fptr(41), fptr(12), weatherPlace{Name: "Trip destination", Located: true, Lat: 41, Lng: 12}},
+		{"stay outside this day", []models.Lodging{futureStay}, fptr(41), fptr(12),
+			weatherPlace{Name: "Trip destination", Located: true, Lat: 41, Lng: 12}},
+		{"located stay takes priority", []models.Lodging{locatedStay}, fptr(41), fptr(12),
+			weatherPlace{Name: "Booked stay", Located: true, Lat: 52, Lng: 13}},
+		{"unlocated stay", []models.Lodging{stay}, fptr(41), fptr(12),
+			weatherPlace{Name: "Booked stay", Fallback: true, Located: true, Lat: 41, Lng: 12}},
+		{"invalid stay coordinates", []models.Lodging{invalidStay}, fptr(41), fptr(12),
+			weatherPlace{Name: "Booked stay", Fallback: true, Located: true, Lat: 41, Lng: 12}},
+		{"zero coordinates are valid", nil, fptr(0), fptr(0), weatherPlace{Name: "Trip destination", Located: true}},
+		{"missing destination", nil, nil, nil, weatherPlace{Name: "Trip destination"}},
+		{"invalid destination", nil, fptr(91), fptr(12), weatherPlace{Name: "Trip destination"}},
+		{"both locations missing", []models.Lodging{stay}, nil, nil,
+			weatherPlace{Name: "Booked stay", Fallback: true}},
+		{"stay without destination coordinates", []models.Lodging{locatedStay}, nil, nil,
+			weatherPlace{Name: "Booked stay", Located: true, Lat: 52, Lng: 13}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := &models.Vacation{Destination: "Trip destination", Latitude: tc.lat, Longitude: tc.lng, Lodgings: tc.lodgings}
+			got := weatherPlaces(v, day.Format("2006-01-02"), time.UTC)
+			if len(got) != 1 || got[0] != tc.want {
+				t.Fatalf("wrong daily weather location: got %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWeatherQueueUsesSelectedDailyLocation(t *testing.T) {
+	s, provider, v := weatherTestServer(t)
+	assertLocation := func(lat, lng float64) {
+		t.Helper()
+		points, err := s.eligibleWeather(t.Context(), v.ID, provider.now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		point, ok := points[weather.Key(lat, lng)]
+		if !ok || len(points) != 1 || point.Latitude != lat || point.Longitude != lng {
+			t.Fatalf("background requests must use the actual daily forecast coordinates: %+v", points)
+		}
+	}
+	assertLocation(*v.Latitude, *v.Longitude)
+	lodging := models.Lodging{VacationID: v.ID, Name: "Booked stay", Latitude: fptr(52), Longitude: fptr(13),
+		CheckIn: v.StartDate, CheckOut: v.EndDate}
+	if err := s.store.CreateLodging(t.Context(), &lodging); err != nil {
+		t.Fatal(err)
+	}
+	assertLocation(52, 13)
+	if provider.calls.Load() != 0 {
+		t.Fatal("resolving weather locations must not fetch forecasts")
+	}
+}
+
 func TestWeatherAutomationEligibilityAndCancellation(t *testing.T) {
 	s, provider, v := weatherTestServer(t)
 	form := url.Values{"interval": {"2"}}

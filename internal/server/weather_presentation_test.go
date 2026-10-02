@@ -68,11 +68,11 @@ func TestWeatherPresentationUsesDisplayedForecastTimestamps(t *testing.T) {
 			t.Fatal("failed refresh/unused cache changed displayed data timestamp", view.Updated, want)
 		}
 		entry := view.Days[0].Entries[0]
-		if entry.Place != loc.T("weather.destination", v.Destination) || len(entry.Metrics) != 4 ||
+		if entry.Place != v.Destination || len(entry.Metrics) != 4 ||
 			entry.Metrics[0].Value != "25%" || entry.Metrics[1].Value != "0.2 mm" ||
 			entry.Metrics[2].Value != "0.0 mm" || entry.Metrics[3].Value != "11 km/h" ||
 			!strings.Contains(entry.Coverage, "10:00") || strings.Contains(entry.Detail, "09:00") {
-			t.Fatal("tile metrics or destination fallback presentation incorrect", entry)
+			t.Fatal("tile metrics or destination presentation incorrect", entry)
 		}
 		for _, lat := range []float64{41, 42} {
 			v.Lodgings = append(v.Lodgings, models.Lodging{Name: "Stay", Latitude: fptr(lat), Longitude: fptr(12),
@@ -85,6 +85,26 @@ func TestWeatherPresentationUsesDisplayedForecastTimestamps(t *testing.T) {
 		want = loc.T("weather.data_range", now.Add(-time.Hour).Format("02.01.2006 15:04 MST"), now.Format("02.01.2006 15:04 MST"))
 		if view.Updated != want {
 			t.Fatal("mixed forecast age was not disclosed", view.Updated, want)
+		}
+		for n, entry := range view.Days[0].Entries {
+			if entry.Place != v.Lodgings[n].Name ||
+				strings.Contains(entry.Notice, loc.T("weather.lodging_location_missing", v.Lodgings[n].Name)) {
+				t.Fatal("located accommodations must retain their own weather location", entry)
+			}
+		}
+		v.Lodgings = []models.Lodging{{Name: "Unlocated stay", CheckIn: v.StartDate, CheckOut: v.EndDate}}
+		view, err = s.weatherView(ctx, v, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry = view.Days[0].Entries[0]
+		if entry.Place != v.Destination ||
+			!strings.Contains(entry.Notice, loc.T("weather.lodging_location_missing", "Unlocated stay")) ||
+			!strings.Contains(entry.Notice, loc.T("weather.error.auth")) || len(entry.Metrics) != 4 {
+			t.Fatal("a genuine fallback must name the actual forecast location and preserve error notices", entry)
+		}
+		if view.ByDate[v.StartDate.Format("2006-01-02")][0].Place != entry.Place {
+			t.Fatal("calendar and weather tab must use the same actual location")
 		}
 	}
 	v.Lodgings = nil

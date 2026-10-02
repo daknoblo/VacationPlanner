@@ -88,10 +88,16 @@ export async function verifyWeather(browser) {
     assert.equal(await page.locator(".calendar-weather__entry").count(), 2, "Both calendars show the same saved forecast");
     assert.ok(await page.locator(".calendar-weather__entry").evaluateAll(nodes =>
       nodes.every(node => node.title.includes("forecast times"))), "Compact summaries expose full details");
-    entries = [entry, { ...entry, Place: "Destination fallback: Rome", Notice: "Saved forecast is old" }];
+    entries = [entry, { ...entry, Place: "Rome", Notice: "No saved location for accommodation Second stay; showing weather at the trip destination. Saved forecast is old" }];
     await refresh();
     await page.waitForFunction(() => document.querySelectorAll(".weather-place").length === 2);
     assert.equal(await page.locator(".calendar-weather__entry").count(), 4, "Transfer days show both places");
+    assert.equal(await page.locator(".weather-place h4").nth(1).textContent(), "Rome",
+      "The card names the actual forecast location, not an unlocated accommodation");
+    assert.deepEqual(await page.locator(".calendar-weather__place").allTextContents(),
+      [entry.Place, "Rome", entry.Place, "Rome"], "Both calendars name the same actual forecast locations");
+    assert.ok((await page.locator(".weather-notice").innerText()).includes("Second stay"),
+      "A genuine accommodation fallback remains explicit, separate from the place heading");
     await page.setViewportSize({ width: 390, height: 800 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       "Weather cards must fit mobile width");
