@@ -196,8 +196,13 @@ published together as a Pages artifact, not checked into the repository.
   too, and cached polling preserves that view. Labels stay in place while hovered or
   focused so they remain easy to activate. Without a saved route, numbered markers
   retain their location popup rather than inventing a route.
-  **Overview** is the initial selection and restores the full accommodation/idea extent
-  without selecting a single origin. Its table immediately shows the shortest cached
+  **Overview** is the initial selection and centers on the destination saved under
+  **General**, even before any ideas or accommodations exist. Returning to Overview
+  restores that destination view without selecting a route origin. If destination
+  coordinates are missing, an explicit notice asks for a location under General;
+  the map falls back to saved markers, or a broad map if none exist. Destination
+  changes update an untouched overview, while polling preserves manually adjusted
+  views. Reads never geocode the destination. Its table immediately shows the shortest cached
   driving distance per idea, the duration of that same route and its starting accommodation.
   Only current same-trip coordinates/provider results are eligible; missing results
   remain explicit. Equal distances prefer shorter duration, earlier check-in, then ID.

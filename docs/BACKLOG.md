@@ -54,6 +54,9 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Start the Ideas map at the trip destination** — center Overview on the
+      location saved under General, including empty trips; preserve manual views
+      during polling and accommodation route fits, and explain missing coordinates.
 - [x] **Verify the published image digest** — feed the normalized registry name
       and immutable build digest directly into Trivy; fail the Docker workflow
       when the scan or SARIF upload fails instead of hiding invalid references.

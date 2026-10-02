@@ -251,7 +251,8 @@
   }
   function initialize() {
     if (map) return;
-    map = L.map(el, { scrollWheelZoom: false }).setView([48, 10], 4);
+    var center = data.center && located(data.center) ? data.center : null;
+    map = L.map(el, { scrollWheelZoom: false }).setView(center ? [center.lat, center.lng] : [48, 10], center ? 13 : 4);
     if (!demo) {
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, referrerPolicy: "strict-origin-when-cross-origin",
@@ -284,6 +285,9 @@
       demo ? "" :
       !data.routing ? root.dataset.disabled :
       failed ? root.dataset.unavailable : "";
+    if (!selected && !(data.center && located(data.center))) {
+      value = [root.dataset.destinationMissing, value].filter(Boolean).join(" ");
+    }
     status.textContent = value;
     status.hidden = !value;
     cacheStatus.textContent = data.progress_label || "";
@@ -332,7 +336,7 @@
   function render() {
     if (!data || !visible()) return;
     initialize();
-    var signature = JSON.stringify([selected, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
+    var signature = JSON.stringify([selected, data.center, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
     if (signature === rendered) { summary(); return; }
     rendered = signature;
     select.replaceChildren(new Option(root.dataset.choose, ""));
@@ -552,7 +556,9 @@
       }
     });
     sortRows();
-    var fitBounds = routeBounds || (points.length ? L.latLngBounds(points) : null);
+    var destination = !selected && data.center && located(data.center) ? data.center : null;
+    var fitBounds = destination ? L.latLngBounds([[destination.lat, destination.lng]]) :
+      routeBounds || (points.length ? L.latLngBounds(points) : null);
     var nextPositions = fitBounds ? fitBounds.toBBoxString() : "";
     var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);
     viewPoints = (origin || !selected) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;

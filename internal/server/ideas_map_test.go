@@ -132,6 +132,60 @@ func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing
 	}
 }
 
+func TestIdeasMapCenterUsesOnlyCurrentSavedDestination(t *testing.T) {
+	s := newIntegrationServer(t)
+	ctx := t.Context()
+	v := sampleVacation()
+	v.Latitude, v.Longitude = fptr(55.6), fptr(12.5)
+	if err := s.store.CreateVacation(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	path := "/vacations/" + v.ID.String() + "/api/ideas-map"
+	var empty ideasMapPayload
+	readTripJSON(t, s, path, &empty)
+	if empty.Center == nil || *empty.Center != (centerPoint{Lat: 55.6, Lng: 12.5}) ||
+		len(empty.Lodgings) != 0 || len(empty.Ideas) != 0 {
+		t.Fatalf("empty trip lost its saved destination: %+v", empty)
+	}
+	lodging := models.Lodging{VacationID: v.ID, Name: "Distant stay", Latitude: fptr(40), Longitude: fptr(7),
+		CheckIn: v.StartDate, CheckOut: v.EndDate}
+	item := models.Item{VacationID: v.ID, Title: "Distant idea", Latitude: fptr(41), Longitude: fptr(8)}
+	if err := s.store.CreateLodging(ctx, &lodging); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.CreateItem(ctx, &item); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name     string
+		lat, lng *float64
+		want     *centerPoint
+	}{
+		{"saved destination", fptr(55.6), fptr(12.5), &centerPoint{Lat: 55.6, Lng: 12.5}},
+		{"edited destination with zero coordinates", fptr(0), fptr(0), &centerPoint{}},
+		{"missing destination", nil, nil, nil},
+		{"partial destination", fptr(55.6), nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v.Latitude, v.Longitude = tc.lat, tc.lng
+			if err := s.store.UpdateVacation(t.Context(), v); err != nil {
+				t.Fatal(err)
+			}
+			for _, suffix := range []string{"", "?lodging=" + lodging.ID.String()} {
+				var data ideasMapPayload
+				readTripJSON(t, s, path+suffix, &data)
+				if (data.Center == nil) != (tc.want == nil) ||
+					(data.Center != nil && *data.Center != *tc.want) {
+					t.Fatalf("map center must use the current trip destination, not other records: %+v", data.Center)
+				}
+			}
+		})
+	}
+	if len(s.geography.queue) != 0 || len(s.geography.states) != 0 {
+		t.Fatal("reading the destination must not start geography work")
+	}
+}
+
 func TestIdeaDriveUsesSelectedCurrentAccommodationAndSharedCache(t *testing.T) {
 	s := newIntegrationServer(t)
 	v := sampleVacation()

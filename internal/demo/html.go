@@ -182,6 +182,7 @@ func keepData(key string) bool {
 		"data-ideas-map-cache-status",
 		"data-ideas-sort", "data-route-from",
 		"data-loading", "data-error", "data-missing", "data-no-origin", "data-pending", "data-unavailable",
+		"data-destination-missing",
 		"data-disabled", "data-ready", "data-choose", "data-removed", "data-no-ideas", "data-demo",
 		"data-overview", "data-no-geometry", "data-location-warning", "data-focus-route",
 		"data-schedule", "data-unscheduled", "data-schedule-error", "data-saving",

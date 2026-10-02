@@ -34,6 +34,7 @@ export async function verifyIdeasMap(browser) {
   const schedules = [];
   let gate, release;
   const data = {
+    center: { lat: 55.15, lng: 8.15 },
     routing: true, progress: { total: 4, completed: 4 }, progress_label: "4 saved / 0 failed / 0 pending",
     days: [
       { value: "2027-05-01", label: "Southern Denmark · 01.05.2027" },
@@ -117,6 +118,7 @@ export async function verifyIdeasMap(browser) {
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
+        data-destination-missing="Select the destination location under General"
         data-focus-route="Show the entire route" data-route-from="From:" data-schedule="Plan for day" data-unscheduled="Choose day"
         data-schedule-error="Could not save the day" data-saving="Saving">
         <select data-ideas-map-origin></select>
@@ -144,6 +146,13 @@ export async function verifyIdeasMap(browser) {
   }
   async function refresh() {
     await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("itemsChanged")));
+  }
+  async function assertDestination(center) {
+    await page.waitForFunction(expected => {
+      const actual = testMap.getCenter();
+      return Math.abs(actual.lat - expected.lat) < 0.001 && Math.abs(actual.lng - expected.lng) < 0.001 &&
+        testMap.getZoom() === 13;
+    }, center);
   }
   async function lines() {
     return page.evaluate(() => {
@@ -191,6 +200,22 @@ export async function verifyIdeasMap(browser) {
     await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 3);
     assert.equal(await status.isVisible(), false, "No redundant success paragraph");
     assert.equal(await select.inputValue(), "", "Overview must be the default");
+    await assertDestination(data.center);
+    data.center = { lat: 55.16, lng: 8.16 };
+    await refresh();
+    await assertDestination(data.center);
+    await page.evaluate(() => testMap.setView([40, 7], 7, { animate: false }));
+    data.center = { lat: 55.17, lng: 8.17 };
+    data.progress_label = "Destination updated";
+    await refresh();
+    await waitText(page.locator("[data-ideas-map-cache-status]"), "Destination updated");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]),
+      [40, 7, 7], "Destination refresh must not reset a manual overview");
+    data.progress_label = "4 saved / 0 failed / 0 pending";
+    await page.reload({ waitUntil: "networkidle" });
+    await page.evaluate(() => { document.querySelector("#tab").style.display = "block"; });
+    await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 3);
+    await assertDestination(data.center);
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 2);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 2);
     assert.equal(await rows.locator("tr").count(), 3);
@@ -236,7 +261,8 @@ export async function verifyIdeasMap(browser) {
     await waitText(rows, "12.3 km");
     assert.equal(await rows.locator("script, em").count(), 0);
     assert.equal(await select.locator('option[value="c"]').isDisabled(), true);
-    assert.ok(await page.evaluate(() => testMap.getBounds().contains([55, 8]) && testMap.getBounds().contains([56, 9])));
+    await assertDestination(data.center);
+    await page.evaluate(() => testMap.setView([55.1, 8.1], 13, { animate: false }));
     await page.locator(".idea-map-marker").first().click();
     await page.locator(".leaflet-popup-content").waitFor();
     assert.equal(await select.inputValue(), "", "Without a saved route, a number must not guess an origin");
@@ -404,7 +430,7 @@ export async function verifyIdeasMap(browser) {
     await select.selectOption("");
     await waitRoads(0);
     assert.deepEqual(await lines(), []);
-    assert.ok(await page.evaluate(() => testMap.getBounds().contains([55, 8]) && testMap.getBounds().contains([56, 9])));
+    await assertDestination(data.center);
 
     gate = new Promise(resolve => { release = resolve; });
     const held = page.waitForRequest(request => request.url().includes("/map?lodging=a"));
@@ -534,6 +560,21 @@ export async function verifyIdeasMap(browser) {
     await refresh();
     await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 0);
     await verifyIdeasTableWindow(page, 0);
+    data.lodgings = [];
+    data.center = { lat: 0, lng: 0 };
+    await select.selectOption("");
+    await assertDestination(data.center);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.evaluate(() => { document.querySelector("#tab").style.display = "block"; });
+    await waitText(status, "Empty");
+    await assertDestination(data.center);
+    assert.equal(await page.locator("#ideas-map .leaflet-marker-icon").count(), 0,
+      "An empty trip starts at its destination without inventing an accommodation or idea");
+    data.center = null;
+    await refresh();
+    await waitText(status, "Select the destination location under General");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]),
+      [48, 10, 4], "Without any saved location the broad fallback remains explicit");
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });
     await new Promise(resolve => setTimeout(resolve, 100));
     const before = requests;

@@ -30,6 +30,7 @@ type ideasMapDay struct {
 }
 
 type ideasMapPayload struct {
+	Center        *centerPoint             `json:"center,omitempty"`
 	Lodgings      []ideasMapPoint          `json:"lodgings"`
 	Ideas         []ideasMapPoint          `json:"ideas"`
 	Routing       bool                     `json:"routing"`
@@ -84,6 +85,9 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		Lodgings: make([]ideasMapPoint, 0, len(lodgings)), Ideas: make([]ideasMapPoint, 0, len(items)),
 		Routing: s.routing != nil && s.routing.Enabled(),
 		Days:    make([]ideasMapDay, 0),
+	}
+	if vacation.HasCoords() {
+		payload.Center = &centerPoint{Lat: *vacation.Latitude, Lng: *vacation.Longitude}
 	}
 	for _, day := range vacation.Days() {
 		value := day.Format("2006-01-02")
