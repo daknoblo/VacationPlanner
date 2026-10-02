@@ -20,14 +20,14 @@ type labels struct {
 func locale(language string) labels {
 	if language == "de" {
 		return labels{
-			"Demo · Synthetische Beispieldaten · Nur lesen. Nichts wird gespeichert. Keine KI-, Geocoding- oder Routing-Aufrufe.",
+			"Demo · Synthetische Beispieldaten · Nur lesen. Nichts wird gespeichert. Keine KI-, Wetter-, Geocoding- oder Routing-Aufrufe.",
 			"In dieser statischen Demo nicht verfügbar; Änderungen werden nicht gespeichert.",
 			"Illustrative Karte und Routenwerte – keine echte Navigation oder Live-Kartendaten.",
 			"Dokumentation",
 		}
 	}
 	return labels{
-		"Demo · Synthetic example data · Read only. Nothing is saved. No AI, geocoding or routing calls.",
+		"Demo · Synthetic example data · Read only. Nothing is saved. No AI, weather, geocoding or routing calls.",
 		"Unavailable in this static demo; changes are not saved.",
 		"Illustrative map and route metrics — not real navigation or live map data.",
 		"Documentation",
@@ -189,6 +189,7 @@ func keepData(key string) bool {
 		"data-goto-day", "data-day-view", "data-weekview", "data-tagesplan",
 		"data-day-count", "data-day", "data-day-route", "data-week-start",
 		"data-region-day", "data-region-week",
+		"data-weather-day",
 		"data-introduction",
 		"data-state",
 		"data-ideas-regions", "data-ideas-region-filter", "data-ideas-region-group",

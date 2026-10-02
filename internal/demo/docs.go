@@ -57,7 +57,7 @@ func screenshotPath(raw string) string {
 		return ""
 	}
 	switch parts[2] {
-	case "dashboard.png", "overview.png", "day-planner.png", "week-planner.png", "ideas.png",
+	case "dashboard.png", "overview.png", "day-planner.png", "week-planner.png", "ideas.png", "weather.png",
 		"budget.png", "cheatsheet.png", "settings.png", "about.png", "mobile.png",
 		"travel.png", "accommodation.png":
 		return u.Path

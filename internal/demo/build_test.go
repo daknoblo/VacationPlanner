@@ -108,8 +108,11 @@ func TestBuildBothLocales(t *testing.T) {
 		t.Fatal("version label was not escaped")
 	}
 	for _, language := range []string{"en", "de"} {
-		if got := bytes.Count(landing, []byte(`src="screenshots/`+language+`/`)); got != 12 {
-			t.Errorf("gallery contains %d screenshots for %s, want 12", got, language)
+		if got := bytes.Count(landing, []byte(`src="screenshots/`+language+`/`)); got != 13 {
+			t.Errorf("gallery contains %d screenshots for %s, want 13", got, language)
+		}
+		if !bytes.Contains(landing, []byte(`src="screenshots/`+language+`/weather.png"`)) {
+			t.Errorf("weather screenshot missing for %s", language)
 		}
 	}
 	docs, err := os.ReadFile(filepath.Join(out, "docs.html"))

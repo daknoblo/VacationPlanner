@@ -168,7 +168,7 @@ func newRenderer() (*renderer, error) {
 // their stable long-cached paths).
 func assetVersion() string {
 	h := sha256.New()
-	for _, name := range []string{"static/css/app.css", "static/js/app.js", "static/js/ideas-map.js"} {
+	for _, name := range []string{"static/css/app.css", "static/js/app.js", "static/js/ideas-map.js", "static/js/weather.js"} {
 		if b, err := fs.ReadFile(web.Static, name); err == nil {
 			_, _ = h.Write(b)
 		}

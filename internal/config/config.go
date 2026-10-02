@@ -15,13 +15,14 @@ import (
 
 // Config holds all runtime settings for the service.
 type Config struct {
-	Env            string
-	HTTPAddr       string
-	DBPath         string
-	Azure          foundry.Config
-	GeocoderAPIKey string
-	RouterAPIKey   string
-	CSRFKey        []byte
+	Env               string
+	HTTPAddr          string
+	DBPath            string
+	Azure             foundry.Config
+	GeocoderAPIKey    string
+	RouterAPIKey      string
+	OpenWeatherAPIKey string
+	CSRFKey           []byte
 
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration
@@ -44,8 +45,9 @@ func Load() (*Config, error) {
 			ClientID:        strings.TrimSpace(os.Getenv("AZURE_CLIENT_ID")),
 			ClientSecret:    os.Getenv("AZURE_CLIENT_SECRET"),
 		},
-		GeocoderAPIKey: os.Getenv("GEOCODER_API_KEY"),
-		RouterAPIKey:   os.Getenv("ROUTER_API_KEY"),
+		GeocoderAPIKey:    os.Getenv("GEOCODER_API_KEY"),
+		RouterAPIKey:      os.Getenv("ROUTER_API_KEY"),
+		OpenWeatherAPIKey: strings.TrimSpace(os.Getenv("OPENWEATHER_API_KEY")),
 
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,

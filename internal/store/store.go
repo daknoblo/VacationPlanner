@@ -86,6 +86,11 @@ type Store interface {
 
 	GetSettings(ctx context.Context) (map[string]string, error)
 	PutSetting(ctx context.Context, key, value string) error
+	ListWeather(ctx context.Context) (map[string]models.WeatherCache, error)
+	QueueWeather(ctx context.Context, cache models.WeatherCache, before, now time.Time) (bool, error)
+	ClaimWeather(ctx context.Context) (string, error)
+	FinishWeather(ctx context.Context, cache models.WeatherCache) error
+	InterruptWeather(ctx context.Context) error
 	GetCheatsheet(ctx context.Context, vacationID uuid.UUID, sourceLanguage string) (*models.Cheatsheet, error)
 	PutCheatsheet(ctx context.Context, sheet *models.Cheatsheet) error
 	PutCheatsheetIntroduction(ctx context.Context, profile *models.CustomTravelPhrase, phrase *models.IntroductionPhrase) error

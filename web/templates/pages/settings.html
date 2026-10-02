@@ -129,6 +129,44 @@
   {{template "settings_route_retry" .}}
 </section>
 
+<section class="panel" id="weather-settings" data-weather-settings data-error="{{t "weather.load_error"}}"
+         data-saved="{{t "weather.settings_saved"}}">
+  <h2>{{t "weather.title"}} · OpenWeatherMap</h2>
+  <p class="muted small">{{t "weather.key_hint"}}</p>
+  <p>{{t "settings.external.key_label"}}:
+    {{if .Data.WeatherEnabled}}<span class="badge badge--ok">{{t "settings.external.key_set"}}</span>
+    {{else}}<span class="badge">{{t "settings.external.key_unset"}}</span>{{end}}
+  </p>
+  <form class="form" method="post" action="/settings/weather" data-weather-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="weather-interval">{{t "weather.auto"}}</label>
+      <select name="interval" id="weather-interval">
+        <option value="off"{{if eq .Data.WeatherInterval "off"}} selected{{end}}>{{t "weather.interval.off"}}</option>
+        <option value="3"{{if eq .Data.WeatherInterval "3"}} selected{{end}}>{{t "weather.interval.3"}}</option>
+        <option value="6"{{if eq .Data.WeatherInterval "6"}} selected{{end}}>{{t "weather.interval.6"}}</option>
+        <option value="12"{{if eq .Data.WeatherInterval "12"}} selected{{end}}>{{t "weather.interval.12"}}</option>
+      </select>
+    </div>
+    <button type="submit" class="btn">{{t "weather.save"}}</button>
+    <p class="small" data-weather-form-status role="status"></p>
+  </form>
+  <p class="muted small">{{t "weather.auto_hint"}}</p>
+  <form class="form" method="post" action="/settings/weather/refresh" data-weather-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="field">
+      <label for="weather-trip">{{t "weather.trip"}}</label>
+      <select id="weather-trip" name="vacation_id" required>
+        <option value="">{{t "weather.choose_trip"}}</option>
+        {{range .Data.Vacations}}{{if not .Archived}}<option value="{{.ID}}">{{.Title}}</option>{{end}}{{end}}
+      </select>
+    </div>
+    <button class="btn" type="submit"{{if not .Data.WeatherEnabled}} disabled{{end}}>{{t "weather.refresh"}}</button>
+    <p class="small" data-weather-form-status role="status"></p>
+  </form>
+  <p class="muted small" data-weather-settings-status role="status">{{if .Data.WeatherDemoStatus}}{{.Data.WeatherDemoStatus}}{{else}}{{t "weather.loading"}}{{end}}</p>
+</section>
+
 <section class="panel">
   <h2>🏷️ {{t "settings.categories.heading"}}</h2>
   <p class="muted small">{{t "settings.categories.hint"}}</p>

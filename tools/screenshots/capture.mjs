@@ -11,6 +11,7 @@ import { verifyAISearchCenters } from "./ai-centers.mjs";
 import { verifyIdeasMap, verifyIdeasTableWindow } from "./ideas-map.mjs";
 import { verifyWeekResize } from "./week-resize.mjs";
 import { verifyLocationSearch } from "./location-search.mjs";
+import { verifyWeather } from "./weather.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -87,6 +88,7 @@ const shots = [
   { name: "accommodation", tab: "lodging", title: "All accommodation records" },
   { name: "day-planner", tab: "tagesplan", view: "day", title: "Day planner and route summary" },
   { name: "week-planner", tab: "tagesplan", view: "week", title: "Week planner and regional ideas" },
+  { name: "weather", tab: "weather", title: "Accommodation-based five-day weather forecast" },
   { name: "ideas", tab: "ideen", title: "Ideas and saved reference links" },
   { name: "budget", tab: "budget", title: "Budget derived from original bookings" },
   { name: "cheatsheet", tab: "cheatsheet", title: "Standard and custom travel vocabulary" },
@@ -172,6 +174,7 @@ try {
   await verifyIdeasMap(browser);
   await verifyWeekResize(browser);
   await verifyLocationSearch(browser);
+  await verifyWeather(browser);
   assert.deepEqual(failures, [], "The demo must work without failed requests or external services");
   await writeFile(join(output, "manifest.json"), JSON.stringify({
     version: metadata.version,
@@ -218,7 +221,13 @@ async function verifyView(page, shot) {
       text => text.includes("Mi chiamo") && !text.includes("{name}"),
     ), "Participants receive complete self-introductions rather than placeholders");
   }
+  if (shot.name === "weather") {
+    assert.equal(await page.locator(".weather-day").count(), 7, "The entire trip includes unavailable forecast days");
+    assert.ok(await page.locator(".weather-summary").count() > 0, "Demo includes synthetic forecasts");
+    assert.ok(await page.locator(".weather-notice").count() > 0, "Days outside the forecast are explicit");
+  }
   if (shot.name === "day-planner") {
+    assert.ok((await page.locator("[data-day-view] [data-weather-day]").first().innerText()).includes("°C"));
     assert.ok(await page.locator("[data-day-view] .day-journey__stop:visible").count() > 0,
       "The route must contain actual planned stops, not a loading placeholder");
     assert.equal((await page.locator("[data-region-day]:visible").innerText()).trim(), "Toscana",
@@ -228,6 +237,7 @@ async function verifyView(page, shot) {
       "Transfer day contains both accommodation regions");
   }
   if (["day-planner", "week-planner"].includes(shot.name)) {
+    assert.ok(await page.locator(".calendar-weather-week [data-weather-day]").count() > 0);
     const scope = page.locator(shot.view === "day" ? "[data-day-view]" : "[data-weekview]");
     if (shot.view === "week") {
       const bands = await scope.locator("[data-region-week] .calendar-region-band").allTextContents();

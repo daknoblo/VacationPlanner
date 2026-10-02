@@ -133,6 +133,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"AutoVacuum":          autoVacuumSetting(settings),
 		"AutoVacuumOptions":   autoVacuumOptions,
 		"Vacations":           vacations,
+		"WeatherEnabled":      s.weatherEnabled(),
+		"WeatherInterval":     weatherIntervalSetting(settings),
 	})
 }
 

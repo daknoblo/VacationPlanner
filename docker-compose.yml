@@ -17,6 +17,8 @@ services:
       # Optional geocoding/routing keys (base URLs are set in the app under Settings).
       GEOCODER_API_KEY: ${GEOCODER_API_KEY:-}
       ROUTER_API_KEY: ${ROUTER_API_KEY:-}
+      # Optional free OpenWeatherMap 5-day forecast; automatic refresh is opt-in in Settings.
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       # Generate once with: openssl rand -hex 32
       CSRF_KEY: ${CSRF_KEY:-}
     ports:

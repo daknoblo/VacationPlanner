@@ -116,6 +116,8 @@ func run() error {
 	defer stopIdeaRoutes()
 	stopIdeaDescriptions := srv.StartIdeaDescriptionWorker(ctx)
 	defer stopIdeaDescriptions()
+	stopWeather := srv.StartWeatherWorker(ctx)
+	defer stopWeather()
 
 	// Background maintenance (automatic database vacuum when configured).
 	srv.StartMaintenance(ctx)

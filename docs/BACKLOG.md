@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Trip weather** — free OpenWeatherMap five-day forecasts in a dedicated tab
+      and compact day/week calendar summaries; accommodation-based locations with
+      explicit destination fallback, inclusive transfer days, durable shared cache,
+      bounded lifecycle worker, opt-in 3/6/12-hour refresh and manual Settings refresh.
+      Page/status reads never call the provider; errors preserve saved forecasts.
+
 - [x] **Roomier Ideas map and table** — remove redundant guidance/legend text,
       increase map height by 25%, size the table for ten complete rows and add
       thin row separators while preserving scrolling, sorting and route highlighting.

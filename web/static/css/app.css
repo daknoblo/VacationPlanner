@@ -855,6 +855,20 @@ code {
 .idea-location-warning:hover { background: #fde047; color: #713f12; text-decoration: none; }
 .idea-location-warning:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .weekcal__wk { width: 100%; }
+.calendar-weather-week { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); margin-bottom: .3rem; }
+.calendar-weather { display: flex; flex-wrap: wrap; gap: .5rem; padding: .3rem; font-size: .75rem; }
+.calendar-weather-week .calendar-weather { font-size: .65rem; display: block; min-width: 0; border-left: 1px solid var(--line); }
+.calendar-weather__entry { display: block; min-width: 0; overflow-wrap: anywhere; }
+.calendar-weather__place { display: block; color: var(--muted); }
+.calendar-weather-week .calendar-weather__place { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-weather__notice { display: block; color: var(--muted); }
+.calendar-weather-week .calendar-weather__notice { max-height: 2.6em; overflow: hidden; }
+.calendar-weather.is-unavailable { color: #b91c1c; }
+.weather-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+.weather-day { border: 1px solid var(--line); border-radius: .5rem; padding: .8rem; }
+.weather-day h3, .weather-place h4 { margin: 0 0 .4rem; }
+.weather-place + .weather-place { border-top: 1px solid var(--line); padding-top: .7rem; }
+.weather-notice { color: var(--muted); }
 .weekcal__wk-sum {
   list-style: none; cursor: pointer; user-select: none;
   display: inline-flex; align-items: center; gap: 0.4rem;

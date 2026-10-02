@@ -383,6 +383,7 @@ export async function verifyIdeasMap(browser) {
     await assertLabels(2);
     await waitText(rows, "12.3 km");
     await rows.locator("button").first().click();
+    await page.waitForFunction(() => document.querySelectorAll(".leaflet-popup-content").length === 1);
     await page.locator(".leaflet-popup-content").waitFor();
     assert.ok((await page.locator(".leaflet-popup-content").innerText()).includes("Saved <script>unsafe()</script>"));
     await select.selectOption("b");

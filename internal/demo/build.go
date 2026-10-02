@@ -304,6 +304,7 @@ const landingTemplate = siteHead + `
 <a href="demo/{{.}}/vacation.html#overview"><img src="screenshots/{{.}}/overview.png" alt="Trip overview and illustrative accommodation map" loading="lazy"><strong>Overview</strong></a>
 <a href="demo/{{.}}/vacation.html#day-0"><img src="screenshots/{{.}}/day-planner.png" alt="Day planner and illustrative route summary" loading="lazy"><strong>Day planner</strong></a>
 <a href="demo/{{.}}/vacation.html#week"><img src="screenshots/{{.}}/week-planner.png" alt="Week calendar" loading="lazy"><strong>Week planner</strong></a>
+<a href="demo/{{.}}/vacation.html#weather"><img src="screenshots/{{.}}/weather.png" alt="Synthetic accommodation-based weather forecast" loading="lazy"><strong>Weather</strong></a>
 <a href="demo/{{.}}/vacation.html#ideen"><img src="screenshots/{{.}}/ideas.png" alt="Saved activity ideas" loading="lazy"><strong>Ideas</strong></a>
 <a href="demo/{{.}}/vacation.html#budget"><img src="screenshots/{{.}}/budget.png" alt="Trip budget" loading="lazy"><strong>Budget</strong></a>
 <a href="demo/{{.}}/vacation.html#cheatsheet"><img src="screenshots/{{.}}/cheatsheet.png" alt="Travel cheatsheet" loading="lazy"><strong>Cheatsheet</strong></a>

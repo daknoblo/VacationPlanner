@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -68,7 +69,35 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 		routePending = routeTotal - routeCompleted
 	}
 	loc := i18n.FromContext(ctx)
+	weatherPending := 0
+	if s.weatherEnabled() {
+		caches, err := s.store.ListWeather(ctx)
+		if err != nil {
+			return view, err
+		}
+		for _, c := range caches {
+			if c.Status == "queued" || c.Status == "running" {
+				weatherPending++
+			}
+		}
+		settings, err := s.settings(ctx)
+		if err != nil {
+			return view, err
+		}
+		if raw := settings[settingWeatherBlockedUntil]; raw != "" {
+			until, err := time.Parse(time.RFC3339, raw)
+			if err != nil {
+				return view, err
+			}
+			if time.Now().Before(until) {
+				weatherPending = 0
+			}
+		}
+	}
 	var tasks []string
+	if weatherPending > 0 {
+		tasks = append(tasks, loc.T("background.weather", weatherPending))
+	}
 	if geoJobs > 0 {
 		if geoJobs == 1 && view.Total > 0 {
 			tasks = append(tasks, loc.T("background.geography_progress", view.Completed, view.Total))
@@ -94,6 +123,9 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 		view.Determinate, view.Completed, view.Total = true, routeCompleted, routeTotal
 	}
 	view.Detail = strings.Join(tasks, " · ")
+	if weatherPending > 0 {
+		view.Determinate = false
+	}
 	return view, nil
 }
 

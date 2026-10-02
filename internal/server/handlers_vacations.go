@@ -582,6 +582,11 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 	cardMap := s.dayCardMap(r.Context(), loc, tz, v)
 	activities, ideas := overviewFromCards(loc, tz, v, cardMap)
 	currency := s.currencySymbol(r.Context())
+	weatherView, err := s.weatherView(r.Context(), v, time.Now())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 
 	// The budget split is based on the true participants (or the payers, as a
 	// fallback). Compute it before offering all people as paid-by options below.
@@ -607,6 +612,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"CalTravel":       travelCalBlocks(loc, tz, v),
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
 		"CalendarRegions": calendarRegions(loc, tz, mondayStart, v),
+		"Weather":         weatherView,
 		"Lodgings":        lodgingBlock(tz, v),
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),

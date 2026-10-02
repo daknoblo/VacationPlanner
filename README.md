@@ -463,6 +463,41 @@ More targets: `make help` (build, test, lint, sec, vuln, docker-build, docker-bu
 
 ## Configuration
 
+### Weather (OpenWeatherMap)
+
+Create an OpenWeatherMap account and activate an API key with access to the
+**free 5-day / 3-hour forecast** (`/data/2.5/forecast`). One Call and paid
+long-range products are not used. Inject `OPENWEATHER_API_KEY` into the server's
+runtime environment and recreate the container. Never commit or expose the key
+in browser URLs, screenshots or logs; Settings shows only whether it is configured.
+
+In **Settings → Weather**, choose **Off / every 3 / 6 / 12 hours**, or select a trip
+and click **Update weather now**. Automatic refresh is off initially. Enabling it
+queues eligible locations immediately; the cadence and attempt timestamps survive
+restarts. Only non-archived trips intersecting the next 120 hours are fetched.
+Manual retries have a ten-minute per-location cooldown; the durable queue is
+limited to 100 locations and one paced request at a time.
+An OpenWeatherMap rate-limit response pauses all weather requests for one hour;
+the pause survives restart and is shown in Settings.
+
+The **Weather** tab covers every trip day. Days outside the available forecast
+explicitly have no prediction. Daily and weekly calendars show compact summaries
+above the planner. Locations follow the booked accommodation dates in the
+calendar timezone, including both accommodations on transfer days. A missing
+accommodation location falls back to the trip destination, explicitly labeled;
+missing coordinates are never invented.
+
+Identical coordinates share a SQLite forecast. Page loads and status polling
+only read this cache, never call OpenWeatherMap. Failed refreshes retain the last
+successful values with an error and timestamp; forecasts older than six hours
+are marked stale. Past saved forecasts are predictions, not observed history.
+Displayed temperature ranges and rain/snow totals cover only the available
+three-hour forecast intervals. Rain probability is the highest interval value,
+and the weather symbol represents the forecast nearest noon. Values are grouped
+by the application's configured calendar timezone, not inferred local time.
+
+![Weather forecast](https://daknoblo.github.io/VacationPlanner/screenshots/en/weather.png)
+
 AI is optional and uses **Microsoft Foundry identity authentication only**. Leave all five
 AI variables empty to disable it, or supply the four required values below. `CSRF_KEY` is
 required in production. Non-secret settings are stored in SQLite;
@@ -477,6 +512,7 @@ credentials are supplied only through the runtime environment.
 | `AZURE_IMAGE_RESOURCE_ID` | –     | Optional separate account for read-only inventory; no image generation is implemented. |
 | `GEOCODER_API_KEY` | –             | Optional key for a Photon/Nominatim-compatible geocoder. Base URL in **Settings**. |
 | `ROUTER_API_KEY` | –               | Optional OpenRouteService key for driving time/distance between stops. Base URL in **Settings**. |
+| `OPENWEATHER_API_KEY` | – | Optional server-only key for OpenWeatherMap's free five-day forecast. Refresh cadence in **Settings → Weather**. |
 | `CSRF_KEY`       | ephemeral (dev) | Hex 32-byte HMAC key that signs CSRF tokens. **Set in production** so tokens survive restarts/instances. |
 | `APP_ENV`        | `development`   | `production` enables JSON logs, HSTS, secure cookies.                    |
 | `HTTP_ADDR`      | `:8080`         | Listen address.                                                         |

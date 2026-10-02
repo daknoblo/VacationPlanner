@@ -58,6 +58,9 @@ func (s *Server) routes() {
 	r.Delete("/settings/people/{personID}", s.handleDeletePerson)
 	r.Post("/settings/optimize", s.handleOptimizeDB)
 	r.Post("/settings/autovacuum", s.handleUpdateAutoVacuum)
+	r.Post("/settings/weather", s.handleWeatherSettings)
+	r.Post("/settings/weather/refresh", s.handleWeatherRefresh)
+	r.Get("/settings/weather/status", s.handleWeatherStatus)
 	r.Delete("/settings/vacations/{vacationID}", s.handleDeleteVacationSettings)
 
 	r.Route("/settings/backups", func(r chi.Router) {
@@ -97,6 +100,7 @@ func (s *Server) routes() {
 			r.Post("/geography/refresh", s.handleRefreshGeography)
 			r.Get("/api/daycounts", s.handleDayCounts)
 			r.Get("/api/calendar-regions", s.handleCalendarRegions)
+			r.Get("/api/weather", s.handleWeather)
 			r.Get("/api/ai-centers", s.handleAISearchCenters)
 			r.Get("/api/budget", s.handleBudgetFragment)
 			r.Get("/api/overview", s.handleOverviewFragment)

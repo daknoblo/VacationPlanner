@@ -56,5 +56,6 @@
   {{if eq .Page "vacation"}}<script src="/static/js/ai-search-map.js?v={{.AssetVer}}"></script>{{end}}
   <script src="/static/js/app.js?v={{.AssetVer}}"></script>
   {{if eq .Page "vacation"}}<script src="/static/js/ideas-map.js?v={{.AssetVer}}"></script>{{end}}
+  {{if or (eq .Page "vacation") (eq .Page "settings")}}<script src="/static/js/weather.js?v={{.AssetVer}}"></script>{{end}}
 </body>
 </html>{{end}}

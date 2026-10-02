@@ -203,6 +203,10 @@ func newDemoServer(ctx context.Context, lang i18n.Lang, buildVersion string) (*S
 	if err != nil {
 		return nil, nil, err
 	}
+	s.weather = demoWeather{}
+	if err := s.seedDemoWeather(ctx, trip); err != nil {
+		return nil, nil, err
+	}
 	if err := st.PutSetting(ctx, s.foundrySettingKey("chat"), "travel-chat"); err != nil {
 		return nil, nil, err
 	}
@@ -299,7 +303,9 @@ func (s *Server) handleDemoSettings(w http.ResponseWriter, r *http.Request) {
 		"Categories": categories, "CategoryIcons": defaultCategoryIcons, "People": people,
 		"Stats": stats, "DBSize": humanBytes(0), "Backups": []backupView{},
 		"AutoVacuum": autoVacuumSetting(settings), "AutoVacuumOptions": autoVacuumOptions,
-		"Vacations": vacations,
+		"Vacations":      vacations,
+		"WeatherEnabled": true, "WeatherInterval": "off",
+		"WeatherDemoStatus": loc.T("weather.status", 0, 0),
 	})
 }
 

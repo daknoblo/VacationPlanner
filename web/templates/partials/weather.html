@@ -1,0 +1,25 @@
+{{define "weather_summary"}}
+{{range .}}
+<span class="calendar-weather__entry" title="{{.Place}} · {{.Summary}} · {{.Detail}} {{.Notice}}">
+  <span aria-hidden="true">{{.Icon}}</span> {{.Compact}}
+  <span class="calendar-weather__place">{{.Place}}</span>
+  {{if .Notice}}<span class="calendar-weather__notice">{{.Notice}}</span>{{end}}
+</span>
+{{end}}
+{{end}}
+
+{{define "weather_days"}}
+{{range .Days}}
+<section class="weather-day">
+  <h3>{{.Label}}</h3>
+  {{range .Entries}}
+  <article class="weather-place">
+    <h4>{{.Place}}</h4>
+    {{if .Summary}}<p class="weather-summary"><span aria-hidden="true">{{.Icon}}</span> {{.Summary}}</p>{{end}}
+    {{if .Detail}}<p class="muted small">{{.Detail}}</p>{{end}}
+    {{if .Notice}}<p class="weather-notice small">{{.Notice}}</p>{{end}}
+  </article>
+  {{end}}
+</section>
+{{end}}
+{{end}}

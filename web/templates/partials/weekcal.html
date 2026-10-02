@@ -5,6 +5,14 @@
   {{range $wi, $week := .Weeks}}
   <details class="weekcal__wk" open>
     <summary class="weekcal__wk-sum">{{t "tab.week"}} {{add $wi 1}}</summary>
+    <div class="calendar-weather-week" aria-label="{{t "weather.title"}}">
+      <span></span>
+      {{range $weatherDay := $week.Days}}
+      <div class="calendar-weather"{{if .}} data-weather-day="{{dateInput .Date}}"{{end}}>
+        {{if $weatherDay}}{{with $.Weather}}{{template "weather_summary" (index .ByDate (dateInput $weatherDay.Date))}}{{end}}{{end}}
+      </div>
+      {{end}}
+    </div>
     <div class="calendar-region-week" data-region-week="{{$week.Start}}" aria-label="{{t "planner.regions.heading"}}">
       {{template "calendar_region_week" $week.Regions}}
     </div>

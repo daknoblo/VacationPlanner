@@ -15,6 +15,7 @@
       <button type="button" class="tabs__tab" data-tab="travel">{{t "tab.travel"}}</button>
       <button type="button" class="tabs__tab" data-tab="lodging">{{t "tab.lodging"}}</button>
       <button type="button" class="tabs__tab" data-tab="tagesplan">{{t "tab.tagesplan"}}</button>
+      <button type="button" class="tabs__tab" data-tab="weather">{{t "weather.title"}}</button>
       <button type="button" class="tabs__tab" data-tab="ideen">{{t "tab.ideen"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
       <button type="button" class="tabs__tab" data-tab="cheatsheet">{{t "tab.cheatsheet"}}</button>
@@ -22,6 +23,16 @@
   </div>
 
   <div id="item-error" class="form-error" role="alert" data-edit-error="{{t "ideas.region.edit_error"}}"></div>
+  <section class="tab-panel" data-tab-panel="weather">
+    <div class="panel" data-weather-panel data-weather-url="/vacations/{{$v.ID}}/api/weather"
+         data-error="{{t "weather.load_error"}}">
+      <h2>{{t "weather.title"}}</h2>
+      <p class="muted small">{{t "weather.hint"}}</p>
+      <p class="muted small"><a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap</a> · {{t "weather.attribution"}} · <a href="/settings#weather-settings">{{t "weather.settings"}}</a></p>
+      <p class="form-error" data-weather-error role="status" hidden></p>
+      <div class="weather-days" data-weather-days>{{template "weather_days" .Data.Weather}}</div>
+    </div>
+  </section>
 
   <section class="tab-panel" data-tab-panel="cheatsheet">
     <div hx-get="/vacations/{{$v.ID}}/cheatsheet" hx-trigger="load, infoChanged from:body" hx-swap="innerHTML">
@@ -142,6 +153,9 @@
         <section class="tab-panel{{if eq $i 0}} is-active{{end}}" data-tab-panel="day-{{$i}}">
           <div class="panel">
             <h2>{{t "tab.day"}} {{add $i 1}} · {{fmtDate $d}}</h2>
+            <div class="calendar-weather" data-weather-day="{{dateInput $d}}" aria-label="{{t "weather.title"}}">
+              {{with $.Data.Weather}}{{template "weather_summary" (index .ByDate (dateInput $d))}}{{end}}
+            </div>
             <div class="calendar-region-day" data-region-day="{{dateInput $d}}" aria-label="{{t "planner.regions.heading"}}">
               {{with $.Data.CalendarRegions}}{{template "calendar_region_day" (index .Days (dateInput $d))}}{{end}}
             </div>
@@ -201,7 +215,7 @@
           {{template "ideas_backlog" .Data.Ideas}}
         </div>
         <div class="tp-divider" role="separator"></div>
-        {{template "weekcal" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders "HourRows" $.Data.HourRows)}}
+        {{template "weekcal" (dict "Weeks" $.Data.WeekCalendar "Headers" $.Data.WeekHeaders "HourRows" $.Data.HourRows "Weather" $.Data.Weather)}}
       </div>
     </div>
     {{else}}

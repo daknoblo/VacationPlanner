@@ -17,6 +17,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/route"
 	"github.com/daknoblo/vacationplanner/internal/store"
+	"github.com/daknoblo/vacationplanner/internal/weather"
 )
 
 // Server is the top-level HTTP application.
@@ -47,6 +48,10 @@ type Server struct {
 	render                       *renderer
 	limiter                      *ipRateLimiter
 	router                       chi.Router
+	weather                      weatherProvider
+	weatherWake                  chan struct{}
+	weatherStart                 sync.Once
+	weatherStop                  func()
 }
 
 // New constructs a Server and wires up all routes.
@@ -71,6 +76,8 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		destImg:         destimg.New(),
 		render:          r,
 		limiter:         newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300
+		weather:         weather.New(cfg.OpenWeatherAPIKey),
+		weatherWake:     make(chan struct{}, 1),
 	}
 	if cfg.Azure.Requested() {
 		s.foundry, err = foundry.New(cfg.Azure, st)
