@@ -11,7 +11,14 @@ export async function verifyWeather(browser) {
   let delayed, release;
   const posts = [];
   const entry = { Place: "Hotel <script>unsafe()</script>", Icon: "☀", Compact: "12–20 °C",
-    Summary: "Clear · 12–20 °C", Detail: "Rain probability up to 30% · forecast times 09:00–21:00", Notice: "" };
+    Summary: "Clear · 12–20 °C", Detail: "Rain probability up to 30% · forecast times 09:00–21:00", Notice: "",
+    Coverage: "Forecast times 09:00–21:00 (5 intervals)", Metrics: [
+      { Label: "Rain probability (max.)", Value: "30%", Hint: "Maximum" },
+      { Label: "Rain", Value: "0.2 mm", Hint: "Available intervals" },
+      { Label: "Snow", Value: "0.0 mm", Hint: "Available intervals" },
+      { Label: "Wind (max.)", Value: "11 km/h", Hint: "Maximum" },
+    ] };
+  let updated = "Data as of: 02.10.2026 10:00 UTC";
   let entries = [entry];
   let reads = 0;
   page.on("pageerror", error => errors.push(error.message));
@@ -25,7 +32,7 @@ export async function verifyWeather(browser) {
     if (url.pathname === "/forecast") {
       assert.equal(route.request().method(), "GET");
       reads++;
-      const json = JSON.stringify({ Days: [{ Date: "2026-10-02", Label: "02.10.2026", Entries: entries }],
+      const json = JSON.stringify({ Updated: updated, Days: [{ Date: "2026-10-02", Label: "02.10.2026", Entries: entries }],
         ByDate: { "2026-10-02": entries } });
       if (delayed) await delayed;
       return route.fulfill({ status: failRead ? 500 : 200, contentType: "application/json", body: json });
@@ -61,6 +68,7 @@ export async function verifyWeather(browser) {
       </form>
       <p data-weather-settings-status></p></section>` : `
       <section class="panel" data-weather-panel data-weather-url="/forecast" data-error="Status unavailable">
+        <div class="weather-heading"><h2>Weather</h2><span class="muted small" data-weather-updated></span></div>
         <p data-weather-error hidden></p><div class="weather-days" data-weather-days></div></section>
       <div class="calendar-weather" data-weather-day="2026-10-02"></div>
       <div class="calendar-weather-week"><span></span><div class="calendar-weather" data-weather-day="2026-10-02"></div></div>
@@ -72,6 +80,11 @@ export async function verifyWeather(browser) {
     await page.locator(".weather-summary").waitFor();
     assert.equal(await page.locator(".weather-place h4").textContent(), entry.Place);
     assert.equal(await page.locator(".weather-place script").count(), 0, "Place names must be escaped");
+    assert.equal(await page.locator("[data-weather-updated]").innerText(), updated);
+    assert.deepEqual(await page.locator(".weather-metrics dd").allTextContents(), ["30%", "0.2 mm", "0.0 mm", "11 km/h"]);
+    assert.equal(await page.locator(".weather-coverage").innerText(), entry.Coverage);
+    assert.ok(!(await page.locator(".weather-place").innerText()).includes("Data as of:"));
+    assert.equal(await page.locator("[data-weather-updated]").evaluate(el => getComputedStyle(el).textAlign), "right");
     assert.equal(await page.locator(".calendar-weather__entry").count(), 2, "Both calendars show the same saved forecast");
     assert.ok(await page.locator(".calendar-weather__entry").evaluateAll(nodes =>
       nodes.every(node => node.title.includes("forecast times"))), "Compact summaries expose full details");
@@ -87,12 +100,14 @@ export async function verifyWeather(browser) {
     await refresh();
     while (reads === oldReads) await new Promise(resolve => setTimeout(resolve, 10));
     entries = [{ ...entry, Summary: "Rain · 10–15 °C" }];
+    updated = "Data as of: 02.10.2026 11:00 UTC";
     delayed = undefined;
     await refresh();
     await page.getByText("☀ Rain · 10–15 °C", { exact: true }).waitFor();
     release();
     await page.waitForTimeout(100);
     assert.equal(await page.locator(".weather-place").count(), 1, "Stale responses must not overwrite new data");
+    assert.equal(await page.locator("[data-weather-updated]").innerText(), updated, "Stale responses must not revert the timestamp");
     failRead = true;
     await refresh();
     await page.locator("[data-weather-error]").getByText("Status unavailable").waitFor();

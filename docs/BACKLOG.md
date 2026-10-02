@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Readable weather cards** — remove header guidance/navigation links, move
+      attribution below the cards, show saved data timestamps in the title row
+      (including mixed-age ranges), and format forecast metrics as labeled rows
+      without repeated timestamps or duplicate destination fallback names.
+
 - [x] **Weather availability countdown** — show estimated days until each trip date
       enters the five-day forecast window, in English/German with singular/plural
       wording and timezone/DST-aware calendar-date counting; shared by the weather

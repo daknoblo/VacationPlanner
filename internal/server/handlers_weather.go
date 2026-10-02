@@ -18,12 +18,20 @@ import (
 )
 
 type weatherEntry struct {
-	Place   string
-	Icon    string
-	Summary string
-	Compact string
-	Detail  string
-	Notice  string
+	Place    string
+	Icon     string
+	Summary  string
+	Compact  string
+	Detail   string
+	Notice   string
+	Metrics  []weatherMetric
+	Coverage string
+}
+
+type weatherMetric struct {
+	Label string
+	Value string
+	Hint  string
 }
 
 type weatherDay struct {
@@ -33,8 +41,9 @@ type weatherDay struct {
 }
 
 type weatherView struct {
-	Days   []weatherDay
-	ByDate map[string][]weatherEntry
+	Days    []weatherDay
+	ByDate  map[string][]weatherEntry
+	Updated string
 }
 
 func weatherCondition(code int) (string, string) {
@@ -119,10 +128,16 @@ func weatherSummary(c models.WeatherCache, day string, tz *time.Location, loc *i
 	entry.Icon = icon
 	entry.Compact = fmt.Sprintf("%.0f–%.0f °C", minT, maxT)
 	entry.Summary = loc.T("weather.condition."+condition) + " · " + entry.Compact
+	entry.Metrics = []weatherMetric{
+		{Label: loc.T("weather.metric.chance"), Value: loc.T("weather.value.percent", chance*100), Hint: loc.T("weather.metric.maximum_hint")},
+		{Label: loc.T("weather.metric.rain"), Value: loc.T("weather.value.mm", rain), Hint: loc.T("weather.metric.total_hint")},
+		{Label: loc.T("weather.metric.snow"), Value: loc.T("weather.value.mm", snow), Hint: loc.T("weather.metric.total_hint")},
+		{Label: loc.T("weather.metric.wind"), Value: loc.T("weather.value.wind", wind*3.6), Hint: loc.T("weather.metric.maximum_hint")},
+	}
+	entry.Coverage = loc.T("weather.coverage", samples[0].Time.In(tz).Format("15:04"),
+		samples[len(samples)-1].Time.In(tz).Format("15:04"), len(samples))
 	entry.Detail = loc.T("weather.metrics", chance*100, rain, snow, wind*3.6) + " · " +
-		loc.T("weather.coverage", samples[0].Time.In(tz).Format("15:04"),
-			samples[len(samples)-1].Time.In(tz).Format("15:04"), len(samples)) + " · " +
-		loc.T("weather.updated", c.UpdatedAt.In(tz).Format("02.01.2006 15:04 MST"))
+		entry.Coverage
 	if now.Sub(c.UpdatedAt) > 6*time.Hour {
 		entry.Notice = strings.TrimSpace(entry.Notice + " " + loc.T("weather.stale"))
 	}
@@ -140,14 +155,21 @@ func (s *Server) weatherView(ctx context.Context, v *models.Vacation, now time.T
 	_, tz := s.regionSettings(ctx)
 	loc := i18n.FromContext(ctx)
 	view := weatherView{ByDate: make(map[string][]weatherEntry)}
+	var oldest, newest time.Time
 	for _, date := range v.Days() {
 		day := date.Format("2006-01-02")
 		d := weatherDay{Date: day, Label: date.Format("02.01.2006")}
 		for _, p := range weatherPlaces(v, day, tz) {
-			e := weatherSummary(caches[weather.Key(p.Lat, p.Lng)], day, tz, loc, now)
+			cache := caches[weather.Key(p.Lat, p.Lng)]
+			e := weatherSummary(cache, day, tz, loc, now)
 			e.Place = p.Name
 			if p.Fallback {
-				e.Place += " · " + loc.T("weather.destination", v.Destination)
+				fallback := loc.T("weather.destination", v.Destination)
+				if p.Name == v.Destination {
+					e.Place = fallback
+				} else {
+					e.Place += " · " + fallback
+				}
 			}
 			if !p.Located {
 				e = weatherEntry{Place: p.Name, Compact: "—", Notice: loc.T("weather.no_location")}
@@ -155,10 +177,27 @@ func (s *Server) weatherView(ctx context.Context, v *models.Vacation, now time.T
 			if !s.weatherEnabled() {
 				e.Notice = strings.TrimSpace(loc.T("weather.disabled") + " " + e.Notice)
 			}
+			if e.Summary != "" && !cache.UpdatedAt.IsZero() {
+				if oldest.IsZero() || cache.UpdatedAt.Before(oldest) {
+					oldest = cache.UpdatedAt
+				}
+				if cache.UpdatedAt.After(newest) {
+					newest = cache.UpdatedAt
+				}
+			}
 			d.Entries = append(d.Entries, e)
 		}
 		view.Days = append(view.Days, d)
 		view.ByDate[day] = d.Entries
+	}
+	view.Updated = loc.T("weather.data_none")
+	if !oldest.IsZero() {
+		first, last := oldest.In(tz).Format("02.01.2006 15:04 MST"), newest.In(tz).Format("02.01.2006 15:04 MST")
+		if first == last {
+			view.Updated = loc.T("weather.data_as_of", first)
+		} else {
+			view.Updated = loc.T("weather.data_range", first, last)
+		}
 	}
 	return view, nil
 }

@@ -189,7 +189,7 @@ func keepData(key string) bool {
 		"data-goto-day", "data-day-view", "data-weekview", "data-tagesplan",
 		"data-day-count", "data-day", "data-day-route", "data-week-start",
 		"data-region-day", "data-region-week",
-		"data-weather-day",
+		"data-weather-day", "data-weather-updated",
 		"data-introduction",
 		"data-state",
 		"data-ideas-regions", "data-ideas-region-filter", "data-ideas-region-group",

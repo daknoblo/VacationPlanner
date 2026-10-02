@@ -865,6 +865,16 @@ code {
 .calendar-weather-week .calendar-weather__notice { max-height: 2.6em; overflow: hidden; }
 .calendar-weather.is-unavailable { color: #b91c1c; }
 .weather-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+.weather-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.weather-heading h2 { margin: 0; flex-shrink: 0; }
+.weather-heading [data-weather-updated] { text-align: right; }
+.weather-metrics { margin: .75rem 0; font-size: .85rem; }
+.weather-metrics > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: .75rem; padding: .35rem 0; }
+.weather-metrics > div + div { border-top: 1px solid var(--line); }
+.weather-metrics dt { color: var(--muted); overflow-wrap: anywhere; }
+.weather-metrics dd { margin: 0; font-weight: 600; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.weather-coverage { margin-bottom: .5rem; }
+.weather-source { margin: 1rem 0 0; text-align: right; }
 .weather-day { border: 1px solid var(--line); border-radius: .5rem; padding: .8rem; }
 .weather-day h3, .weather-place h4 { margin: 0 0 .4rem; }
 .weather-place + .weather-place { border-top: 1px solid var(--line); padding-top: .7rem; }

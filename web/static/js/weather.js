@@ -19,13 +19,25 @@
         var place = text("article", "", "weather-place");
         place.appendChild(text("h4", entry.Place));
         if (entry.Summary) place.appendChild(text("p", entry.Icon + " " + entry.Summary, "weather-summary"));
-        if (entry.Detail) place.appendChild(text("p", entry.Detail, "muted small"));
+        if (entry.Metrics && entry.Metrics.length) {
+          var metrics = text("dl", "", "weather-metrics");
+          entry.Metrics.forEach(function (metric) {
+            var row = document.createElement("div");
+            var label = text("dt", metric.Label);
+            label.title = metric.Hint;
+            row.append(label, text("dd", metric.Value));
+            metrics.appendChild(row);
+          });
+          place.appendChild(metrics);
+        }
+        if (entry.Coverage) place.appendChild(text("p", entry.Coverage, "weather-coverage muted small"));
         if (entry.Notice) place.appendChild(text("p", entry.Notice, "weather-notice small"));
         section.appendChild(place);
       });
       days.appendChild(section);
     });
     panel.querySelector("[data-weather-days]").replaceChildren(days);
+    panel.querySelector("[data-weather-updated]").textContent = view.Updated;
     document.querySelectorAll("[data-weather-day]").forEach(function (cell) {
       var fragment = document.createDocumentFragment();
       (view.ByDate[cell.dataset.weatherDay] || []).forEach(function (entry) {

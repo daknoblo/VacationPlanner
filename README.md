@@ -483,6 +483,9 @@ the pause survives restart and is shown in Settings.
 The **Weather** tab covers every trip day. Future dates outside the five-day
 forecast window show a calendar-day countdown until weather data are expected.
 Availability is an estimate, not a guarantee of provider coverage.
+The heading shows the saved data timestamp (a range when displayed locations have
+different update times). Cards use labeled rain probability, rain, snow and wind
+rows, followed by the covered forecast intervals; attribution sits below the cards.
 Daily and weekly calendars share the countdown and show compact weather summaries
 above the planner. Locations follow the booked accommodation dates in the
 calendar timezone, including both accommodations on transfer days. A missing

@@ -222,6 +222,12 @@ async function verifyView(page, shot) {
     ), "Participants receive complete self-introductions rather than placeholders");
   }
   if (shot.name === "weather") {
+    assert.equal(await page.locator(".weather-heading [data-weather-updated]").count(), 1);
+    assert.ok((await page.locator("[data-weather-updated]").innerText()).includes("CEST"));
+    assert.ok(await page.locator(".weather-metrics dd").count() > 0, "Forecast values use labeled rows");
+    assert.equal(await page.locator('[data-tab-panel="weather"] a[href*="settings"]').count(), 0);
+    assert.equal(await page.locator(".weather-heading [data-weather-updated]").evaluate(el => getComputedStyle(el).textAlign), "right");
+    assert.ok(!(await page.locator(".weather-days").innerText()).match(/Last successful update|Letzte erfolgreiche Aktualisierung/));
     assert.equal(await page.locator(".weather-day").count(), 7, "The entire trip includes unavailable forecast days");
     assert.ok(await page.locator(".weather-summary").count() > 0, "Demo includes synthetic forecasts");
     assert.ok(await page.locator(".weather-notice").count() > 0, "Days outside the forecast are explicit");

@@ -26,11 +26,13 @@
   <section class="tab-panel" data-tab-panel="weather">
     <div class="panel" data-weather-panel data-weather-url="/vacations/{{$v.ID}}/api/weather"
          data-error="{{t "weather.load_error"}}">
-      <h2>{{t "weather.title"}}</h2>
-      <p class="muted small">{{t "weather.hint"}}</p>
-      <p class="muted small"><a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap</a> · {{t "weather.attribution"}} · <a href="/settings#weather-settings">{{t "weather.settings"}}</a></p>
+      <div class="weather-heading">
+        <h2>{{t "weather.title"}}</h2>
+        <span class="muted small" data-weather-updated>{{.Data.Weather.Updated}}</span>
+      </div>
       <p class="form-error" data-weather-error role="status" hidden></p>
       <div class="weather-days" data-weather-days>{{template "weather_days" .Data.Weather}}</div>
+      <p class="weather-source muted small"><a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap</a> · {{t "weather.attribution"}}</p>
     </div>
   </section>
 

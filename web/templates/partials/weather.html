@@ -16,7 +16,12 @@
   <article class="weather-place">
     <h4>{{.Place}}</h4>
     {{if .Summary}}<p class="weather-summary"><span aria-hidden="true">{{.Icon}}</span> {{.Summary}}</p>{{end}}
-    {{if .Detail}}<p class="muted small">{{.Detail}}</p>{{end}}
+    {{if .Metrics}}
+    <dl class="weather-metrics">
+      {{range .Metrics}}<div><dt title="{{.Hint}}">{{.Label}}</dt><dd>{{.Value}}</dd></div>{{end}}
+    </dl>
+    {{end}}
+    {{if .Coverage}}<p class="weather-coverage muted small">{{.Coverage}}</p>{{end}}
     {{if .Notice}}<p class="weather-notice small">{{.Notice}}</p>{{end}}
   </article>
   {{end}}
