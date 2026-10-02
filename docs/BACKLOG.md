@@ -54,6 +54,9 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Verify the published image digest** — feed the normalized registry name
+      and immutable build digest directly into Trivy; fail the Docker workflow
+      when the scan or SARIF upload fails instead of hiding invalid references.
 - [x] **Readable weather cards** — remove header guidance/navigation links, move
       attribution below the cards, show saved data timestamps in the title row
       (including mixed-age ranges), and format forecast metrics as labeled rows

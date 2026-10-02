@@ -12,6 +12,8 @@ jobs:
   build-push:
     name: Build & push multi-arch image
     runs-on: ubuntu-latest
+    outputs:
+      image-ref: ${{ fromJSON(steps.meta.outputs.json).images[0] }}@${{ steps.build.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -70,13 +72,11 @@ jobs:
       - name: Trivy scan (image)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          image-ref: ${{ needs.build-push.outputs.image-ref }}
           format: sarif
           output: trivy-image.sarif
           ignore-unfixed: true
-        continue-on-error: true
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4.37.4
         with:
           sarif_file: trivy-image.sarif
-        continue-on-error: true
