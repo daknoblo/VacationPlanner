@@ -13,7 +13,7 @@ jobs:
     name: Build & push multi-arch image
     runs-on: ubuntu-latest
     outputs:
-      image-ref: ${{ fromJSON(steps.meta.outputs.json).images[0] }}@${{ steps.build.outputs.digest }}
+      image-ref: ${{ steps.image-reference.outputs.image-ref }}
     permissions:
       contents: read
       packages: write
@@ -60,6 +60,12 @@ jobs:
           sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Export immutable image reference
+        id: image-reference
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "image-ref=ghcr.io/${GITHUB_REPOSITORY,,}@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
 
   image-scan:
     name: Trivy image scan
