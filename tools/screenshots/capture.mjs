@@ -225,6 +225,9 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator(".weather-day").count(), 7, "The entire trip includes unavailable forecast days");
     assert.ok(await page.locator(".weather-summary").count() > 0, "Demo includes synthetic forecasts");
     assert.ok(await page.locator(".weather-notice").count() > 0, "Days outside the forecast are explicit");
+    assert.ok((await page.locator(".weather-notice").allTextContents()).some(text =>
+      /(?:expected to become available in \d+ days|voraussichtlich in \d+ Tagen verfügbar)/.test(text)),
+    "Future weather cards show a localized availability countdown");
   }
   if (shot.name === "day-planner") {
     assert.ok((await page.locator("[data-day-view] [data-weather-day]").first().innerText()).includes("°C"));

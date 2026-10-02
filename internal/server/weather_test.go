@@ -64,7 +64,7 @@ func TestWeatherReadsNeverFetchAndRefreshIsProtected(t *testing.T) {
 	if len(view.Days) != 9 || provider.calls.Load() != 0 {
 		t.Fatal("GET fetched weather or hid unavailable days", view)
 	}
-	if !strings.Contains(view.Days[8].Entries[0].Notice, "No forecast available yet") {
+	if !strings.Contains(view.Days[8].Entries[0].Notice, "Weather data expected to become available in") {
 		t.Fatal("future day invented weather", view.Days[8])
 	}
 	form := url.Values{"vacation_id": {v.ID.String()}}

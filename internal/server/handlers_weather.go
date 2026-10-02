@@ -80,7 +80,21 @@ func weatherSummary(c models.WeatherCache, day string, tz *time.Location, loc *i
 			case day < now.In(tz).Format("2006-01-02"):
 				entry.Notice = loc.T("weather.past")
 			case day > now.Add(5*24*time.Hour).In(tz).Format("2006-01-02"):
-				entry.Notice = loc.T("weather.future")
+				target, err := time.Parse("2006-01-02", day)
+				if err != nil {
+					entry.Notice = loc.T("weather.error.data")
+					break
+				}
+				horizon := now.Add(5 * 24 * time.Hour).In(tz)
+				year, month, date := horizon.Date()
+				// Count calendar dates, not 24-hour periods across DST changes.
+				horizonDate := time.Date(year, month, date, 0, 0, 0, 0, time.UTC)
+				days := int(target.Sub(horizonDate) / (24 * time.Hour))
+				if days == 1 {
+					entry.Notice = loc.T("weather.available_one")
+				} else {
+					entry.Notice = loc.T("weather.available_days", days)
+				}
 			case len(c.Samples) > 0 && day > c.Samples[len(c.Samples)-1].Time.In(tz).Format("2006-01-02"):
 				entry.Notice = loc.T("weather.future")
 			default:

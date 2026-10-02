@@ -480,8 +480,10 @@ limited to 100 locations and one paced request at a time.
 An OpenWeatherMap rate-limit response pauses all weather requests for one hour;
 the pause survives restart and is shown in Settings.
 
-The **Weather** tab covers every trip day. Days outside the available forecast
-explicitly have no prediction. Daily and weekly calendars show compact summaries
+The **Weather** tab covers every trip day. Future dates outside the five-day
+forecast window show a calendar-day countdown until weather data are expected.
+Availability is an estimate, not a guarantee of provider coverage.
+Daily and weekly calendars share the countdown and show compact weather summaries
 above the planner. Locations follow the booked accommodation dates in the
 calendar timezone, including both accommodations on transfer days. A missing
 accommodation location falls back to the trip destination, explicitly labeled;

@@ -54,6 +54,11 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Weather availability countdown** — show estimated days until each trip date
+      enters the five-day forecast window, in English/German with singular/plural
+      wording and timezone/DST-aware calendar-date counting; shared by the weather
+      tab and both calendar views without obscuring missing locations or API errors.
+
 - [x] **Trip weather** — free OpenWeatherMap five-day forecasts in a dedicated tab
       and compact day/week calendar summaries; accommodation-based locations with
       explicit destination fallback, inclusive transfer days, durable shared cache,
