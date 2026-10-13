@@ -56,7 +56,7 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 - [x] **HTTP/2 security updates** — update `golang.org/x/net` to v0.60.0 and its
       required companion modules, raise the minimum Go version to 1.26, and have
-      CI read the module's toolchain requirement for build, lint and vulnerability checks.
+      CI and Pages use the latest Go 1.26 security patch for builds and checks.
 
 - [x] **Trip-wide Ideas overview and regional zoom** — frame the trip's accommodations
       like the main overview, offer saved regions, filter table rows and road labels
