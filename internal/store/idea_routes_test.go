@@ -10,6 +10,88 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/models"
 )
 
+func TestActivityRoutePersistenceSourcesAndIdeaCacheReuse(t *testing.T) {
+	store := newTestStore(t)
+	ctx := t.Context()
+	day := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	vacation := &models.Vacation{Title: "Trip", StartDate: day, EndDate: day}
+	if err := store.CreateVacation(ctx, vacation); err != nil {
+		t.Fatal(err)
+	}
+	latitude, longitude := 55.0, 8.0
+	item := &models.Item{VacationID: vacation.ID, Title: "Stop", Day: &day, Latitude: &latitude, Longitude: &longitude}
+	if err := store.CreateItem(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	source := &models.ActivityRoute{VacationID: vacation.ID, ItemID: item.ID,
+		FromLat: 54, FromLng: 8, ToLat: latitude, ToLng: longitude, Status: "ready", DistanceM: 1000, DurationS: 120}
+	if saved, err := store.PutActivityRoute(ctx, source); err != nil || !saved {
+		t.Fatal(saved, err)
+	}
+	path := store.path
+	store.Close()
+	var err error
+	store, err = NewSQLite(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(store.Close)
+	if result, err := store.GetActivityRoute(ctx, source); err != nil || result.DistanceM != 1000 || result.DurationS != 120 {
+		t.Fatal("saved route did not survive reopen", result, err)
+	}
+	changed := *source
+	changed.FromLat++
+	if _, err := store.GetActivityRoute(ctx, &changed); !errors.Is(err, ErrNotFound) {
+		t.Fatal("old origin cache matched new coordinates", err)
+	}
+	changed = *source
+	changed.Provider = "https://different.example"
+	if _, err := store.GetActivityRoute(ctx, &changed); !errors.Is(err, ErrNotFound) {
+		t.Fatal("old provider cache matched new provider", err)
+	}
+	if saved, err := store.PutActivityRoute(ctx, &changed); err != nil || saved {
+		t.Fatal("stale provider write succeeded", saved, err)
+	}
+	latitude = 56
+	if err := store.UpdateItem(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	if saved, err := store.PutActivityRoute(ctx, source); err != nil || saved {
+		t.Fatal("stale destination write succeeded", saved, err)
+	}
+	if _, err := store.GetActivityRoute(ctx, source); !errors.Is(err, ErrNotFound) {
+		t.Fatal("stale destination was readable", err)
+	}
+	source.ToLat = latitude
+	lodging := &models.Lodging{VacationID: vacation.ID, Name: "Stay", CheckIn: day, CheckOut: day,
+		Latitude: &source.FromLat, Longitude: &source.FromLng}
+	if err := store.CreateLodging(ctx, lodging); err != nil {
+		t.Fatal(err)
+	}
+	ideaRoute := &models.IdeaRoute{VacationID: vacation.ID, LodgingID: lodging.ID, ItemID: item.ID,
+		FromLat: source.FromLat, FromLng: source.FromLng, ToLat: latitude, ToLng: longitude,
+		Status: "ready", DistanceM: 2000, DurationS: 240}
+	if saved, err := store.PutIdeaRoute(ctx, ideaRoute); err != nil || !saved {
+		t.Fatal(saved, err)
+	}
+	if result, err := store.GetActivityRoute(ctx, source); err != nil || result.DistanceM != 2000 {
+		t.Fatal("existing idea route was not reused", result, err)
+	}
+	item.Day = nil
+	if err := store.UpdateItem(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetActivityRoute(ctx, source); !errors.Is(err, ErrNotFound) {
+		t.Fatal("unscheduled item retained an active day route", err)
+	}
+	if err := store.DeleteItem(ctx, item.ID); err != nil {
+		t.Fatal(err)
+	}
+	if saved, err := store.PutActivityRoute(ctx, source); err != nil || saved {
+		t.Fatal("deleted item was restored by routing", saved, err)
+	}
+}
+
 func TestOverviewIdeaRoutesUseCurrentShortestSavedPairs(t *testing.T) {
 	st := newTestStore(t)
 	ctx := t.Context()

@@ -135,7 +135,20 @@ func (s *SQLite) PutIdeaRoute(ctx context.Context, job *models.IdeaRoute) (bool,
 }
 
 func (s *SQLite) RetryIdeaRoutes(ctx context.Context, vacationID uuid.UUID) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM idea_routes WHERE (status = 'unavailable' OR COALESCE(json_array_length(geometry), 0) < 2)
+	transaction, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = transaction.Rollback() }()
+	_, err = transaction.ExecContext(ctx, `DELETE FROM idea_routes WHERE (status = 'unavailable' OR COALESCE(json_array_length(geometry), 0) < 2)
 		AND lodging_id IN (SELECT id FROM lodging WHERE vacation_id = ?)`, vacationID)
-	return err
+	if err != nil {
+		return err
+	}
+	_, err = transaction.ExecContext(ctx, `DELETE FROM activity_routes WHERE status = 'unavailable'
+		AND item_id IN (SELECT id FROM items WHERE vacation_id = ?)`, vacationID)
+	if err != nil {
+		return err
+	}
+	return transaction.Commit()
 }

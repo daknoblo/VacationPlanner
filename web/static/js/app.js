@@ -76,9 +76,19 @@
   });
 
   // Re-bind geo autocomplete on content swapped in by htmx (e.g. the travel editor).
-  document.body.addEventListener("htmx:afterSwap", function () {
+  var routeRevision = "";
+  document.body.addEventListener("htmx:afterSwap", function (event) {
     initGeoLiteInputs();
     applyIdeaRegionFilter();
+    var target = event.detail && event.detail.target;
+    if (target && target.id === "background-status") {
+      var content = target.querySelector("[data-route-revision]");
+      var revision = content && content.dataset.routeRevision;
+      if (revision && revision !== routeRevision) {
+        routeRevision = revision;
+        document.body.dispatchEvent(new CustomEvent("routesChanged"));
+      }
+    }
   });
 
   document.body.addEventListener("htmx:afterRequest", function (event) {
@@ -1760,7 +1770,7 @@
     }
   }
 
-  function refreshDayCards() {
+  function refreshDayCards(event) {
     var routes = document.querySelectorAll("[data-day-route]");
     var requested = false;
     for (var i = 0; i < routes.length; i++) {
@@ -1771,7 +1781,7 @@
       if (!dayFragmentVisible(el)) continue;
       el.setAttribute("aria-busy", "true");
       if (el.dataset.loading == null) el.dataset.loading = el.textContent;
-      el.textContent = el.dataset.loading || "";
+      if (!event || event.type !== "routesChanged") el.textContent = el.dataset.loading || "";
       el.dispatchEvent(new CustomEvent("loadroute"));
       requested = true;
     }
@@ -1782,6 +1792,7 @@
   document.body.addEventListener("itemsChanged", refreshDayCards);
   document.body.addEventListener("infoChanged", refreshDayCards);
   document.body.addEventListener("geographyChanged", refreshDayCards);
+  document.body.addEventListener("routesChanged", refreshDayCards);
 
   document.body.addEventListener("htmx:beforeRequest", function (e) {
     var el = e.detail.elt;

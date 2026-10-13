@@ -60,6 +60,18 @@ func New(apiKey string) *Client {
 // Enabled reports whether live routing is configured (an API key is present).
 func (c *Client) Enabled() bool { return c.apiKey != "" }
 
+func (c *Client) Cached(baseURL, profile string, points []Point) (Result, bool) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+	profile = strings.TrimSpace(profile)
+	if profile == "" {
+		profile = DefaultProfile
+	}
+	return c.cached(cacheKey(baseURL, profile, points))
+}
+
 // Leg is the distance (metres) and duration (seconds) between two consecutive
 // waypoints.
 type Leg struct {

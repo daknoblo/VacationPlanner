@@ -16,6 +16,154 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/route"
 )
 
+func seedActivityRoute(t *testing.T, server *Server) (*models.Vacation, *models.Item) {
+	t.Helper()
+	vacation, _ := dayRouteFixture()
+	vacation.Items = vacation.Items[1:2]
+	if err := server.store.CreateVacation(t.Context(), vacation); err != nil {
+		t.Fatal(err)
+	}
+	item := &vacation.Items[0]
+	item.VacationID = vacation.ID
+	item.Notes = "Keep the booking notes"
+	item.Cost = fptr(42)
+	if err := server.store.CreateItem(t.Context(), item); err != nil {
+		t.Fatal(err)
+	}
+	return vacation, item
+}
+
+func TestActivityWorkerDoesNotBlockPagesAndStopsCleanly(t *testing.T) {
+	server := newIntegrationServer(t)
+	vacation, item := seedActivityRoute(t, server)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		_, _ = io.Copy(io.Discard, request.Body)
+		if calls.Add(1) == 1 {
+			close(started)
+		}
+		select {
+		case <-release:
+		case <-request.Context().Done():
+		}
+	}))
+	defer provider.Close()
+	defer close(release)
+	server.routing = route.New("test")
+	if err := server.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	stop := server.StartIdeaRouteWorker(ctx)
+	defer stop()
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("scheduled route did not start without a page visit")
+	}
+	status, err := server.backgroundStatus(t.Context())
+	if err != nil || !status.Active || !strings.Contains(status.Detail, "Driving routes") {
+		t.Fatal("activity worker is missing from background status", status, err)
+	}
+	for _, suffix := range []string{"", "/api/overview", "/api/dayroute?day=2026-08-03", "/api/daycards?day=2026-08-03"} {
+		readCtx, cancelRead := context.WithTimeout(t.Context(), time.Second)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequestWithContext(readCtx, http.MethodGet, "/vacations/"+vacation.ID.String()+suffix, nil))
+		cancelRead()
+		if response.Code != http.StatusOK || calls.Load() != 1 {
+			t.Fatalf("page blocked on active worker: path=%s status=%d calls=%d", suffix, response.Code, calls.Load())
+		}
+	}
+	cancel()
+	stop()
+	sources, err := server.activityRouteSources(t.Context(), vacation.ID, provider.URL)
+	if err != nil || len(sources) != 1 {
+		t.Fatal(sources, err)
+	}
+	if _, err := server.store.GetActivityRoute(t.Context(), &sources[0]); !isNotFound(err) {
+		t.Fatal("shutdown lost pending work", err)
+	}
+	stored, err := server.store.GetItem(t.Context(), item.ID)
+	if err != nil || stored.Notes != item.Notes || stored.Cost == nil || *stored.Cost != 42 {
+		t.Fatal("background work changed booking details", stored, err)
+	}
+}
+
+func TestActivityWorkerFailureRequiresExplicitRetry(t *testing.T) {
+	server := newIntegrationServer(t)
+	vacation, _ := seedActivityRoute(t, server)
+	var calls atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			response.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = response.Write([]byte(`{"routes":[{"summary":{"distance":1000,"duration":120}}]}`))
+	}))
+	defer provider.Close()
+	server.routing = route.New("test")
+	if err := server.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
+		t.Fatal(err)
+	}
+	if worked, err := server.prepareNextActivityRoute(t.Context()); !worked || err == nil {
+		t.Fatal("failed attempt was not recorded", worked, err)
+	}
+	server.routing = route.New("test")
+	for range 2 {
+		if worked, err := server.prepareNextActivityRoute(t.Context()); worked || err != nil || calls.Load() != 1 {
+			t.Fatal("failure was retried automatically", worked, err, calls.Load())
+		}
+	}
+	if err := server.store.RetryIdeaRoutes(t.Context(), vacation.ID); err != nil {
+		t.Fatal(err)
+	}
+	if worked, err := server.prepareNextActivityRoute(t.Context()); !worked || err != nil || calls.Load() != 2 {
+		t.Fatal("explicit retry did not complete", worked, err, calls.Load())
+	}
+	if err := server.store.RetryIdeaRoutes(t.Context(), vacation.ID); err != nil {
+		t.Fatal(err)
+	}
+	if worked, err := server.prepareNextActivityRoute(t.Context()); worked || err != nil || calls.Load() != 2 {
+		t.Fatal("retry discarded a successful route", worked, err, calls.Load())
+	}
+	if server.routeRevision.Load() != 2 {
+		t.Fatal("saved completions did not notify readers")
+	}
+}
+
+func TestActivityWorkerDiscardsChangedOrigin(t *testing.T) {
+	server := newIntegrationServer(t)
+	vacation, _ := seedActivityRoute(t, server)
+	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		vacation.Latitude = fptr(49)
+		if err := server.store.UpdateVacation(request.Context(), vacation); err != nil {
+			t.Error(err)
+		}
+		_, _ = response.Write([]byte(`{"routes":[{"summary":{"distance":1000,"duration":120}}]}`))
+	}))
+	defer provider.Close()
+	server.routing = route.New("test")
+	if err := server.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
+		t.Fatal(err)
+	}
+	original, err := server.activityRouteSources(t.Context(), vacation.ID, provider.URL)
+	if err != nil || len(original) != 1 {
+		t.Fatal(original, err)
+	}
+	if worked, err := server.prepareNextActivityRoute(t.Context()); !worked || err != nil {
+		t.Fatal(worked, err)
+	}
+	if _, err := server.store.GetActivityRoute(t.Context(), &original[0]); !isNotFound(err) {
+		t.Fatal("changed origin accepted a stale result", err)
+	}
+	if server.routeRevision.Load() != 0 {
+		t.Fatal("stale completion was reported as saved")
+	}
+}
+
 func seedIdeaRoute(t *testing.T, s *Server) (*models.Vacation, *models.Lodging, *models.Item) {
 	t.Helper()
 	v := sampleVacation()

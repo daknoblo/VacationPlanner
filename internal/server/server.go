@@ -42,6 +42,8 @@ type Server struct {
 	routing                      *route.Client
 	ideasRouteStart              sync.Once
 	ideasRouteStop               func()
+	activityRouting              atomic.Bool
+	routeRevision                atomic.Uint64
 	ideaDescriptionStart         sync.Once
 	ideaDescriptionStop          func()
 	destImg                      *destimg.Client

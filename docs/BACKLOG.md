@@ -54,6 +54,12 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Nonblocking trip pages and background daily routes** — remove synchronous
+      routing from trip, overview and calendar reads. Extend the existing paced worker
+      to scheduled legs, reuse and persist routes in SQLite, retain failed attempts
+      until explicit retry, discard changed sources and refresh visible values from
+      background completion status without resetting the page.
+
 - [x] **HTTP/2 security updates** — update `golang.org/x/net` to v0.60.0 and its
       required companion modules, raise the minimum Go version to 1.26, and have
       CI and Pages use the latest Go 1.26 security patch for builds and checks.

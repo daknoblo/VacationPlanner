@@ -12,19 +12,20 @@ import (
 )
 
 type backgroundStatusView struct {
-	Checking    bool
-	Active      bool
-	Determinate bool
-	Completed   int
-	Total       int
-	Detail      string
-	Error       bool
+	Checking      bool
+	Active        bool
+	Determinate   bool
+	Completed     int
+	Total         int
+	Detail        string
+	Error         bool
+	RouteRevision uint64
 }
 
 // backgroundStatus reads local worker state only. In particular, polling must
 // never enqueue geography work, refresh ARM metadata or invoke a model.
 func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, error) {
-	var view backgroundStatusView
+	view := backgroundStatusView{RouteRevision: s.routeRevision.Load()}
 	var geoJobs int
 	if s.geography != nil {
 		s.geography.mu.Lock()
@@ -67,6 +68,10 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 		}
 		routeCompleted, routeTotal = progress.Completed, progress.Total
 		routePending = routeTotal - routeCompleted
+		if s.activityRouting.Load() {
+			routeTotal++
+			routePending++
+		}
 	}
 	loc := i18n.FromContext(ctx)
 	weatherPending := 0

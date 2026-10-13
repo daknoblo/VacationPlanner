@@ -176,6 +176,14 @@ a reverse proxy.
   remain supported, and missing/removed presets fail before any AI call. Accommodation
   markers select their booking and fit the current search radius without provider work.
 - `GET /vacations/{id}/api/dayroute?day=` – derived daily driving route, never additional bookings.
+  Trip detail, overview, day-card and day-route GETs only read cached routing values;
+  they never wait for, start or enqueue provider requests. The existing paced routing
+  worker also discovers scheduled legs using the same date/timezone, overnight-stay,
+  ordering and explicit-origin rules as the calendar. SQLite retains completed and
+  failed legs, reuses matching accommodation/idea routes, and excludes stale source
+  coordinates/providers. Failed legs require the existing trip-scoped Settings retry;
+  successful results and bookings are preserved. Completion revisions in read-only
+  background status refresh visible routing values without resetting the page or tab.
 - `POST /settings/region` – week start + timezone; `POST /settings/geo` – geocoder base URL.
 - `POST /settings/categories`, `DELETE /settings/categories/{categoryID}` – manage item categories.
 - `GET /healthz`, `GET /readyz` – health/readiness.

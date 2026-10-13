@@ -70,7 +70,7 @@ func (s *Server) dayRoute(ctx context.Context, loc *i18n.Localizer, tz *time.Loc
 }
 
 // handleDayRoute is lazy: only the visible day panel requests this fragment.
-// One operation-wide deadline bounds routing even with many assigned stops.
+// One operation-wide deadline bounds saved-data reads; routing runs in the worker.
 func (s *Server) handleDayRoute(w http.ResponseWriter, r *http.Request) {
 	day := parseDayParam(r)
 	if day == nil {

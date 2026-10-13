@@ -41,6 +41,8 @@ type Store interface {
 	ListIdeaRoutes(ctx context.Context, provider string, vacationID, lodgingID uuid.UUID) ([]models.IdeaRoute, error)
 	PutIdeaRoute(ctx context.Context, job *models.IdeaRoute) (bool, error)
 	RetryIdeaRoutes(ctx context.Context, vacationID uuid.UUID) error
+	GetActivityRoute(ctx context.Context, source *models.ActivityRoute) (*models.ActivityRoute, error)
+	PutActivityRoute(ctx context.Context, job *models.ActivityRoute) (bool, error)
 	ClaimIdeaDescription(ctx context.Context) (*models.IdeaDescription, error)
 	FinishIdeaDescription(ctx context.Context, job *models.IdeaDescription) error
 	InterruptIdeaDescriptions(ctx context.Context) error

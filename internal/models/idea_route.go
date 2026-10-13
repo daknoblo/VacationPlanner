@@ -18,3 +18,11 @@ type IdeaRouteProgress struct {
 	Completed int `json:"completed"`
 	Failed    int `json:"failed"`
 }
+
+type ActivityRoute struct {
+	VacationID, ItemID             uuid.UUID
+	Provider                       string
+	FromLat, FromLng, ToLat, ToLng float64
+	Status                         string
+	DistanceM, DurationS           float64
+}

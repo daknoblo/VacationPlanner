@@ -6,14 +6,14 @@
   <span class="background-status__detail">{{t "background.unavailable"}}</span>
 </div>
 {{else if .Active}}
-<div class="background-status__content" data-state="active" role="status" title="{{.Detail}}">
+<div class="background-status__content" data-state="active" data-route-revision="{{.RouteRevision}}" role="status" title="{{.Detail}}">
   <span class="background-status__label">{{t "background.loading"}}</span>
   <progress class="background-status__bar"{{if .Determinate}} value="{{.Completed}}" max="{{.Total}}"{{end}} aria-label="{{.Detail}}"></progress>
   <span class="background-status__spinner" aria-hidden="true"></span>
   <span class="background-status__detail">{{.Detail}}</span>
 </div>
 {{else}}
-<div class="background-status__content" data-state="{{if .Checking}}checking{{else}}idle{{end}}" role="status">
+<div class="background-status__content" data-state="{{if .Checking}}checking{{else}}idle{{end}}" data-route-revision="{{.RouteRevision}}" role="status">
   <span class="background-status__label">{{if .Checking}}{{t "background.checking"}}{{else}}{{t "background.idle"}}{{end}}</span>
   <span class="background-status__idle-dot" aria-hidden="true"></span>
   <span class="background-status__detail">{{if .Checking}}{{t "background.checking_detail"}}{{else}}{{t "background.idle_detail"}}{{end}}</span>

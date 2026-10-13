@@ -32,8 +32,7 @@ var activityRoutes = struct {
 	flights map[activityRouteKey]*activityRouteFlight
 }{flights: make(map[activityRouteKey]*activityRouteFlight)}
 
-// Route's cache avoids repeat requests; this short-lived coordination also
-// prevents simultaneous overview/card/timeline refreshes from missing it together.
+// Coalesce simultaneous worker requests for the same coordinate pair.
 func activityRoute(ctx context.Context, key activityRouteKey) (route.Result, error) {
 	activityRoutes.Lock()
 	if flight, exists := activityRoutes.flights[key]; exists {
@@ -57,23 +56,32 @@ func activityRoute(ctx context.Context, key activityRouteKey) (route.Result, err
 	return flight.result, flight.err
 }
 
-// legBetween returns the distance (metres) and duration (seconds) from one point
-// to another, using live routing (driving profile) when configured and falling
-// back to a straight-line (Haversine) estimate otherwise. approx is true for the
-// estimate; ok is false when either endpoint is missing.
-func (s *Server) legBetween(ctx context.Context, from, to *route.Point) (distM, durS float64, approx, ok bool) {
+// legBetween reads cached driving values without waiting for the provider.
+// Missing routes retain explicit straight-line estimates until the worker finishes.
+func (s *Server) legBetween(ctx context.Context, item models.Item, from, to *route.Point) (distM, durS float64, approx, ok bool) {
 	if from == nil || to == nil {
 		return 0, 0, false, false
 	}
 	if s.routing != nil && s.routing.Enabled() && ctx.Err() == nil {
-		res, err := activityRoute(ctx, activityRouteKey{client: s.routing, baseURL: s.routeBaseURL(ctx), from: *from, to: *to})
-		if err == nil {
+		provider := s.routeBaseURL(ctx)
+		saved, err := s.store.GetActivityRoute(ctx, activityRouteSource(item, provider, from, to))
+		if err == nil && saved.Status == "ready" {
+			return saved.DistanceM, saved.DurationS, false, true
+		}
+		res, cached := s.routing.Cached(provider, route.DefaultProfile, []route.Point{*from, *to})
+		if cached {
 			return res.TotalDistanceM, res.TotalDurationS, false, true
 		}
-		s.log.Warn("activity route failed", "err", err)
 	}
 	d := route.Haversine(*from, *to)
 	return d, d / (activityDriveKmh * 1000 / 3600), true, true
+}
+
+func activityRouteSource(item models.Item, provider string, from, to *route.Point) *models.ActivityRoute {
+	return &models.ActivityRoute{
+		VacationID: item.VacationID, ItemID: item.ID, Provider: provider,
+		FromLat: from.Lat, FromLng: from.Lng, ToLat: to.Lat, ToLng: to.Lng,
+	}
 }
 
 // lodgingForDay returns the lodging covering the given day, including checkout.
@@ -172,7 +180,7 @@ func (s *Server) dayItemLegs(ctx context.Context, ordered []models.Item, hotelPt
 	legs := make([]dayItemLeg, 0, len(ordered))
 	for idx, it := range ordered {
 		origin, label := resolveOrigin(ordered, idx, hotelPt, hotelLabel)
-		dist, dur, approx, ok := s.legBetween(ctx, origin, itemPoint(it))
+		dist, dur, approx, ok := s.legBetween(ctx, it, origin, itemPoint(it))
 		override := it.OriginRef == "hotel"
 		for j, other := range ordered {
 			if j != idx && it.OriginRef == other.ID.String() {

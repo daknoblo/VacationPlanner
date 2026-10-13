@@ -365,6 +365,16 @@ published together as a Pages artifact, not checked into the repository.
   (or the available base) to assigned stops. It ends at the last stop, without adding a
   return journey or expenses. Supply `ROUTER_API_KEY` for road distance and driving time;
   missing coordinates and straight-line estimates are shown separately from routed totals.
+- Opening a trip, its overview or daily route never waits for the routing provider.
+  These views read saved distances and times, with explicit estimates until results
+  are available. The existing paced routing worker also prepares scheduled daily legs
+  using the calendar's stop order, overnight accommodation and selected origins.
+  Results and failures survive restarts in SQLite; matching accommodation/idea routes
+  are reused. Failed legs require the existing trip-specific refresh in Settings,
+  while successful results and original bookings are preserved. Changed coordinates,
+  origins and providers cannot supply stale distances to the current itinerary.
+  Background completion updates visible overview/day values without reloading the
+  page, clearing its current route display or resetting the selected tab.
 
 ### Export & documents
 

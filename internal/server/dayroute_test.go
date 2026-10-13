@@ -79,7 +79,7 @@ func TestDayRouteMissingCoordinatesAndEmptyDay(t *testing.T) {
 	}
 }
 
-func TestDayRouteSharesCardRoutingCache(t *testing.T) {
+func TestDayRouteSharesSavedBackgroundRoutes(t *testing.T) {
 	var calls atomic.Int32
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
@@ -93,6 +93,21 @@ func TestDayRouteSharesCardRoutingCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, day := dayRouteFixture()
+	if err := s.store.CreateVacation(t.Context(), v); err != nil {
+		t.Fatal(err)
+	}
+	for index := range v.Items {
+		v.Items[index].VacationID = v.ID
+		if err := s.store.CreateItem(t.Context(), &v.Items[index]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range 2 {
+		if worked, err := s.prepareNextActivityRoute(t.Context()); err != nil || !worked {
+			t.Fatalf("background routing failed: worked=%v err=%v", worked, err)
+		}
+	}
+	s.routing = route.New("test-key")
 	loc := i18n.NewLocalizer(i18n.LangEN)
 	got := s.dayRoute(context.Background(), loc, time.UTC, v, day)
 	cards := s.dayCards(context.Background(), loc, time.UTC, day, v, v.Items[:2])
@@ -105,6 +120,45 @@ func TestDayRouteSharesCardRoutingCache(t *testing.T) {
 	for i, leg := range got.Legs {
 		if leg.Distance != cards[i].DistanceLabel || leg.Duration != cards[i].DurationLabel || leg.Origin != cards[i].OriginLabel {
 			t.Fatalf("timeline and card disagree: %+v vs %+v", leg, cards[i])
+		}
+	}
+}
+
+func TestVacationReadsDoNotWaitForRouting(t *testing.T) {
+	var calls atomic.Int32
+	release := make(chan struct{})
+	provider := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		calls.Add(1)
+		select {
+		case <-request.Context().Done():
+		case <-release:
+		}
+	}))
+	defer provider.Close()
+	defer close(release)
+	server := newIntegrationServer(t)
+	server.routing = route.New("test-key")
+	if err := server.putSetting(t.Context(), settingRouteBaseURL, provider.URL); err != nil {
+		t.Fatal(err)
+	}
+	vacation, day := dayRouteFixture()
+	if err := server.store.CreateVacation(t.Context(), vacation); err != nil {
+		t.Fatal(err)
+	}
+	for index := range vacation.Items {
+		vacation.Items[index].VacationID = vacation.ID
+		if err := server.store.CreateItem(t.Context(), &vacation.Items[index]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	base := "/vacations/" + vacation.ID.String()
+	for _, path := range []string{base, base + "/api/overview", base + "/api/daycards?day=" + day.Format("2006-01-02"), base + "/api/dayroute?day=" + day.Format("2006-01-02")} {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil))
+		cancel()
+		if calls.Load() != 0 || response.Code != http.StatusOK {
+			t.Fatalf("page read waited for routing: path=%s calls=%d status=%d", path, calls.Load(), response.Code)
 		}
 	}
 }

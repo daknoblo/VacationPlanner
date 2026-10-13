@@ -18,6 +18,9 @@ export async function verifyCalendarRegionUpdates(browser) {
   let geocoderEmpty = false;
   let backgroundActive = false;
   let backgroundFailed = false;
+  let routeRevision = 0;
+  let routeRequests = 0;
+  let routeGate, releaseRoute;
   let payload = {
     days: { [firstDay]: { label: "Southern Denmark", title: "First guesthouse" } },
     weeks: { [week]: [{ label: "Southern Denmark", title: "First guesthouse", start: 4, span: 3 }] },
@@ -34,9 +37,16 @@ export async function verifyCalendarRegionUpdates(browser) {
         await route.abort("failed");
       } else {
         await route.fulfill({ contentType: "text/html", body: backgroundActive
-          ? '<div class="background-status__content" data-state="active" role="status">Updating data<progress value="3" max="10"></progress></div>'
-          : '<div class="background-status__content" data-state="idle" role="status">No active requests</div>' });
+          ? `<div class="background-status__content" data-state="active" data-route-revision="${routeRevision}" role="status">Updating data<progress value="3" max="10"></progress></div>`
+          : `<div class="background-status__content" data-state="idle" data-route-revision="${routeRevision}" role="status">No active requests</div>` });
       }
+    } else if (path === "/dayroute") {
+      routeRequests++;
+      const revision = routeRevision;
+      if (routeGate) await routeGate;
+      await route.fulfill({ contentType: "text/html", body: `<p>Saved road values ${revision}</p>` });
+    } else if (path === "/daycards") {
+      await route.fulfill({ contentType: "text/html", body: `<p>Saved cards ${routeRevision}</p>` });
     } else if (path === `/items/${ideaID}/edit`) {
       await route.fulfill({ contentType: "text/html", body: `<li class="item-row is-editing" id="item-${ideaID}">
         <form><input name="title" value="Unresolved idea"><input name="cost" value="25">
@@ -90,6 +100,10 @@ export async function verifyCalendarRegionUpdates(browser) {
           </section>
           <section data-tab-panel="ideen" class="tab-panel"><ul id="ideen-list"><li class="item-row" id="item-${ideaID}">Unresolved idea</li></ul></section>
         </div>
+        <section id="route-test" hidden>
+          <div data-day-route hx-get="/dayroute" hx-trigger="loadroute" hx-swap="innerHTML">Existing route summary</div>
+          <div data-day-cards hx-get="/daycards" hx-trigger="loadcards" hx-swap="innerHTML">Existing cards</div>
+        </section>
         <script src="/htmx.js"></script><script src="/app.js"></script></body></html>` });
     } else {
       errors.push(`Unexpected live regression request: ${path}`);
@@ -177,6 +191,35 @@ export async function verifyCalendarRegionUpdates(browser) {
     await page.locator('#background-status [data-state="idle"]').waitFor();
     assert.equal(await page.locator("#background-status progress").count(), 0);
     assert.ok((await page.locator("#background-status").boundingBox()).height > 0, "Idle status must remain visible");
+    assert.equal(routeRequests, 0, "Hidden day views must not be refreshed by routing status");
+    await page.evaluate(() => {
+      document.querySelector("#route-test").hidden = false;
+      window.savedEditor = document.activeElement;
+    });
+    routeGate = new Promise(resolve => { releaseRoute = resolve; });
+    routeRevision = 1;
+    const routeRead = page.waitForRequest(request => new URL(request.url()).pathname === "/dayroute");
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await routeRead;
+    assert.equal(await page.locator("[data-day-route]").innerText(), "Existing route summary",
+      "Background updates keep the existing route visible while reading the cache");
+    releaseRoute();
+    routeGate = undefined;
+    await page.locator("[data-day-route]").getByText("Saved road values 1").waitFor();
+    await page.locator("[data-day-cards]").getByText("Saved cards 1").waitFor();
+    assert.equal(routeRequests, 1);
+    backgroundActive = true;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator("#background-status progress").waitFor();
+    assert.equal(routeRequests, 1, "Unchanged completion revisions must not reload the day view");
+    backgroundActive = false;
+    routeRevision = 2;
+    await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
+    await page.locator("[data-day-route]").getByText("Saved road values 2").waitFor();
+    assert.ok(await page.evaluate(() => window.savedEditor === document.activeElement && window.savedEditor.isConnected),
+      "Route completions preserve the focused editor");
+    assert.equal(await page.locator('[data-tab-panel="ideen"]').evaluate(element => element.classList.contains("is-active")), true,
+      "Route completions preserve the chosen tab");
     backgroundFailed = true;
     await page.evaluate(() => htmx.trigger("#background-status", "refresh"));
     await page.locator('#background-status [data-state="unavailable"]').waitFor();
@@ -187,6 +230,7 @@ export async function verifyCalendarRegionUpdates(browser) {
     assert.deepEqual(errors, []);
     console.log("Validated live calendar updates, direct editing and persistent active/idle/unavailable background status.");
   } finally {
+    if (releaseRoute) releaseRoute();
     await context.close();
   }
 }

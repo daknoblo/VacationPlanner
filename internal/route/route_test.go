@@ -23,3 +23,22 @@ func TestEnabled(t *testing.T) {
 		t.Fatal("non-empty key must be enabled")
 	}
 }
+
+func TestCachedNormalizesKeysWithoutRouting(t *testing.T) {
+	client := New("test")
+	points := []Point{{Lat: 48, Lng: 16}, {Lat: 49, Lng: 17}}
+	if _, found := client.Cached("", "", points); found {
+		t.Fatal("empty cache returned a route")
+	}
+	client.store(cacheKey(DefaultBaseURL, DefaultProfile, points), Result{TotalDistanceM: 1234, TotalDurationS: 120})
+	for _, base := range []string{"", " " + DefaultBaseURL + "/ "} {
+		result, found := client.Cached(base, " ", points)
+		if !found || result.TotalDistanceM != 1234 || result.TotalDurationS != 120 {
+			t.Fatal("read-only lookup did not reuse the normalized cache key", result, found)
+		}
+	}
+	client.Forget(DefaultBaseURL, DefaultProfile, points)
+	if _, found := client.Cached("", "", points); found {
+		t.Fatal("forgotten route was reused")
+	}
+}

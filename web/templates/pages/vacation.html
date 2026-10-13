@@ -232,7 +232,7 @@
           <h2>{{t "overview.activities"}}</h2>
           <div id="overview-body"
                hx-get="/vacations/{{$v.ID}}/api/overview"
-               hx-trigger="itemsChanged from:body, geographyChanged from:body"
+               hx-trigger="itemsChanged from:body, geographyChanged from:body, routesChanged from:body"
                hx-swap="innerHTML">
             {{template "overview_list" .Data.ActivityList}}
           </div>
