@@ -196,19 +196,24 @@ published together as a Pages artifact, not checked into the repository.
   too, and cached polling preserves that view. Labels stay in place while hovered or
   focused so they remain easy to activate. Without a saved route, numbered markers
   retain their location popup rather than inventing a route.
-  **Overview** is the initial selection and centers on the destination saved under
-  **General**, even before any ideas or accommodations exist. Returning to Overview
-  restores that destination view without selecting a route origin. If destination
-  coordinates are missing, an explicit notice asks for a location under General;
-  the map falls back to saved markers, or a broad map if none exist. Destination
-  changes update an untouched overview, while polling preserves manually adjusted
-  views. Reads never geocode the destination. Its table immediately shows the shortest cached
+  **Overview** initially frames all located accommodations, matching the trip's main
+  overview. Without accommodations it uses located ideas, or the saved destination
+  and its zoom for an empty trip. Returning to Overview restores that trip-wide view.
+  The view selector also offers saved regions and frames their located accommodations
+  and ideas without requesting provider data. Existing idea-region filters update the
+  map too. Panning and zooming limit the comparison table and road labels to ideas
+  inside the current viewport; unlocated entries remain available in the overview
+  and the original idea list. Polling preserves manually adjusted views.
+  Popups show the name, a compact description (or category), the saved origin and
+  destination, distance and time, without routing-setup or missing-location paragraphs.
+  Map controls remain clipped to the map and below the page header while scrolling.
+  Reads never geocode the destination. The table immediately shows the shortest cached
   driving distance per idea, the duration of that same route and its starting accommodation.
   Only current same-trip coordinates/provider results are eligible; missing results
   remain explicit. Equal distances prefer shorter duration, earlier check-in, then ID.
   Reading these values never requests a new route. The selected start is outlined, and accommodation labels
   include the booked dates.
-- The compact header shows the saved-route totals on the right; the accommodation
+- The compact header shows the saved-route totals on the right; the view
   label and selector share one line. The table contains the idea and a short description,
   centered distance/time, and a horizontally/vertically centered **Plan for day** selector
   instead of repeated route-status text. Small header arrows sort distance or duration
@@ -222,8 +227,8 @@ published together as a Pages artifact, not checked into the repository.
   including moving an existing time block immediately without reloading the page.
   New day assignments remain untimed; existing times, costs, payers, coordinates and links
   are preserved. Polling pauses while choosing a day, and failed saves remain visible.
-- Existing descriptions are shortened to one sentence (at most 160 characters) for this
-  table without changing the original text. With AI configured, a lifecycle-bound worker
+- Existing descriptions are shortened to one sentence and capped at 140 characters in
+  the table and popups without changing the original text. With AI configured, a lifecycle-bound worker
   fills missing descriptions in English and German in one bounded call and caches them
   in SQLite. Existing ideas are included; no page visit is required. The worker sends
   only the idea title, category, location and destination, not notes or participant data.
@@ -410,7 +415,7 @@ published together as a Pages artifact, not checked into the repository.
 
 | Area      | Technology                                                            |
 | --------- | -------------------------------------------------------------------- |
-| Language  | Go 1.25 module/compatibility tests; Go 1.26 container build (`CGO_ENABLED=0`) |
+| Language  | Go 1.26 module/compatibility tests and container build (`CGO_ENABLED=0`) |
 | Routing   | `chi/v5` on top of the standard `net/http`                           |
 | Database  | SQLite via `modernc.org/sqlite` (pure Go, no CGO), embedded migrations |
 | Frontend  | Server-rendered `html/template` + **HTMX** + **Leaflet** (vendored)  |

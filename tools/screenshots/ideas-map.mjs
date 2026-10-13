@@ -5,7 +5,7 @@ export async function verifyIdeasTableWindow(page, count) {
   await page.locator(".ideas-map-table").evaluate(table => { table.scrollTop = 0; });
   await page.waitForFunction(expected => {
     const table = document.querySelector(".ideas-map-table");
-    const rows = [...table.querySelectorAll("tbody tr")];
+    const rows = [...table.querySelectorAll("tbody tr:not([hidden])")];
     const top = table.getBoundingClientRect().top + table.clientTop;
     const bottom = top + table.clientHeight;
     const complete = rows.filter(row => {
@@ -41,14 +41,14 @@ export async function verifyIdeasMap(browser) {
       { value: "2027-05-02", label: "Southern Denmark · Zealand · 02.05.2027" },
     ],
     lodgings: [
-      { id: "a", title: "House <em>A</em>", date_range: "01.05.2027 – 03.05.2027", lat: 55, lng: 8 },
-      { id: "b", title: "Campsite B", date_range: "03.05.2027 – 05.05.2027", lat: 56, lng: 9 },
+      { id: "a", title: "House <em>A</em>", region: "South", date_range: "01.05.2027 – 03.05.2027", lat: 55, lng: 8 },
+      { id: "b", title: "Campsite B", region: "North", date_range: "03.05.2027 – 05.05.2027", lat: 56, lng: 9 },
       { id: "c", title: "Unlocated stay", date_range: "", lat: null, lng: null },
     ],
     ideas: [
       { id: "one", title: "Saved <script>unsafe()</script>", description: "A museum with <b>historic boats</b>.",
-        scheduled_day: "2027-05-02", day: "02.05.2027", lat: 55.1, lng: 8.1 },
-      { id: "two", title: "Scheduled idea", day: "02.05.2027", scheduled_day: "2027-05-02", lat: 55.2, lng: 8.2 },
+        region: " south ", scheduled_day: "2027-05-02", day: "02.05.2027", lat: 55.1, lng: 8.1 },
+      { id: "two", title: "Scheduled idea", category: "Museum", region: "South", day: "02.05.2027", scheduled_day: "2027-05-02", lat: 55.2, lng: 8.2 },
       { id: "three", title: "Unlocated idea", lat: null, lng: null },
     ],
   };
@@ -124,7 +124,7 @@ export async function verifyIdeasMap(browser) {
         <select data-ideas-map-origin></select>
         <div id="ideas-map" class="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
-        <div class="ideas-map-table" style="height:65px"><table><thead><tr>
+        <div class="ideas-map-table" style="height:120px"><table><thead><tr>
           <th>Idea</th><th aria-sort="none"><button data-ideas-sort="distanceM">Distance <span aria-hidden="true">↕</span></button></th>
           <th aria-sort="none"><button data-ideas-sort="durationS">Time <span aria-hidden="true">↕</span></button></th><th>Plan</th>
         </tr></thead><tbody data-ideas-map-rows></tbody></table></div>
@@ -142,17 +142,22 @@ export async function verifyIdeasMap(browser) {
   const rows = page.locator("[data-ideas-map-rows]");
   const select = page.locator("[data-ideas-map-origin]");
   async function waitText(locator, value) {
-    await locator.getByText(value, { exact: false }).first().waitFor();
+    await locator.getByText(value, { exact: false }).first().waitFor({ state: "attached" });
   }
   async function refresh() {
     await page.evaluate(() => document.body.dispatchEvent(new CustomEvent("itemsChanged")));
   }
   async function assertDestination(center) {
+    const points = data.lodgings.filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+    if (points.length) {
+      await page.waitForFunction(expected => expected.every(point => testMap.getBounds().contains([point.lat, point.lng])), points);
+      return;
+    }
     await page.waitForFunction(expected => {
       const actual = testMap.getCenter();
       return Math.abs(actual.lat - expected.lat) < 0.001 && Math.abs(actual.lng - expected.lng) < 0.001 &&
-        testMap.getZoom() === 13;
-    }, center);
+        testMap.getZoom() === expected.zoom;
+    }, { ...center, zoom: data.zoom || 5 });
   }
   async function lines() {
     return page.evaluate(() => {
@@ -267,7 +272,61 @@ export async function verifyIdeasMap(browser) {
     await page.locator(".leaflet-popup-content").waitFor();
     assert.equal(await select.inputValue(), "", "Without a saved route, a number must not guess an origin");
     assert.deepEqual(await lines(), []);
+    const popupText = await page.locator(".leaflet-popup-content").innerText();
+    assert.ok(popupText.includes("A museum with <b>historic boats</b>."), "Markers show a short plain-text description");
+    assert.ok(popupText.includes("House <em>A</em> → Saved <script>unsafe()</script>"), "Popups identify origin and destination");
+    assert.ok(!popupText.includes("Ready") && !popupText.includes("Missing location"), "Popups omit route and missing-location boilerplate");
+    assert.equal(await page.locator(".leaflet-popup-content script, .leaflet-popup-content b").count(), 0);
+    assert.equal(await rows.locator("tr:not([hidden])").count(), 1, "Zooming limits the table to visible ideas");
     await page.evaluate(() => testMap.closePopup());
+
+    await select.selectOption("region:north");
+    await page.waitForFunction(() => testMap.getBounds().contains([56, 9]) && !testMap.getBounds().contains([55, 8]));
+    assert.equal(await rows.locator("tr:not([hidden])").count(), 0, "A region without nearby ideas leaves no unrelated rows");
+    await select.selectOption("region:south");
+    await page.waitForFunction(() => [[55, 8], [55.1, 8.1], [55.2, 8.2]].every(point => testMap.getBounds().contains(point)) &&
+      !testMap.getBounds().contains([56, 9]));
+    assert.equal(await select.locator('option[value="region:south"]').count(), 1, "Region choices ignore casing and whitespace");
+    assert.equal(await rows.locator("tr:not([hidden])").count(), 2);
+    assert.deepEqual(await lines(), [], "Region selection reads overview metrics without drawing mixed-origin roads");
+    await page.evaluate(() => testMap.setView([55.2, 8.2], 13, { animate: false }));
+    assert.deepEqual(await rows.locator("tr:not([hidden])").evaluateAll(elements => elements.map(row => row.dataset.ideaId)), ["two"]);
+    await page.locator('.idea-map-marker[title="Scheduled idea"]').click();
+    assert.ok((await page.locator(".leaflet-popup-content").filter({ has: page.locator("strong", { hasText: "Scheduled idea" }) }).innerText()).includes("Museum"),
+      "Category is the fallback when no description is saved");
+    await page.evaluate(() => testMap.closePopup());
+    await page.evaluate(() => {
+      const filter = document.createElement("select");
+      filter.dataset.ideasRegionFilter = "";
+      filter.add(new Option("All", "*"));
+      filter.add(new Option("South", "region:south"));
+      document.body.appendChild(filter);
+      filter.value = "region:south";
+      filter.dispatchEvent(new Event("change", { bubbles: true }));
+      filter.value = "*";
+      filter.dispatchEvent(new Event("change", { bubbles: true }));
+      filter.remove();
+    });
+    await page.waitForFunction(() => document.querySelector("[data-ideas-map-origin]").value === "");
+    await assertDestination(data.center);
+    await page.evaluate(() => {
+      const header = document.createElement("header");
+      header.id = "test-header";
+      header.className = "topbar";
+      header.style.cssText = "position:fixed;top:0;left:0;width:100%;height:70px";
+      document.body.appendChild(header);
+      document.body.style.minHeight = "2000px";
+      window.scrollTo(0, document.querySelector("#ideas-map").getBoundingClientRect().top + scrollY - 10);
+    });
+    assert.equal(await page.locator(".leaflet-control-zoom-in").evaluate(button => {
+      const bounds = button.getBoundingClientRect();
+      return document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)?.id;
+    }), "test-header", "Zoom controls must stay below the header while scrolling");
+    await page.evaluate(() => {
+      document.querySelector("#test-header").remove();
+      document.body.style.removeProperty("min-height");
+      window.scrollTo(0, 0);
+    });
 
     await select.selectOption("a");
     await waitRoads(2);
@@ -335,6 +394,8 @@ export async function verifyIdeasMap(browser) {
       "Clicking the blue number must fit exactly the same road as clicking its line");
     await page.evaluate(() => testMap.closePopup());
     const secondLabel = page.locator('.idea-route-label[data-idea-id="two"]');
+    assert.equal(await secondLabel.isVisible(), false, "Offscreen destinations must not leave route labels in the viewport");
+    await page.evaluate(() => testMap.fitBounds([[55, 8], [55.2, 8.3]], { padding: [60, 60], animate: false }));
     await secondLabel.waitFor({ state: "visible" });
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const labelBounds = await secondLabel.boundingBox();
@@ -355,6 +416,7 @@ export async function verifyIdeasMap(browser) {
     await firstLabel.press("Enter");
     assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
       "Keyboard activation of a label must focus the same complete road");
+    await page.evaluate(() => testMap.fitBounds([[55, 8], [55.2, 8.3]], { padding: [60, 60], animate: false }));
     await secondLabel.waitFor({ state: "visible" });
     await secondLabel.focus();
     await secondLabel.press("Space");
@@ -456,7 +518,6 @@ export async function verifyIdeasMap(browser) {
     routes.b.one = { status: "unavailable" };
     data.progress_label = "3 saved / 1 failed / 0 pending";
     await refresh();
-    await waitText(status, "Route unavailable");
     await waitText(page.locator("[data-ideas-map-cache-status]"), "3 saved / 1 failed / 0 pending");
     assert.equal((await lines()).length, 1, "Failed route must never become a straight-line fallback");
     routes.b.one = saved;
@@ -464,12 +525,13 @@ export async function verifyIdeasMap(browser) {
     await waitRoads(2);
     data.routing = false;
     await refresh();
-    await waitText(status, "Routing disabled");
+    await waitRoads(0);
+    assert.equal(await status.isVisible(), false, "Routing setup details do not clutter the map");
     assert.deepEqual(await lines(), []);
     assert.ok(!(await rows.innerText()).includes("24.6 km"));
     data.lodgings = data.lodgings.filter(lodging => lodging.id !== "b");
     await refresh();
-    await waitText(status, "Choose origin");
+    await waitText(select, "Origin removed");
     assert.equal(await select.inputValue(), "b");
     failMap = true;
     await refresh();
@@ -478,7 +540,7 @@ export async function verifyIdeasMap(browser) {
     assert.deepEqual(await lines(), []);
     failMap = false;
     await select.selectOption("a");
-    await waitText(status, "Routing disabled");
+    await rows.locator('tr[data-idea-id="one"]').waitFor();
     const firstRow = rows.locator('tr[data-idea-id="one"]');
     assert.equal(await firstRow.locator("td").count(), 4, "Replace the status column with scheduling");
     assert.equal(await firstRow.locator(".ideas-map-description").innerText(), "A museum with <b>historic boats</b>.");
@@ -562,6 +624,7 @@ export async function verifyIdeasMap(browser) {
     await verifyIdeasTableWindow(page, 0);
     data.lodgings = [];
     data.center = { lat: 0, lng: 0 };
+    data.zoom = 6;
     await select.selectOption("");
     await assertDestination(data.center);
     await page.reload({ waitUntil: "networkidle" });
@@ -572,7 +635,7 @@ export async function verifyIdeasMap(browser) {
       "An empty trip starts at its destination without inventing an accommodation or idea");
     data.center = null;
     await refresh();
-    await waitText(status, "Select the destination location under General");
+    await page.waitForFunction(() => testMap.getZoom() === 4);
     assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]),
       [48, 10, 4], "Without any saved location the broad fallback remains explicit");
     await page.evaluate(() => { document.querySelector("#tab").style.display = "none"; });

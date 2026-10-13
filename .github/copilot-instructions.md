@@ -22,7 +22,7 @@ a reverse proxy.
 
 ## 2. Technology stack (project-specific)
 
-- **Language:** Go 1.25 (stdlib preferred; minimal, well-maintained dependencies).
+- **Language:** Go 1.26 (stdlib preferred; minimal, well-maintained dependencies).
   Static binary, `CGO_ENABLED=0`; container builds use Go 1.26.
 - **Module path:** `github.com/daknoblo/vacationplanner`.
 - **Routing:** `go-chi/chi/v5` on top of the standard `net/http`.
@@ -114,8 +114,16 @@ a reverse proxy.
   its paired duration and origin ID, without route geometry or provider calls.
   Distance ties prefer duration, check-in and ID; stale/failed results are excluded.
 - `GET /vacations/{id}/api/ideas-route?lodging=&item=` – read-only cached driving leg
-  between current same-trip records. The Ideas map defaults to Overview; selecting an
-  accommodation reloads cached data and fits its ideas and saved road geometries.
+  between current same-trip records. The Ideas map defaults to Overview, framing all
+  located accommodations like the trip overview (then ideas, then saved destination
+  and zoom when empty). Saved regions fit their accommodation/idea coordinates; region
+  filters also update the map without provider work. Selecting an accommodation
+  reloads cached data and fits its ideas and saved road geometries. Pan/zoom limits
+  table rows and road labels to visible ideas; unlocated records remain accessible
+  in the initial overview and original list. Popups contain a name, compact description
+  or category and available origin/destination/distance/time, without routing setup
+  or missing-location paragraphs. Isolate map controls below the sticky page header
+  without making the Leaflet container internally scrollable.
   Distance labels match numbered table rows; route hover/focus highlights and reveals
   the destination within the table without scrolling the page and turns the road magenta.
   Distance labels use collision-free viewport placement with dashed leader lines when

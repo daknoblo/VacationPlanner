@@ -54,6 +54,16 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **HTTP/2 security updates** — update `golang.org/x/net` to v0.60.0 and its
+      required companion modules, raise the minimum Go version to 1.26, and have
+      CI read the module's toolchain requirement for build, lint and vulnerability checks.
+
+- [x] **Trip-wide Ideas overview and regional zoom** — frame the trip's accommodations
+      like the main overview, offer saved regions, filter table rows and road labels
+      to the visible map area, and show compact name/description/route popups. Keep
+      map controls below the page header, preserve manual views during polling and
+      use the saved destination zoom for empty trips; cover desktop/mobile behavior.
+
 - [x] **Compact visual weather and aligned overview activities** — use local
       colored SVG icons, temperatures and rain probabilities in both calendars,
       retain locations in tooltips, narrow weather tiles, and move activity

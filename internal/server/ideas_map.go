@@ -20,6 +20,8 @@ type ideasMapPoint struct {
 	DateRange         string   `json:"date_range,omitempty"`
 	Day               string   `json:"day,omitempty"`
 	ScheduledDay      string   `json:"scheduled_day,omitempty"`
+	Region            string   `json:"region,omitempty"`
+	Category          string   `json:"category,omitempty"`
 	Description       string   `json:"description,omitempty"`
 	DescriptionStatus string   `json:"description_status,omitempty"`
 }
@@ -31,6 +33,7 @@ type ideasMapDay struct {
 
 type ideasMapPayload struct {
 	Center        *centerPoint             `json:"center,omitempty"`
+	Zoom          int                      `json:"zoom"`
 	Lodgings      []ideasMapPoint          `json:"lodgings"`
 	Ideas         []ideasMapPoint          `json:"ideas"`
 	Routing       bool                     `json:"routing"`
@@ -85,6 +88,10 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 		Lodgings: make([]ideasMapPoint, 0, len(lodgings)), Ideas: make([]ideasMapPoint, 0, len(items)),
 		Routing: s.routing != nil && s.routing.Enabled(),
 		Days:    make([]ideasMapDay, 0),
+		Zoom:    5,
+	}
+	if vacation.MapZoom != nil && *vacation.MapZoom > 0 && *vacation.MapZoom <= 19 {
+		payload.Zoom = *vacation.MapZoom
 	}
 	if vacation.HasCoords() {
 		payload.Center = &centerPoint{Lat: *vacation.Latitude, Lng: *vacation.Longitude}
@@ -96,11 +103,13 @@ func (s *Server) handleIdeasMap(w http.ResponseWriter, r *http.Request) {
 	for _, lodging := range lodgings {
 		payload.Lodgings = append(payload.Lodgings, ideasMapPoint{
 			ID: lodging.ID.String(), Title: lodging.Name, Lat: lodging.Latitude, Lng: lodging.Longitude,
+			Region:    lodging.Region,
 			DateRange: fmtDate(lodging.CheckIn.In(tz)) + " – " + fmtDate(lodging.CheckOut.In(tz)),
 		})
 	}
 	for _, item := range items {
-		point := ideasMapPoint{ID: item.ID.String(), Title: item.Title, Lat: item.Latitude, Lng: item.Longitude}
+		point := ideasMapPoint{ID: item.ID.String(), Title: item.Title, Lat: item.Latitude, Lng: item.Longitude,
+			Region: item.Region, Category: item.Category}
 		point.Description = models.ShortDescription(item.Description)
 		if point.Description == "" {
 			if saved, ok := descriptions[item.ID]; ok {

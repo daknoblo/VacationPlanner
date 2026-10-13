@@ -1461,7 +1461,7 @@ textarea { resize: vertical; }
 .lang-option { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
 .lang-option input { width: auto; }
 .ideas-map { height: 525px; border-radius: .5rem; }
-.ideas-map.leaflet-container { overflow: clip; }
+.ideas-map.leaflet-container { overflow: clip; isolation: isolate; z-index: 0; }
 .ideas-map-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .ideas-map-heading h2 { flex: 0 0 auto; }
 .ideas-map-heading [data-ideas-map-cache-status] { text-align: right; }

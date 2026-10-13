@@ -374,7 +374,8 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 3);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 14);
     assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
-    assert.equal(await page.locator("[data-ideas-map-origin] option").count(), 4);
+    assert.equal(await page.locator('[data-ideas-map-origin] option[value^="region:"]').count(), 2);
+    assert.equal(await page.locator('[data-ideas-map-origin] option:not([value^="region:"])').count(), 4);
     assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
     assert.equal(await page.locator(".ideas-map-start").count(), 14, "Overview includes a saved origin per located idea");
     assert.ok(await page.locator("[data-ideas-map-rows] tr").first().locator("td").nth(1).textContent() !== "—");

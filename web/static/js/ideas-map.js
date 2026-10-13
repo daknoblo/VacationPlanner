@@ -16,7 +16,6 @@
   var positions = null;
   var viewPoints = null;
   var rendered = null;
-  var failed = false;
   var popupIdea = null;
   var userAdjusted = false;
   var fitting = false;
@@ -32,11 +31,32 @@
   var sortDirection = 1;
   var sortButtons = root.querySelectorAll("[data-ideas-sort]");
   var tableFrame = null;
+  var entries = [];
+
+  function regionKey(point) {
+    return "region:" + (point.region || "").trim().toLowerCase();
+  }
+  function regional() { return selected.indexOf("region:") === 0; }
+  function excerpt(idea) {
+    var value = (idea.description || idea.category || "").trim();
+    return value.length > 140 ? value.slice(0, 137).trimEnd() + "..." : value;
+  }
+  function updateViewport() {
+    if (!map || !visible()) return;
+    var bounds = map.getBounds();
+    entries.forEach(function (entry) {
+      entry.row.hidden = located(entry.idea) ? !bounds.contains([entry.idea.lat, entry.idea.lng]) : userAdjusted || regional();
+      if (entry.road && entry.road.getElement()) entry.road.getElement().style.display = entry.row.hidden ? "none" : "";
+      if (entry.row.hidden && activeRow === entry.row) clearHighlight();
+    });
+    queueTableSize();
+    scheduleLabels();
+  }
 
   function sizeTable() {
     tableFrame = null;
     if (!visible()) return;
-    var tenth = rows.children[9];
+    var tenth = Array.from(rows.children).filter(function (row) { return !row.hidden; })[9];
     if (!tenth) {
       table.style.maxHeight = "none";
       return;
@@ -98,6 +118,11 @@
   function fit(points) {
     fitting = true;
     if (!points.length) { map.setView([48, 10], 4, { animate: false }); fitting = false; return; }
+    if (!selected && !data.lodgings.some(located) && !data.ideas.some(located) && data.center && located(data.center)) {
+      map.setView([data.center.lat, data.center.lng], data.zoom || 5, { animate: false });
+      fitting = false;
+      return;
+    }
     var size = map.getSize();
     map.fitBounds(points, {
       padding: [Math.max(30, Math.ceil(size.x * 0.15)), Math.max(30, Math.ceil(size.y * 0.15))],
@@ -195,6 +220,7 @@
       .concat(routeLabels.filter(function (entry) { return entry.road !== activeRoad; }));
     ordered.forEach(function (entry) {
       var node = entry.tooltip.getElement();
+      if (!map.getBounds().contains([entry.idea.lat, entry.idea.lng])) { node.style.visibility = "hidden"; return; }
       var width = node.offsetWidth, height = node.offsetHeight;
       if (width > size.x - 16 || height > size.y - 16) { node.style.visibility = "hidden"; return; }
       var midpoint = map.latLngToContainerPoint(entry.road.getCenter());
@@ -267,7 +293,7 @@
     el.appendChild(labelGuides);
     map.on("movestart", function () { if (!fitting) userAdjusted = true; });
     map.on("movestart zoomstart", function () { moving = true; hideLabels(); });
-    map.on("moveend", function () { moving = false; scheduleLabels(); });
+    map.on("moveend", function () { moving = false; updateViewport(); });
     map.on("popupopen popupclose", scheduleLabels);
   }
   function choose(value) {
@@ -279,15 +305,7 @@
     load();
   }
   function summary() {
-    var value = !data.ideas.length ? root.dataset.noIdeas :
-      !selected ? "" :
-      !data.lodgings.some(function (l) { return l.id === selected && located(l); }) ? root.dataset.noOrigin :
-      demo ? "" :
-      !data.routing ? root.dataset.disabled :
-      failed ? root.dataset.unavailable : "";
-    if (!selected && !(data.center && located(data.center))) {
-      value = [root.dataset.destinationMissing, value].filter(Boolean).join(" ");
-    }
+    var value = !data.ideas.length ? root.dataset.noIdeas : "";
     status.textContent = value;
     status.hidden = !value;
     cacheStatus.textContent = data.progress_label || "";
@@ -336,7 +354,7 @@
   function render() {
     if (!data || !visible()) return;
     initialize();
-    var signature = JSON.stringify([selected, data.center, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
+    var signature = JSON.stringify([selected, data.center, data.zoom, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
     if (signature === rendered) { summary(); return; }
     rendered = signature;
     select.replaceChildren(new Option(root.dataset.choose, ""));
@@ -346,20 +364,26 @@
       option.disabled = !located(lodging);
       select.add(option);
     });
+    var regions = new Map();
+    data.lodgings.concat(data.ideas).forEach(function (point) {
+      if (located(point) && (point.region || "").trim()) regions.set(regionKey(point), point.region.trim());
+    });
+    Array.from(regions).sort(function (first, second) { return first[1].localeCompare(second[1]); })
+      .forEach(function (region) { select.add(new Option(region[1], region[0])); });
     var origin = data.lodgings.find(function (lodging) { return lodging.id === selected && located(lodging); });
-    if (selected && !origin && !data.lodgings.some(function (lodging) { return lodging.id === selected; })) {
+    if (selected && !origin && !regions.has(selected) && !data.lodgings.some(function (lodging) { return lodging.id === selected; })) {
       select.add(new Option(root.dataset.removed, selected));
     }
     select.value = selected;
     select.disabled = false;
     rows.replaceChildren();
+    entries = [];
     clearHighlight();
     var reopen = popupIdea;
     hideLabels();
     routeLabels = [];
     layer.clearLayers();
     roads.clearLayers();
-    failed = false;
     var points = [];
     var routeBounds = origin ? L.latLngBounds([[origin.lat, origin.lng]]) : null;
     data.lodgings.forEach(function (lodging) {
@@ -382,20 +406,20 @@
       title.type = "button";
       title.className = "ideas-map-link";
       name.appendChild(title);
-      var description = idea.description || (
-        idea.description_status === "unavailable" ? root.dataset.descriptionUnavailable :
-        idea.description_status === "pending" || idea.description_status === "running" ? root.dataset.descriptionPending : "");
+      var description = excerpt(idea);
       if (description) {
-        var excerpt = text("span", description);
-        excerpt.className = "ideas-map-description muted small";
-        if (idea.description_status === "ready") excerpt.title = root.dataset.descriptionAi;
-        name.appendChild(excerpt);
+        var descriptionNode = text("span", description);
+        descriptionNode.className = "ideas-map-description muted small";
+        if (idea.description_status === "ready") descriptionNode.title = root.dataset.descriptionAi;
+        name.appendChild(descriptionNode);
       }
       row.appendChild(name);
-      var popup = text("div", idea.title + (idea.day ? " · " + idea.day : ""));
+      var popup = document.createElement("div");
+      popup.appendChild(text("strong", idea.title));
+      if (description) popup.appendChild(text("p", description));
       var result = { status: "pending" };
       if (!located(idea)) result = { status: "missing" };
-      else if (selected && !origin) result = { status: "noOrigin" };
+      else if (selected && !regional() && !origin) result = { status: "noOrigin" };
       else if (demo) {
         var sampleOrigin = origin || data.lodgings.find(located);
         if (sampleOrigin) {
@@ -408,7 +432,7 @@
       else if (data.routes && data.routes[idea.id]) result = data.routes[idea.id];
       else if (!selected && !data.lodgings.some(located)) result = { status: "noOrigin" };
       var routeOrigin = origin || data.lodgings.find(function (lodging) { return lodging.id === result.lodging_id; });
-      if (!selected && routeOrigin && result.distance) {
+      if (routeOrigin && result.distance) {
         var from = text("span", root.dataset.routeFrom + " " + routeOrigin.title);
         from.className = "ideas-map-start muted small";
         from.title = routeOrigin.title + (routeOrigin.date_range ? " · " + routeOrigin.date_range : "");
@@ -418,7 +442,6 @@
         if (Number.isFinite(result.distance_m) && result.distance_m >= 0) row.dataset.distanceM = result.distance_m;
         if (Number.isFinite(result.duration_s) && result.duration_s >= 0) row.dataset.durationS = result.duration_s;
       }
-      if (result.status === "unavailable") failed = true;
       var road = Array.isArray(result.geometry) && result.geometry.length >= 2;
       var label = result.status === "ready" && !road && selected ? root.dataset.noGeometry :
         root.dataset[result.status] || root.dataset.unavailable;
@@ -451,8 +474,8 @@
       schedule.append(picker, feedback);
       row.appendChild(schedule);
       rows.appendChild(row);
-      popup.appendChild(text("p", (routeOrigin ? routeOrigin.title + ": " : "") +
-        [result.distance, result.duration, label].filter(Boolean).join(" · ")));
+      if (routeOrigin && result.distance) popup.appendChild(text("p", routeOrigin.title + " → " + idea.title));
+      if (result.distance || result.duration) popup.appendChild(text("p", [result.distance, result.duration].filter(Boolean).join(" · ")));
       if (origin && road) {
         var routeName = [root.dataset.focusRoute, (index + 1) + ". " + idea.title, result.distance, result.duration].filter(Boolean).join(" · ");
         var line = L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
@@ -484,7 +507,7 @@
             permanent: true, interactive: true, direction: "center", className: "idea-route-distance", opacity: 0.95
           });
           line.getTooltip().getElement().setAttribute("role", "presentation");
-          routeLabels.push({ road: line, tooltip: line.getTooltip() });
+          routeLabels.push({ road: line, tooltip: line.getTooltip(), idea: idea });
         }
         line.on("mouseover", function () { highlight(row, line, true); });
         line.on("mouseout", function () { clearHighlight(line); });
@@ -509,6 +532,7 @@
           });
         }
       }
+      entries.push({ idea: idea, row: row, road: line });
       if (located(idea)) {
         var marker = L.marker([idea.lat, idea.lng], {
           icon: L.divIcon({ className: "idea-map-marker", html: String(index + 1), iconSize: [26, 26], iconAnchor: [13, 13] }),
@@ -557,11 +581,16 @@
     });
     sortRows();
     var destination = !selected && data.center && located(data.center) ? data.center : null;
-    var fitBounds = destination ? L.latLngBounds([[destination.lat, destination.lng]]) :
-      routeBounds || (points.length ? L.latLngBounds(points) : null);
-    var nextPositions = fitBounds ? fitBounds.toBBoxString() : "";
+    var stays = data.lodgings.filter(located).map(function (lodging) { return [lodging.lat, lodging.lng]; });
+    var overview = stays.length ? stays : points.length ? points : destination ? [[destination.lat, destination.lng]] : [];
+    var regionPoints = regional() ? data.lodgings.concat(data.ideas).filter(function (point) {
+      return located(point) && regionKey(point) === selected;
+    }).map(function (point) { return [point.lat, point.lng]; }) : [];
+    var fitBounds = regional() ? (regionPoints.length ? L.latLngBounds(regionPoints) : null) :
+      routeBounds || (overview.length ? L.latLngBounds(overview) : null);
+    var nextPositions = (fitBounds ? fitBounds.toBBoxString() : "") + ":" + data.zoom;
     var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);
-    viewPoints = (origin || !selected) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;
+    viewPoints = (origin || !selected || regionPoints.length) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;
     if (viewPoints && (nextView !== viewKey || (!userAdjusted && positions !== nextPositions))) {
       fit(viewPoints);
     }
@@ -571,7 +600,7 @@
     }
     viewKey = nextView;
     positions = nextPositions;
-    scheduleLabels();
+    updateViewport();
     summary();
   }
   async function load() {
@@ -588,7 +617,7 @@
       if (demo) data = demo;
       else {
         request = new AbortController();
-        var url = root.dataset.mapUrl + (selected ? "?lodging=" + encodeURIComponent(selected) : "");
+        var url = root.dataset.mapUrl + (selected && !regional() ? "?lodging=" + encodeURIComponent(selected) : "");
         var response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Map unavailable");
         var nextData = await response.json();
@@ -605,6 +634,7 @@
       if (run !== version) return;
       data = null;
       rows.replaceChildren();
+      entries = [];
       clearHighlight();
       hideLabels();
       routeLabels = [];
@@ -618,6 +648,11 @@
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }
   select.addEventListener("change", function () { choose(select.value); });
+  document.addEventListener("change", function (event) {
+    if (!event.target.matches("[data-ideas-region-filter]")) return;
+    var value = event.target.value === "*" ? "" : event.target.value;
+    if (value !== selected) choose(value);
+  });
   ["itemsChanged", "infoChanged", "geographyChanged"].forEach(function (event) {
     document.body.addEventListener(event, load);
   });
@@ -628,7 +663,7 @@
     fitting = false;
     if (!userAdjusted && viewPoints) fit(viewPoints);
     if (demo && overlay) overlay.setBounds(map.getBounds());
-    scheduleLabels();
+    updateViewport();
   }
   new ResizeObserver(function () {
     var now = visible();

@@ -83,7 +83,7 @@ func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing
 		t.Fatal(err)
 	}
 	for i := range 3 {
-		lodging := models.Lodging{VacationID: v.ID, Name: "Stay", CheckIn: v.StartDate, CheckOut: v.EndDate}
+		lodging := models.Lodging{VacationID: v.ID, Name: "Stay", Region: "Jutland", CheckIn: v.StartDate, CheckOut: v.EndDate}
 		if i != 2 {
 			lodging.Latitude, lodging.Longitude = fptr(55), fptr(float64(8+i))
 		}
@@ -92,7 +92,7 @@ func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing
 		}
 	}
 	for i := range 3 {
-		item := models.Item{VacationID: v.ID, Title: "Idea <script>", Category: "Hotel"}
+		item := models.Item{VacationID: v.ID, Title: "Idea <script>", Category: "Hotel", Region: "Zealand", RegionManual: true}
 		if i != 2 {
 			item.Latitude, item.Longitude = fptr(54), fptr(9)
 		}
@@ -117,6 +117,9 @@ func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing
 	}
 	var scheduled, missing int
 	for _, item := range data.Ideas {
+		if item.Region != "Zealand" || item.Category != "Hotel" {
+			t.Fatalf("map lost the saved region or category: %+v", item)
+		}
 		if item.Day != "" {
 			scheduled++
 		}
@@ -124,7 +127,7 @@ func TestIdeasMapIncludesEveryAccommodationAndItemWithoutProviderWork(t *testing
 			missing++
 		}
 	}
-	if scheduled != 1 || missing != 1 || data.Lodgings[0].DateRange == "" {
+	if scheduled != 1 || missing != 1 || data.Lodgings[0].DateRange == "" || data.Lodgings[0].Region != "Jutland" {
 		t.Fatalf("scheduled/unlocated entries or dates lost: %+v", data)
 	}
 	if state := s.geographyStatus(v.ID); state.Pending {
@@ -137,6 +140,8 @@ func TestIdeasMapCenterUsesOnlyCurrentSavedDestination(t *testing.T) {
 	ctx := t.Context()
 	v := sampleVacation()
 	v.Latitude, v.Longitude = fptr(55.6), fptr(12.5)
+	zoom := 7
+	v.MapZoom = &zoom
 	if err := s.store.CreateVacation(ctx, v); err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +149,7 @@ func TestIdeasMapCenterUsesOnlyCurrentSavedDestination(t *testing.T) {
 	var empty ideasMapPayload
 	readTripJSON(t, s, path, &empty)
 	if empty.Center == nil || *empty.Center != (centerPoint{Lat: 55.6, Lng: 12.5}) ||
-		len(empty.Lodgings) != 0 || len(empty.Ideas) != 0 {
+		len(empty.Lodgings) != 0 || len(empty.Ideas) != 0 || empty.Zoom != zoom {
 		t.Fatalf("empty trip lost its saved destination: %+v", empty)
 	}
 	lodging := models.Lodging{VacationID: v.ID, Name: "Distant stay", Latitude: fptr(40), Longitude: fptr(7),
