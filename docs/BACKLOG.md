@@ -54,6 +54,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Descriptive route tiles and reversible route focus** — show saved short
+      descriptions below driving metrics, restore the previous viewport when leaving
+      route focus, and align origin/region dropdowns side by side on desktop and mobile.
+
 - [x] **Independent Ideas basemap loading** — initialize OpenStreetMap before the
       marker API responds, use saved destination framing initially, bound data reads
       and preserve displayed routes/table plus manual views through slow or failed reads.

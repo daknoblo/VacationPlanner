@@ -134,7 +134,10 @@ a reverse proxy.
   Distance labels use collision-free viewport placement with dashed leader lines when
   displaced; recalculate after pan/zoom/resize. In a crowded viewport prioritize the
   active road's label rather than overlap labels. Labels contain a circled number and
-  saved distance/time. The road, blue numbered marker and label activate the same full
+  saved distance/time plus a compact saved description or category beneath the metrics.
+  Origin and region dropdowns share one row; narrow layouts may put labels above them.
+  Closing route details, clicking the free map or Escape restores the exact pre-focus
+  viewport, retained across route switches and polling. The road, blue numbered marker and label activate the same full
   saved-route fit (also via keyboard). Hover/focus must not move the activated label
   under the pointer. Markers without a saved road keep their location popup.
   Preserve focused/manual views on polling. The map has no refresh/retry buttons.

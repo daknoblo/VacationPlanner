@@ -188,7 +188,8 @@ published together as a Pages artifact, not checked into the repository.
   displayed markers, roads and table; late responses do not reset a manual viewport.
   The map fits the selected stay, located ideas and actual road detours, rather than
   using a fixed zoom or including unrelated distant stays. Compact labels show a circled
-  idea number, saved driving distance and time. They match the table and are laid out
+  idea number, saved driving distance and time, with a short description underneath
+  (or the saved category when no description exists). They match the table and are laid out
   without overlaps, avoiding map controls and
   markers. Thin dashed connectors associate shifted labels with their roads. Placement
   updates after pan, zoom and resize; if the viewport cannot fit every label, hover or
@@ -199,6 +200,10 @@ published together as a Pages artifact, not checked into the repository.
   too, and cached polling preserves that view. Labels stay in place while hovered or
   focused so they remain easy to activate. Without a saved route, numbered markers
   retain their location popup rather than inventing a route.
+  Closing the route popup, clicking the free map or pressing Escape restores the exact
+  view from before selecting a route. Switching routes and background refreshes retain
+  that return point. Starting-accommodation and region dropdowns share one filter row;
+  on narrow screens their labels move above the still-aligned dropdowns.
   **Overview** initially frames all located accommodations, matching the trip's main
   overview. Without accommodations it uses located ideas, or the saved destination
   and its zoom for an empty trip. Returning to Overview restores that trip-wide view.

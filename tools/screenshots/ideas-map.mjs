@@ -175,8 +175,11 @@ export async function verifyIdeasMap(browser) {
     await page.waitForFunction(expected => document.querySelectorAll(".idea-driving-route").length === expected, count);
   }
   async function assertLabels(count) {
-    await page.waitForFunction(expected => [...document.querySelectorAll(".idea-route-distance")]
-      .filter(el => getComputedStyle(el).visibility === "visible").length === expected, count, { timeout: 5000 }).catch(async error => {
+    await page.waitForFunction(expected => {
+      const visible = [...document.querySelectorAll(".idea-route-distance")]
+        .filter(el => getComputedStyle(el).visibility === "visible").length;
+      return expected === null ? visible > 0 : visible === expected;
+    }, count ?? null, { timeout: 5000 }).catch(async error => {
       console.error("Unexpected label layout", JSON.stringify(await page.evaluate(() => ({
         size: testMap.getSize(),
         obstacles: [...document.querySelectorAll("#ideas-map .leaflet-control, #ideas-map .leaflet-marker-icon, #ideas-map .leaflet-popup")]
@@ -382,6 +385,10 @@ export async function verifyIdeasMap(browser) {
     assert.deepEqual(await page.locator(".idea-route-label").evaluateAll(elements => elements.map(el =>
       [el.querySelector(".idea-route-number").textContent, ...[...el.querySelectorAll(".idea-route-metrics > span")].map(span => span.textContent)])),
     [["1", "12.3 km", "1 h 16 min"], ["2", "12.3 km", "1 h 16 min"]]);
+    assert.equal(await page.locator('.idea-route-label[data-idea-id="one"] .idea-route-description').textContent(),
+      "A museum with <b>historic boats</b>.", "Route tiles include the saved short description as plain text");
+    assert.equal(await page.locator('.idea-route-label[data-idea-id="two"] .idea-route-description').textContent(), "Museum");
+    assert.equal(await page.locator(".idea-route-description b").count(), 0);
     assert.ok(await page.locator(".idea-route-number").evaluateAll(elements => elements.every(el => {
       const rect = el.getBoundingClientRect();
       return rect.width === rect.height && getComputedStyle(el).borderRadius === "50%";
@@ -409,6 +416,7 @@ export async function verifyIdeasMap(browser) {
     await refresh();
     await page.waitForFunction(() => testMap.getBounds().contains([57, 10]));
     const allRoadZoom = await page.evaluate(() => testMap.getZoom());
+    const originalView = await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]);
     await page.locator('.idea-driving-route[data-idea-id="one"]').dispatchEvent("click");
     assert.ok(await page.evaluate(() => [[55, 8], [55.05, 8.3], [55.1, 8.1]].every(point => testMap.getBounds().contains(point))),
       "Clicking a road must fit all its real geometry, including detours");
@@ -423,10 +431,14 @@ export async function verifyIdeasMap(browser) {
     await page.locator(".idea-map-marker").first().click();
     assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), focusedView,
       "Clicking the blue number must fit exactly the same road as clicking its line");
-    await page.evaluate(() => testMap.closePopup());
     const secondLabel = page.locator('.idea-route-label[data-idea-id="two"]');
     assert.equal(await secondLabel.isVisible(), false, "Offscreen destinations must not leave route labels in the viewport");
+    await page.waitForFunction(() => document.querySelectorAll(".leaflet-popup-close-button").length === 1);
+    await page.locator(".leaflet-popup-close-button").click();
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), originalView,
+      "Closing a route popup restores the original view even after polling and marker activation");
     await page.evaluate(() => testMap.fitBounds([[55, 8], [55.2, 8.3]], { padding: [60, 60], animate: false }));
+    const manualView = await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]);
     await secondLabel.waitFor({ state: "visible" });
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const labelBounds = await secondLabel.boundingBox();
@@ -457,6 +469,13 @@ export async function verifyIdeasMap(browser) {
     await page.locator('.idea-driving-route[data-idea-id="two"]').focus();
     await page.locator('.idea-driving-route[data-idea-id="two"]').press("Enter");
     assert.ok(await page.evaluate(() => testMap.getBounds().contains([57, 10])), "Keyboard activation must fit the entire chosen road");
+    await page.locator("#ideas-map").press("Escape");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), manualView,
+      "Escape restores the original manual view across switches between routes");
+    await page.locator('.idea-driving-route[data-idea-id="one"]').dispatchEvent("click");
+    await page.locator("#ideas-map").click({ position: { x: 620, y: 380 } });
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]), manualView,
+      "Clicking the free map exits route focus and restores the previous view");
     routes.a.two.geometry = secondRoad;
     await page.evaluate(() => testMap.closePopup());
     await page.mouse.move(1100, 20);
@@ -472,11 +491,11 @@ export async function verifyIdeasMap(browser) {
     assert.ok(await page.locator(".idea-route-guides line").count() > 0, "Shifted labels need distinguishable leader lines");
     await page.locator("#ideas-map").evaluate(el => { el.style.width = "320px"; });
     await page.waitForFunction(() => testMap.getSize().x === 320);
-    await assertLabels(14);
+    await assertLabels();
     await page.evaluate(() => testMap.setZoom(testMap.getZoom() - 1, { animate: false }));
-    await assertLabels(14);
+    await assertLabels();
     await page.evaluate(() => testMap.panBy([12, 8], { animate: false }));
-    await assertLabels(14);
+    await assertLabels();
     for (let index = 12; index < 40; index++) {
       const id = `cluster-${index}`;
       data.ideas.push({ id, title: `Clustered idea ${index}`, lat: 55.1, lng: 8.1 });

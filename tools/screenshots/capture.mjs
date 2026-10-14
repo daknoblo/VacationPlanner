@@ -422,6 +422,10 @@ async function verifyView(page, shot) {
       const select = el.querySelector("select").getBoundingClientRect();
       return label.right <= select.left && label.top < select.bottom && label.bottom > select.top;
     })), "Each map filter label and dropdown share a line");
+    assert.ok(await page.locator(".ideas-map-filters").evaluate(filters => {
+      const [origin, region] = [...filters.querySelectorAll("select")].map(select => select.getBoundingClientRect());
+      return origin.right < region.left && Math.abs(origin.top - region.top) <= 1;
+    }), "Origin and region dropdowns are side by side and aligned");
     const origin = await page.locator("[data-ideas-map-origin] option").nth(1).getAttribute("value");
     await page.locator("[data-ideas-map-origin]").selectOption(origin);
     assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,
@@ -435,6 +439,10 @@ async function verifyView(page, shot) {
         a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom));
     }), "The actual demo must show all 14 distance labels without overlap");
     await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.locator(".ideas-map-filters").evaluate(filters => {
+      const [origin, region] = [...filters.querySelectorAll("select")].map(select => select.getBoundingClientRect());
+      return origin.right < region.left && Math.abs(origin.top - region.top) <= 1 && region.right <= innerWidth;
+    }), "Map dropdowns remain side by side without overflowing a phone viewport");
     assert.ok(await page.locator("#ideen-list").evaluate(list => {
       const rows = [...list.children].map(row => row.getBoundingClientRect());
       return rows.every(row => Math.abs(row.width - list.getBoundingClientRect().width) < 1) &&

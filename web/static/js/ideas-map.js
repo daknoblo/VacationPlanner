@@ -34,6 +34,8 @@
   var sortButtons = root.querySelectorAll("[data-ideas-sort]");
   var tableFrame = null;
   var entries = [];
+  var routeFocus = null;
+  var changingFocus = false;
 
   function regionKey(point) {
     return "region:" + (point.region || "").trim().toLowerCase();
@@ -166,6 +168,12 @@
     }
   }
   function focusRoad(row, road) {
+    if (!routeFocus) {
+      routeFocus = { center: map.getCenter(), zoom: map.getZoom(), adjusted: userAdjusted };
+    }
+    changingFocus = true;
+    routeFocus.id = row.dataset.ideaId;
+    routeFocus.popup = road.getPopup();
     popupIdea = null;
     map.closePopup();
     userAdjusted = true;
@@ -173,6 +181,22 @@
     fit([bounds.getSouthWest(), bounds.getNorthEast()]);
     highlight(row, road, true);
     road.openPopup(road.getCenter());
+    changingFocus = false;
+    if (demo && overlay) overlay.setBounds(map.getBounds());
+  }
+  function leaveRoute() {
+    if (!routeFocus) return;
+    var previous = routeFocus;
+    routeFocus = null;
+    changingFocus = true;
+    map.closePopup();
+    clearHighlight();
+    fitting = true;
+    map.setView(previous.center, previous.zoom, { animate: false });
+    fitting = false;
+    userAdjusted = previous.adjusted;
+    changingFocus = false;
+    updateViewport();
     if (demo && overlay) overlay.setBounds(map.getBounds());
   }
   function hideLabels() {
@@ -299,8 +323,21 @@
     map.on("movestart zoomstart", function () { moving = true; hideLabels(); });
     map.on("moveend", function () { moving = false; updateViewport(); });
     map.on("popupopen popupclose", scheduleLabels);
+    map.on("popupclose", function (event) {
+      if (changingFocus || !routeFocus || event.popup !== routeFocus.popup) return;
+      queueMicrotask(function () {
+        if (routeFocus && event.popup === routeFocus.popup && !map.hasLayer(event.popup)) leaveRoute();
+      });
+    });
+    el.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && routeFocus) {
+        event.preventDefault();
+        leaveRoute();
+      }
+    });
   }
   function choose(value) {
+    routeFocus = null;
     selected = value;
     selectedRegion = "";
     userAdjusted = false;
@@ -310,6 +347,7 @@
     load();
   }
   function chooseRegion(value) {
+    routeFocus = null;
     selectedRegion = value;
     userAdjusted = false;
     viewKey = null;
@@ -391,6 +429,10 @@
     }
     select.value = selected;
     select.disabled = false;
+    changingFocus = true;
+    var focusedID = routeFocus && routeFocus.id;
+    var focusedRoad = null;
+    var focusedRow = null;
     rows.replaceChildren();
     entries = [];
     clearHighlight();
@@ -495,6 +537,7 @@
         var routeName = [root.dataset.focusRoute, (index + 1) + ". " + idea.title, result.distance, result.duration].filter(Boolean).join(" · ");
         var line = L.polyline(result.geometry, { color: "#2563eb", weight: 3, opacity: 0.65, className: "idea-driving-route" })
           .bindPopup(popup.cloneNode(true), { autoPan: false }).addTo(roads);
+        if (focusedID === idea.id) { focusedRoad = line; focusedRow = row; }
         routeBounds.extend(line.getBounds());
         if (result.distance) {
           var routeButton = document.createElement("button");
@@ -508,6 +551,12 @@
           metrics.className = "idea-route-metrics";
           metrics.append(text("span", result.distance), text("span", result.duration || "\u2014"));
           routeButton.append(number, metrics);
+          if (description) {
+            var detail = text("span", description);
+            detail.className = "idea-route-description";
+            detail.title = description;
+            routeButton.appendChild(detail);
+          }
           L.DomEvent.disableClickPropagation(routeButton);
           routeButton.addEventListener("click", function (event) {
             event.stopPropagation();
@@ -571,8 +620,12 @@
         points.push([idea.lat, idea.lng]);
         if (routeBounds) routeBounds.extend([idea.lat, idea.lng]);
         title.addEventListener("click", function () {
-          map.setView([idea.lat, idea.lng], Math.max(map.getZoom(), 12), { animate: false });
-          marker.openPopup();
+          if (line) focusRoad(row, line);
+          else {
+            leaveRoute();
+            map.setView([idea.lat, idea.lng], Math.max(map.getZoom(), 12), { animate: false });
+            marker.openPopup();
+          }
           el.scrollIntoView({ block: "nearest" });
         });
       } else {
@@ -615,6 +668,13 @@
     }
     viewKey = nextView;
     positions = nextPositions;
+    if (routeFocus && focusedRoad) {
+      routeFocus.popup = focusedRoad.getPopup();
+      focusedRoad.openPopup(focusedRoad.getCenter());
+      highlight(focusedRow, focusedRoad, false);
+    }
+    changingFocus = false;
+    if (routeFocus && !focusedRoad) leaveRoute();
     updateViewport();
     summary();
   }
