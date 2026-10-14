@@ -118,10 +118,11 @@ export async function verifyIdeasMap(browser) {
         data-removed="Origin removed" data-pending="Pending" data-unavailable="Route unavailable"
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
-        data-destination-missing="Select the destination location under General"
+        data-destination-missing="Select the destination location under General" data-all-regions="All regions"
         data-focus-route="Show the entire route" data-route-from="From:" data-schedule="Plan for day" data-unscheduled="Choose day"
         data-schedule-error="Could not save the day" data-saving="Saving">
         <select data-ideas-map-origin></select>
+        <select data-ideas-map-region></select>
         <div id="ideas-map" class="ideas-map" style="height:400px;width:640px"></div><p data-ideas-map-status></p>
         <p data-ideas-map-cache-status></p>
         <div class="ideas-map-table" style="height:120px"><table><thead><tr>
@@ -141,6 +142,7 @@ export async function verifyIdeasMap(browser) {
   const status = page.locator("[data-ideas-map-status]");
   const rows = page.locator("[data-ideas-map-rows]");
   const select = page.locator("[data-ideas-map-origin]");
+  const regionSelect = page.locator("[data-ideas-map-region]");
   async function waitText(locator, value) {
     await locator.getByText(value, { exact: false }).first().waitFor({ state: "attached" });
   }
@@ -280,13 +282,14 @@ export async function verifyIdeasMap(browser) {
     assert.equal(await rows.locator("tr:not([hidden])").count(), 1, "Zooming limits the table to visible ideas");
     await page.evaluate(() => testMap.closePopup());
 
-    await select.selectOption("region:north");
+    assert.equal(await select.locator("option").count(), data.lodgings.length + 1, "Each accommodation occurs once, without duplicate region entries");
+    await regionSelect.selectOption("region:north");
     await page.waitForFunction(() => testMap.getBounds().contains([56, 9]) && !testMap.getBounds().contains([55, 8]));
     assert.equal(await rows.locator("tr:not([hidden])").count(), 0, "A region without nearby ideas leaves no unrelated rows");
-    await select.selectOption("region:south");
+    await regionSelect.selectOption("region:south");
     await page.waitForFunction(() => [[55, 8], [55.1, 8.1], [55.2, 8.2]].every(point => testMap.getBounds().contains(point)) &&
       !testMap.getBounds().contains([56, 9]));
-    assert.equal(await select.locator('option[value="region:south"]').count(), 1, "Region choices ignore casing and whitespace");
+    assert.equal(await regionSelect.locator('option[value="region:south"]').count(), 1, "Region choices ignore casing and whitespace");
     assert.equal(await rows.locator("tr:not([hidden])").count(), 2);
     assert.deepEqual(await lines(), [], "Region selection reads overview metrics without drawing mixed-origin roads");
     await page.evaluate(() => testMap.setView([55.2, 8.2], 13, { animate: false }));
@@ -335,6 +338,11 @@ export async function verifyIdeasMap(browser) {
       "Selected view must contain the origin, ideas and provider detours");
     assert.ok(await page.evaluate(() => !testMap.getBounds().contains([56, 9])), "Unrelated accommodation must not force the selected view out");
     assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "All provider road vertices must be used, not straight lines");
+    await regionSelect.selectOption("region:south");
+    assert.equal(await select.inputValue(), "a", "A region filter must preserve the starting accommodation");
+    assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "A region filter must not discard saved accommodation routes");
+    assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 2, "All accommodation markers stay on the map");
+    await regionSelect.selectOption("");
     await page.locator("#ideas-map").evaluate(el => { el.style.width = "320px"; });
     await page.waitForFunction(() => testMap.getSize().x === 320 && testMap.getBounds().contains([55.05, 8.3]));
     assert.ok(await page.evaluate(() => [[55, 8], [55.2, 8.2]].every(p => testMap.getBounds().contains(p))), "Resizing must preserve automatic framing");

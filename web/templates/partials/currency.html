@@ -1,0 +1,21 @@
+{{define "currency_values"}}
+<div data-currency-rate="{{if .Available}}{{.Rate}}{{end}}" data-currency-code="{{.Code}}">
+  {{if not .Code}}
+    <p class="muted">{{t "currency.choose"}}</p>
+  {{else if .Same}}
+    <p class="currency-rate">1 EUR = 1 EUR</p>
+    <p>{{t "currency.same"}}</p>
+  {{else if .Available}}
+    <p class="currency-rate">{{.RateLabel}}</p>
+    <p class="muted small">{{t "currency.as_of" .Date}}</p>
+    <p class="currency-rule">{{.Rule}}</p>
+    <p class="muted small">{{.RuleError}}</p>
+    {{if .Stale}}<p class="form-error">{{t "currency.stale"}}</p>{{end}}
+    {{if .Failed}}<p class="muted small">{{t "currency.refresh_failed"}}</p>{{end}}
+  {{else if .Loading}}
+    <p class="muted">{{t "currency.loading"}}</p>
+  {{else}}
+    <p class="muted">{{t "currency.unavailable"}}</p>
+  {{end}}
+</div>
+{{end}}

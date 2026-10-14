@@ -54,6 +54,14 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Distinct Ideas origin and region controls** — keep each accommodation once
+      in the origin selector and use a separate region viewport filter that preserves
+      the selected origin, all accommodation markers and its cached driving routes.
+- [x] **Currency reference and mental conversion** — add a tab between Budget and
+      Cheatsheet with per-trip currency selection, daily euro reference rates, a
+      clearly approximate mental shortcut, two-way converter and bounded background
+      refresh with persistent cache and explicit stale/unavailable states.
+
 - [x] **Nonblocking trip pages and background daily routes** — remove synchronous
       routing from trip, overview and calendar reads. Extend the existing paced worker
       to scheduled legs, reuse and persist routes in SQLite, retain failed attempts

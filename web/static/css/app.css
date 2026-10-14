@@ -1461,6 +1461,12 @@ textarea { resize: vertical; }
 .lang-option { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
 .lang-option input { width: auto; }
 .ideas-map { height: 525px; border-radius: .5rem; }
+.currency-panel { max-width: 46rem; }
+.currency-panel > select { display: block; max-width: 20rem; margin: .5rem 0 1.25rem; }
+.currency-rate { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; overflow-wrap: anywhere; }
+.currency-rule { font-size: 1.125rem; font-weight: 600; margin-top: 1.25rem; }
+.currency-converter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; margin-top: 1.5rem; }
+.currency-converter input { width: 100%; min-width: 0; }
 .ideas-map.leaflet-container { overflow: clip; isolation: isolate; z-index: 0; }
 .ideas-map-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .ideas-map-heading h2 { flex: 0 0 auto; }

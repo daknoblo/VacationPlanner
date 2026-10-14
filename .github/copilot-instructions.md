@@ -124,6 +124,8 @@ a reverse proxy.
   or category and available origin/destination/distance/time, without routing setup
   or missing-location paragraphs. Isolate map controls below the sticky page header
   without making the Leaflet container internally scrollable.
+  Origin and region controls are separate: list each accommodation once, and never
+  discard its selected origin or cached roads when changing only the region viewport.
   Distance labels match numbered table rows; route hover/focus highlights and reveals
   the destination within the table without scrolling the page and turns the road magenta.
   Distance labels use collision-free viewport placement with dashed leader lines when
@@ -190,6 +192,15 @@ a reverse proxy.
 - `GET /api/background-status` – read-only local progress for geography, translation,
   background driving routes and AI discovery; never enqueue work or make provider
   calls from status polling.
+- `GET/POST /vacations/{id}/currency` – cached euro exchange-rate view and CSRF-protected
+  per-trip local-currency selection. The Currency tab sits between Budget and Cheatsheet.
+  Show reference date, compact approximate mental rule (within about five percent),
+  two-way converter and explicit missing/stale/error states. Manual currency selection
+  takes precedence over unambiguous saved-country/current-Cheatsheet suggestions.
+  A bounded lifecycle worker fetches shared daily Frankfurter rates every six hours,
+  retaining SQLite cache values on failure with persisted retry pacing. Never send trip
+  or participant data, perform provider work from reads/selection changes, or change
+  existing booking costs or the budget currency. State that reference rates exclude fees.
 - The header's background status remains visible while idle, using a neutral
   "No active requests" state rather than claiming all data is resolved. Initial loads
   and status-fetch failures are explicit; only genuinely active work animates, with

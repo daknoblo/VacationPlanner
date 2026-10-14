@@ -20,6 +20,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
+	"github.com/daknoblo/vacationplanner/internal/currency"
 	"github.com/daknoblo/vacationplanner/internal/foundry"
 	"github.com/daknoblo/vacationplanner/internal/geo"
 	"github.com/daknoblo/vacationplanner/internal/i18n"
@@ -203,6 +204,19 @@ func newDemoServer(ctx context.Context, lang i18n.Lang, buildVersion string) (*S
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := st.PutSetting(ctx, currencyTripKey(trip.ID), "EUR"); err != nil {
+		return nil, nil, err
+	}
+	now := time.Now().UTC()
+	rates, err := json.Marshal(currency.Snapshot{FetchedAt: now, Rates: map[string]currency.Rate{
+		"DKK": {Date: now.Format("2006-01-02"), Base: "EUR", Quote: "DKK", Value: 7.46},
+	}})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := st.PutSetting(ctx, settingCurrencyRates, string(rates)); err != nil {
+		return nil, nil, err
+	}
 	s.weather = demoWeather{}
 	if err := s.seedDemoWeather(ctx, trip); err != nil {
 		return nil, nil, err
@@ -232,6 +246,7 @@ func newDemoServer(ctx context.Context, lang i18n.Lang, buildVersion string) (*S
 		r.Get("/", s.handleVacationDetail)
 		r.Get("/export", s.handleExport)
 		r.Get("/cheatsheet", s.handleCheatsheet)
+		r.Get("/currency", s.handleCurrency)
 		r.Get("/api/overview-map", s.handleOverviewMap)
 		r.Get("/api/ideas-map", s.handleIdeasMap)
 		r.Get("/api/daycounts", s.handleDayCounts)

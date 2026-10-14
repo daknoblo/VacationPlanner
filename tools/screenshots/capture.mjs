@@ -12,6 +12,7 @@ import { verifyIdeasMap, verifyIdeasTableWindow } from "./ideas-map.mjs";
 import { verifyWeekResize } from "./week-resize.mjs";
 import { verifyLocationSearch } from "./location-search.mjs";
 import { verifyWeather } from "./weather.mjs";
+import { verifyCurrency } from "./currency.mjs";
 
 const options = {};
 for (const argument of process.argv.slice(2)) {
@@ -91,6 +92,7 @@ const shots = [
   { name: "weather", tab: "weather", title: "Accommodation-based five-day weather forecast" },
   { name: "ideas", tab: "ideen", title: "Ideas and saved reference links" },
   { name: "budget", tab: "budget", title: "Budget derived from original bookings" },
+  { name: "currency", tab: "currency", title: "Currency conversion and mental shortcut" },
   { name: "cheatsheet", tab: "cheatsheet", title: "Standard and custom travel vocabulary" },
   { name: "settings", page: "settings.html", title: "Settings and Foundry deployment selection" },
   { name: "about", page: "about.html", title: "Application information" },
@@ -170,6 +172,7 @@ try {
   await verifyLinks(page, "index.html");
   await verifyLinks(page, "docs.html");
   await verifyCalendarRegionUpdates(browser);
+  await verifyCurrency(browser);
   await verifyAISearchCenters(browser);
   await verifyIdeasMap(browser);
   await verifyWeekResize(browser);
@@ -194,7 +197,7 @@ async function verifyView(page, shot) {
   assert.equal(await page.locator("script[src*='htmx'], script[src*='/js/app.js']").count(), 0);
   assert.equal(await page.locator("form").count(), 0, "The demo must not submit forms");
   const unsafe = await page.locator(
-    "input:not([type=hidden]):not([data-ai-radius]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]):not([data-ai-center]), " +
+    "input:not([type=hidden]):not([data-ai-radius]):not([data-currency-local]):not([data-currency-euro]), textarea, select:not([data-ideas-region-filter]):not([data-ideas-map-origin]):not([data-ideas-map-region]):not([data-ai-center]), " +
     "button:not([data-tab]):not([data-view]):not([data-goto-day]):not([data-payer-filter]):not([data-print]):not([data-ideas-sort]):not(.ideas-map-link):not(.idea-route-label)",
   ).evaluateAll(
     elements => elements.filter(element => !element.disabled && !element.readOnly).map(element => element.outerHTML),
@@ -374,7 +377,8 @@ async function verifyView(page, shot) {
     assert.equal(await page.locator("#ideas-map .lodging-marker").count(), 3);
     assert.equal(await page.locator("#ideas-map .idea-map-marker").count(), 14);
     assert.equal(await page.locator("[data-ideas-map-rows] tr").count(), 15);
-    assert.equal(await page.locator('[data-ideas-map-origin] option[value^="region:"]').count(), 2);
+    assert.equal(await page.locator('[data-ideas-map-region] option[value^="region:"]').count(), 2);
+    assert.equal(await page.locator('[data-ideas-map-origin] option[value^="region:"]').count(), 0);
     assert.equal(await page.locator('[data-ideas-map-origin] option:not([value^="region:"])').count(), 4);
     assert.equal(await page.locator("[data-ideas-map-origin]").inputValue(), "", "Overview is the default");
     assert.equal(await page.locator(".ideas-map-start").count(), 14, "Overview includes a saved origin per located idea");
@@ -413,11 +417,11 @@ async function verifyView(page, shot) {
     }
     assert.ok(await page.locator("[data-idea-schedule]").evaluateAll(elements => elements.every(el => el.disabled)),
       "The static demo must never schedule activities");
-    assert.ok(await page.locator(".ideas-map-controls").evaluate(el => {
+    assert.ok(await page.locator(".ideas-map-controls").evaluateAll(elements => elements.every(el => {
       const label = el.querySelector("label").getBoundingClientRect();
       const select = el.querySelector("select").getBoundingClientRect();
       return label.right <= select.left && label.top < select.bottom && label.bottom > select.top;
-    }), "Starting-accommodation label and dropdown share a line");
+    })), "Each map filter label and dropdown share a line");
     const origin = await page.locator("[data-ideas-map-origin] option").nth(1).getAttribute("value");
     await page.locator("[data-ideas-map-origin]").selectOption(origin);
     assert.equal(await page.locator("#ideas-map .idea-driving-route").count(), 14,

@@ -89,6 +89,8 @@ func (s *Server) routes() {
 			r.Get("/export.pdf", s.handleExportPDF)
 			r.Get("/export.ics", s.handleExportICS)
 			r.Get("/cheatsheet", s.handleCheatsheet)
+			r.Get("/currency", s.handleCurrency)
+			r.Post("/currency", s.handleCurrency)
 			r.Post("/cheatsheet", s.handleGenerateCheatsheet)
 			r.Post("/cheatsheet/phrases", s.handleTranslateCheatsheetPhrase)
 			r.Post("/cheatsheet/introductions", s.handleRetryCheatsheetIntroduction)

@@ -199,8 +199,9 @@ published together as a Pages artifact, not checked into the repository.
   **Overview** initially frames all located accommodations, matching the trip's main
   overview. Without accommodations it uses located ideas, or the saved destination
   and its zoom for an empty trip. Returning to Overview restores that trip-wide view.
-  The view selector also offers saved regions and frames their located accommodations
-  and ideas without requesting provider data. Existing idea-region filters update the
+  The starting-accommodation selector contains each booking once. A separate region
+  filter frames its located accommodations and ideas without changing the selected
+  starting accommodation or discarding its saved roads. Existing idea-region filters update the
   map too. Panning and zooming limit the comparison table and road labels to ideas
   inside the current viewport; unlocated entries remain available in the overview
   and the original idea list. Polling preserves manually adjusted views.
@@ -375,6 +376,23 @@ published together as a Pages artifact, not checked into the repository.
   origins and providers cannot supply stale distances to the current itinerary.
   Background completion updates visible overview/day values without reloading the
   page, clearing its current route display or resetting the selected tab.
+
+### Currency
+
+- The **Currency** tab sits between **Budget** and **Cheatsheet**. It shows the saved
+  euro reference rate and its date, a short mental-conversion rule and inputs for
+  converting in either direction. Rules are explicitly approximate and stay within
+  about five percent of the reference rate; bank/card fees are not included.
+- Select the local currency once per trip. Unambiguous saved country names or a
+  current cached Cheatsheet can preselect a currency when a recent rate is available;
+  manual selections take precedence. Unknown or ambiguous countries remain selectable
+  rather than receiving a guessed currency.
+- [Frankfurter](https://frankfurter.dev/) supplies daily reference rates without an
+  API key. A bounded lifecycle worker refreshes a shared SQLite cache every six hours;
+  failures are paced across restarts and retain the last valid values. Reads and
+  selection changes never contact the provider. No trip or participant data is sent.
+  Old rates and failed refreshes are shown explicitly. Changing the currency does not
+  alter existing booking costs or the budget's display currency.
 
 ### Export & documents
 

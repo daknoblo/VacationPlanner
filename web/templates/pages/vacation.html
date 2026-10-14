@@ -18,6 +18,7 @@
       <button type="button" class="tabs__tab" data-tab="weather">{{t "weather.title"}}</button>
       <button type="button" class="tabs__tab" data-tab="ideen">{{t "tab.ideen"}}</button>
       <button type="button" class="tabs__tab" data-tab="budget">{{t "tab.budget"}}</button>
+      <button type="button" class="tabs__tab" data-tab="currency">{{t "currency.title"}}</button>
       <button type="button" class="tabs__tab" data-tab="cheatsheet">{{t "tab.cheatsheet"}}</button>
     </div>
   </div>
@@ -33,6 +34,31 @@
       <p class="form-error" data-weather-error role="status" hidden></p>
       <div class="weather-days" data-weather-days>{{template "weather_days" .Data.Weather}}</div>
       <p class="weather-source muted small"><a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap</a> · {{t "weather.attribution"}}</p>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab-panel="currency">
+    <div class="panel currency-panel" data-currency-panel data-currency-url="/vacations/{{$v.ID}}/currency"
+         data-error="{{t "currency.load_error"}}">
+      <h2>{{t "currency.title"}}</h2>
+      <label for="trip-currency">{{t "currency.local"}}</label>
+      <select id="trip-currency" data-currency-select>
+        <option value="" disabled{{if not .Data.Exchange.Code}} selected{{end}}>{{t "currency.choose"}}</option>
+        {{range .Data.Exchange.Codes}}<option value="{{.}}"{{if eq . $.Data.Exchange.Code}} selected{{end}}>{{index $.Data.Exchange.Labels .}}</option>{{end}}
+      </select>
+      <p class="form-error" role="status" data-currency-error hidden></p>
+      <div data-currency-values aria-live="polite">{{template "currency_values" .Data.Exchange}}</div>
+      <div class="currency-converter">
+        <div class="field">
+          <label for="currency-local-amount" data-currency-local-label>{{t "currency.local"}}</label>
+          <input id="currency-local-amount" type="number" min="0" max="1000000000" step="any" value="100" inputmode="decimal" data-currency-local>
+        </div>
+        <div class="field">
+          <label for="currency-euro-amount">EUR</label>
+          <input id="currency-euro-amount" type="number" min="0" max="1000000000" step="any" inputmode="decimal" data-currency-euro>
+        </div>
+      </div>
+      <p class="muted small">{{t "currency.reference"}} <a href="https://frankfurter.dev/" target="_blank" rel="noopener noreferrer">Frankfurter</a>.</p>
     </div>
   </section>
 

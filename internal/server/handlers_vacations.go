@@ -587,6 +587,11 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	exchange, err := s.currencyView(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 
 	// The budget split is based on the true participants (or the payers, as a
 	// fallback). Compute it before offering all people as paid-by options below.
@@ -613,6 +618,7 @@ func (s *Server) handleVacationDetail(w http.ResponseWriter, r *http.Request) {
 		"CalLodging":      lodgingDayStrips(tz, v.Lodgings),
 		"CalendarRegions": calendarRegions(loc, tz, mondayStart, v),
 		"Weather":         weatherView,
+		"Exchange":        exchange,
 		"Lodgings":        lodgingBlock(tz, v),
 		"WeekCalendar":    buildWeekCalendar(loc, tz, mondayStart, v),
 		"WeekHeaders":     calWeekdayHeaders(loc, mondayStart),

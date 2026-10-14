@@ -8,6 +8,7 @@
          data-location-warning="{{t "ideas.location.warning"}}"
          data-focus-route="{{t "ideas.map.focus_route"}}"
          data-route-from="{{t "ideas.map.from"}}"
+         data-all-regions="{{t "ideas.region.all"}}"
          data-schedule="{{t "ideas.map.schedule"}}" data-unscheduled="{{t "ideas.map.unscheduled"}}"
          data-schedule-error="{{t "ideas.map.schedule_error"}}" data-saving="{{t "ideas.map.saving"}}"
          data-description-pending="{{t "ideas.map.description_pending"}}"
@@ -25,6 +26,10 @@
       <label for="ideas-map-origin">{{t "ideas.map.origin"}}</label>
       <select id="ideas-map-origin" data-ideas-map-origin disabled><option value="">{{t "ideas.map.choose"}}</option></select>
   </div>
+      <div class="ideas-map-controls">
+        <label for="ideas-map-region">{{t "ideas.region.filter"}}</label>
+        <select id="ideas-map-region" data-ideas-map-region disabled><option value="">{{t "ideas.region.all"}}</option></select>
+      </div>
   <p class="muted small" role="status" data-ideas-map-status>{{t "ideas.map.loading"}}</p>
   <div id="ideas-map" class="ideas-map" aria-label="{{t "ideas.map.title"}}"></div>
   <div class="ideas-map-table">

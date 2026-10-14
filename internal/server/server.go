@@ -12,6 +12,7 @@ import (
 	"github.com/daknoblo/vacationplanner/internal/ai"
 	"github.com/daknoblo/vacationplanner/internal/applog"
 	"github.com/daknoblo/vacationplanner/internal/config"
+	"github.com/daknoblo/vacationplanner/internal/currency"
 	"github.com/daknoblo/vacationplanner/internal/destimg"
 	"github.com/daknoblo/vacationplanner/internal/foundry"
 	"github.com/daknoblo/vacationplanner/internal/geo"
@@ -54,6 +55,10 @@ type Server struct {
 	weatherWake                  chan struct{}
 	weatherStart                 sync.Once
 	weatherStop                  func()
+	currency                     currencyProvider
+	currencyActive               atomic.Bool
+	currencyStart                sync.Once
+	currencyStop                 func()
 }
 
 // New constructs a Server and wires up all routes.
@@ -80,6 +85,7 @@ func New(cfg *config.Config, log *slog.Logger, logs *applog.Controller, st store
 		limiter:         newIPRateLimiter(120, 300), // ~120 req/min sustained, burst 300
 		weather:         weather.New(cfg.OpenWeatherAPIKey),
 		weatherWake:     make(chan struct{}, 1),
+		currency:        currency.New(),
 	}
 	if cfg.Azure.Requested() {
 		s.foundry, err = foundry.New(cfg.Azure, st)

@@ -4,6 +4,7 @@
   if (!root || typeof L === "undefined") return;
   var el = root.querySelector("#ideas-map");
   var select = root.querySelector("[data-ideas-map-origin]");
+  var regionSelect = root.querySelector("[data-ideas-map-region]");
   var status = root.querySelector("[data-ideas-map-status]");
   var cacheStatus = root.querySelector("[data-ideas-map-cache-status]");
   var rows = root.querySelector("[data-ideas-map-rows]");
@@ -12,6 +13,7 @@
   var map, layer, roads, data, request, timer, overlay;
   var version = 0;
   var selected = "";
+  var selectedRegion = "";
   var viewKey = null;
   var positions = null;
   var viewPoints = null;
@@ -36,7 +38,7 @@
   function regionKey(point) {
     return "region:" + (point.region || "").trim().toLowerCase();
   }
-  function regional() { return selected.indexOf("region:") === 0; }
+  function regional() { return selectedRegion !== ""; }
   function excerpt(idea) {
     var value = (idea.description || idea.category || "").trim();
     return value.length > 140 ? value.slice(0, 137).trimEnd() + "..." : value;
@@ -298,11 +300,18 @@
   }
   function choose(value) {
     selected = value;
+    selectedRegion = "";
     userAdjusted = false;
     viewKey = null;
     rendered = null;
     if (data) { data.routes = {}; render(); }
     load();
+  }
+  function chooseRegion(value) {
+    selectedRegion = value;
+    userAdjusted = false;
+    viewKey = null;
+    render();
   }
   function summary() {
     var value = !data.ideas.length ? root.dataset.noIdeas : "";
@@ -354,7 +363,7 @@
   function render() {
     if (!data || !visible()) return;
     initialize();
-    var signature = JSON.stringify([selected, data.center, data.zoom, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
+    var signature = JSON.stringify([selected, selectedRegion, data.center, data.zoom, data.lodgings, data.ideas, data.routes, data.routing, data.days]);
     if (signature === rendered) { summary(); return; }
     rendered = signature;
     select.replaceChildren(new Option(root.dataset.choose, ""));
@@ -368,10 +377,14 @@
     data.lodgings.concat(data.ideas).forEach(function (point) {
       if (located(point) && (point.region || "").trim()) regions.set(regionKey(point), point.region.trim());
     });
+    regionSelect.replaceChildren(new Option(root.dataset.allRegions, ""));
     Array.from(regions).sort(function (first, second) { return first[1].localeCompare(second[1]); })
-      .forEach(function (region) { select.add(new Option(region[1], region[0])); });
+      .forEach(function (region) { regionSelect.add(new Option(region[1], region[0])); });
+    if (selectedRegion && !regions.has(selectedRegion)) regionSelect.add(new Option(selectedRegion.slice(7), selectedRegion));
+    regionSelect.value = selectedRegion;
+    regionSelect.disabled = regions.size === 0 && !selectedRegion;
     var origin = data.lodgings.find(function (lodging) { return lodging.id === selected && located(lodging); });
-    if (selected && !origin && !regions.has(selected) && !data.lodgings.some(function (lodging) { return lodging.id === selected; })) {
+    if (selected && !origin && !data.lodgings.some(function (lodging) { return lodging.id === selected; })) {
       select.add(new Option(root.dataset.removed, selected));
     }
     select.value = selected;
@@ -419,7 +432,7 @@
       if (description) popup.appendChild(text("p", description));
       var result = { status: "pending" };
       if (!located(idea)) result = { status: "missing" };
-      else if (selected && !regional() && !origin) result = { status: "noOrigin" };
+      else if (selected && !origin) result = { status: "noOrigin" };
       else if (demo) {
         var sampleOrigin = origin || data.lodgings.find(located);
         if (sampleOrigin) {
@@ -584,12 +597,12 @@
     var stays = data.lodgings.filter(located).map(function (lodging) { return [lodging.lat, lodging.lng]; });
     var overview = stays.length ? stays : points.length ? points : destination ? [[destination.lat, destination.lng]] : [];
     var regionPoints = regional() ? data.lodgings.concat(data.ideas).filter(function (point) {
-      return located(point) && regionKey(point) === selected;
+      return located(point) && regionKey(point) === selectedRegion;
     }).map(function (point) { return [point.lat, point.lng]; }) : [];
     var fitBounds = regional() ? (regionPoints.length ? L.latLngBounds(regionPoints) : null) :
       routeBounds || (overview.length ? L.latLngBounds(overview) : null);
     var nextPositions = (fitBounds ? fitBounds.toBBoxString() : "") + ":" + data.zoom;
-    var nextView = JSON.stringify([selected, origin ? [origin.lat, origin.lng] : null]);
+    var nextView = JSON.stringify([selected, selectedRegion, origin ? [origin.lat, origin.lng] : null]);
     viewPoints = (origin || !selected || regionPoints.length) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;
     if (viewPoints && (nextView !== viewKey || (!userAdjusted && positions !== nextPositions))) {
       fit(viewPoints);
@@ -617,7 +630,7 @@
       if (demo) data = demo;
       else {
         request = new AbortController();
-        var url = root.dataset.mapUrl + (selected && !regional() ? "?lodging=" + encodeURIComponent(selected) : "");
+        var url = root.dataset.mapUrl + (selected ? "?lodging=" + encodeURIComponent(selected) : "");
         var response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Map unavailable");
         var nextData = await response.json();
@@ -648,10 +661,11 @@
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }
   select.addEventListener("change", function () { choose(select.value); });
+  regionSelect.addEventListener("change", function () { chooseRegion(regionSelect.value); });
   document.addEventListener("change", function (event) {
     if (!event.target.matches("[data-ideas-region-filter]")) return;
     var value = event.target.value === "*" ? "" : event.target.value;
-    if (value !== selected) choose(value);
+    if (value !== selectedRegion) chooseRegion(value);
   });
   ["itemsChanged", "infoChanged", "geographyChanged"].forEach(function (event) {
     document.body.addEventListener(event, load);

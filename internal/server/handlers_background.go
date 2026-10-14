@@ -122,13 +122,17 @@ func (s *Server) backgroundStatus(ctx context.Context) (backgroundStatusView, er
 	if routePending > 0 {
 		tasks = append(tasks, loc.T("background.routes", routeCompleted, routeTotal))
 	}
+	currencyActive := s.currencyActive.Load()
+	if currencyActive {
+		tasks = append(tasks, loc.T("currency.loading"))
+	}
 	view.Active = len(tasks) > 0
 	view.Determinate = geoJobs == 1 && view.Total > 0 && translations == 0 && discovery == 0 && routePending == 0 && descriptions == 0
 	if routePending > 0 && geoJobs == 0 && translations == 0 && discovery == 0 && descriptions == 0 {
 		view.Determinate, view.Completed, view.Total = true, routeCompleted, routeTotal
 	}
 	view.Detail = strings.Join(tasks, " · ")
-	if weatherPending > 0 {
+	if weatherPending > 0 || currencyActive {
 		view.Determinate = false
 	}
 	return view, nil
