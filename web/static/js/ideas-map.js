@@ -279,8 +279,10 @@
   }
   function initialize() {
     if (map) return;
-    var center = data.center && located(data.center) ? data.center : null;
-    map = L.map(el, { scrollWheelZoom: false }).setView(center ? [center.lat, center.lng] : [48, 10], center ? 13 : 4);
+    var saved = { lat: parseFloat(root.dataset.lat), lng: parseFloat(root.dataset.lng) };
+    var center = data && data.center && located(data.center) ? data.center : located(saved) ? saved : null;
+    var zoom = data && data.zoom || parseInt(root.dataset.zoom, 10) || 5;
+    map = L.map(el, { scrollWheelZoom: false }).setView(center ? [center.lat, center.lng] : [48, 10], center ? zoom : 4);
     if (!demo) {
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, referrerPolicy: "strict-origin-when-cross-origin",
@@ -604,7 +606,7 @@
     var nextPositions = (fitBounds ? fitBounds.toBBoxString() : "") + ":" + data.zoom;
     var nextView = JSON.stringify([selected, selectedRegion, origin ? [origin.lat, origin.lng] : null]);
     viewPoints = (origin || !selected || regionPoints.length) ? (fitBounds ? [fitBounds.getSouthWest(), fitBounds.getNorthEast()] : []) : null;
-    if (viewPoints && (nextView !== viewKey || (!userAdjusted && positions !== nextPositions))) {
+    if (viewPoints && !userAdjusted && (nextView !== viewKey || positions !== nextPositions)) {
       fit(viewPoints);
     }
     if (demo && (nextView !== viewKey || positions !== nextPositions)) {
@@ -618,6 +620,7 @@
   }
   async function load() {
     if (!visible()) return;
+    initialize();
     if (choosingDay()) {
       clearTimeout(timer);
       timer = setTimeout(load, 3000);
@@ -625,11 +628,14 @@
     }
     stop();
     var run = version;
+    var deadline;
     if (!data) { status.textContent = root.dataset.loading; status.hidden = false; }
     try {
       if (demo) data = demo;
       else {
         request = new AbortController();
+        var pendingRequest = request;
+        deadline = setTimeout(function () { pendingRequest.abort(); }, 10000);
         var url = root.dataset.mapUrl + (selected ? "?lodging=" + encodeURIComponent(selected) : "");
         var response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Map unavailable");
@@ -645,18 +651,10 @@
       render();
     } catch (error) {
       if (run !== version) return;
-      data = null;
-      rows.replaceChildren();
-      entries = [];
-      clearHighlight();
-      hideLabels();
-      routeLabels = [];
-      if (layer) layer.clearLayers();
-      if (roads) roads.clearLayers();
-      rendered = null;
       status.textContent = root.dataset.error;
       status.hidden = false;
-      cacheStatus.textContent = "";
+    } finally {
+      clearTimeout(deadline);
     }
     if (!demo && run === version && visible()) timer = setTimeout(load, 3000);
   }

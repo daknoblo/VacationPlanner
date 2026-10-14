@@ -54,6 +54,10 @@ each section. Keep items small and actionable; move done items to **Done**.
 
 ## Done
 
+- [x] **Independent Ideas basemap loading** — initialize OpenStreetMap before the
+      marker API responds, use saved destination framing initially, bound data reads
+      and preserve displayed routes/table plus manual views through slow or failed reads.
+
 - [x] **Distinct Ideas origin and region controls** — keep each accommodation once
       in the origin selector and use a separate region viewport filter that preserves
       the selected origin, all accommodation markers and its cached driving routes.

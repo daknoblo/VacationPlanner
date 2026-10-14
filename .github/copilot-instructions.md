@@ -126,6 +126,9 @@ a reverse proxy.
   without making the Leaflet container internally scrollable.
   Origin and region controls are separate: list each accommodation once, and never
   discard its selected origin or cached roads when changing only the region viewport.
+  Initialize the basemap when visible, independently of marker API responses, using
+  the saved destination initially. Bound metadata requests and preserve displayed
+  markers, roads, table rows and manual views through transient failures or late replies.
   Distance labels match numbered table rows; route hover/focus highlights and reveals
   the destination within the table without scrolling the page and turns the road magenta.
   Distance labels use collision-free viewport placement with dashed leader lines when

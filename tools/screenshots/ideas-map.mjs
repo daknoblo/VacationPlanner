@@ -33,6 +33,7 @@ export async function verifyIdeasMap(browser) {
   let scheduleGate, finishSchedule;
   const schedules = [];
   let gate, release;
+  let initialGate, releaseInitial;
   const data = {
     center: { lat: 55.15, lng: 8.15 },
     routing: true, progress: { total: 4, completed: 4 }, progress_label: "4 saved / 0 failed / 0 pending",
@@ -75,7 +76,7 @@ export async function verifyIdeasMap(browser) {
     if (url.pathname === "/hooks.js") return route.fulfill({ contentType: "text/javascript", body: `
       const createMap = L.map;
       L.map = function(...args) { window.testMap = createMap(...args); return testMap; };
-      L.tileLayer = function() { return {addTo() {return this;}}; };
+      L.tileLayer = function() { window.tileLayers = (window.tileLayers || 0) + 1; return {addTo() {return this;}}; };
     ` });
     if (/^\/leaflet\.(js|css)$/.test(url.pathname)) {
       return route.fulfill({
@@ -86,6 +87,7 @@ export async function verifyIdeasMap(browser) {
     if (url.pathname === "/map") {
       assert.equal(route.request().method(), "GET", "Map interactions must only read the saved cache");
       requests++;
+      if (initialGate) await initialGate;
       const overview = {};
       for (const idea of data.ideas) {
         const candidates = Object.values(routes).map(saved => saved[idea.id]).filter(value => value?.status === "ready")
@@ -119,6 +121,7 @@ export async function verifyIdeasMap(browser) {
         data-disabled="Routing disabled" data-ready="Ready" data-choose="Overview" data-overview="All accommodations and ideas"
         data-no-geometry="Road geometry missing" data-no-ideas="Empty" data-location-warning="Location missing - open editor"
         data-destination-missing="Select the destination location under General" data-all-regions="All regions"
+        data-lat="55.15" data-lng="8.15" data-zoom="8"
         data-focus-route="Show the entire route" data-route-from="From:" data-schedule="Plan for day" data-unscheduled="Choose day"
         data-schedule-error="Could not save the day" data-saving="Saving">
         <select data-ideas-map-origin></select>
@@ -203,8 +206,20 @@ export async function verifyIdeasMap(browser) {
     await context.addCookies([{ name: "csrf_token", value: "test-csrf", url: "http://127.0.0.1" }]);
     await page.goto("http://127.0.0.1/", { waitUntil: "networkidle" });
     assert.equal(requests, 0);
+    initialGate = new Promise(resolve => { releaseInitial = resolve; });
     await page.evaluate(() => { document.querySelector("#tab").style.display = "block"; });
+    await page.locator("#ideas-map.leaflet-container").waitFor({ timeout: 2000 });
+    assert.equal(await page.evaluate(() => window.tileLayers), 1, "Basemap must start before marker data responds");
+    assert.equal(await rows.locator("tr").count(), 0, "The data response is still pending");
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]),
+      [55.15, 8.15, 8], "Initial map uses saved trip coordinates without waiting for the API");
+    await page.evaluate(() => testMap.setView([40, 7], 7, { animate: false }));
+    releaseInitial();
+    initialGate = undefined;
     await page.waitForFunction(() => document.querySelectorAll("[data-ideas-map-rows] tr").length === 3);
+    assert.deepEqual(await page.evaluate(() => [testMap.getCenter().lat, testMap.getCenter().lng, testMap.getZoom()]),
+      [40, 7, 7], "Late initial data must not reset a manually adjusted map");
+    await select.selectOption("");
     assert.equal(await status.isVisible(), false, "No redundant success paragraph");
     assert.equal(await select.inputValue(), "", "Overview must be the default");
     await assertDestination(data.center);
@@ -338,6 +353,14 @@ export async function verifyIdeasMap(browser) {
       "Selected view must contain the origin, ideas and provider detours");
     assert.ok(await page.evaluate(() => !testMap.getBounds().contains([56, 9])), "Unrelated accommodation must not force the selected view out");
     assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "All provider road vertices must be used, not straight lines");
+    failMap = true;
+    await refresh();
+    await waitText(status, "Map failed");
+    assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "Transient data errors must preserve saved roads");
+    assert.equal(await rows.locator("tr").count(), 3, "Transient data errors must preserve the comparison table");
+    failMap = false;
+    await refresh();
+    await page.waitForFunction(() => document.querySelector("[data-ideas-map-status]").hidden);
     await regionSelect.selectOption("region:south");
     assert.equal(await select.inputValue(), "a", "A region filter must preserve the starting accommodation");
     assert.deepEqual(await lines(), [routes.a.one.geometry, routes.a.two.geometry], "A region filter must not discard saved accommodation routes");
@@ -544,7 +567,7 @@ export async function verifyIdeasMap(browser) {
     failMap = true;
     await refresh();
     await waitText(status, "Map failed");
-    assert.equal(await rows.locator("tr").count(), 0);
+    assert.equal(await rows.locator("tr").count(), 3);
     assert.deepEqual(await lines(), []);
     failMap = false;
     await select.selectOption("a");
@@ -655,6 +678,7 @@ export async function verifyIdeasMap(browser) {
     await verifyRouteRetryForm(context);
     console.log("Validated circled labels with saved distance/time, marker/label/road route focus, collision handling and read-only polling.");
   } finally {
+    if (releaseInitial) releaseInitial();
     if (release) release();
     if (finishSchedule) finishSchedule();
     await context.close();

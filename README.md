@@ -183,6 +183,9 @@ published together as a Pages artifact, not checked into the repository.
   (including scheduled activities) and all located accommodation records. Orange beds
   are accommodations; numbered blue markers match the comparison table. Select a
   starting accommodation in the dropdown or click its marker to load its saved routes.
+  The basemap starts as soon as the tab becomes visible, using the saved destination
+  while marker data loads independently. Slow or failed data refreshes keep the last
+  displayed markers, roads and table; late responses do not reset a manual viewport.
   The map fits the selected stay, located ideas and actual road detours, rather than
   using a fixed zoom or including unrelated distant stays. Compact labels show a circled
   idea number, saved driving distance and time. They match the table and are laid out
